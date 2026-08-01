@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/manifest-v1.json",
+  "title": "Video Subtitle Manifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "status",
+    "stage",
+    "request",
+    "attempts",
+    "artifacts",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "video-subtitle/v1"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^sub_[A-Za-z0-9_-]+$"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "running",
+        "completed",
+        "needs_ocr",
+        "failed"
+      ]
+    },
+    "stage": {
+      "type": "string"
+    },
+    "request": {
+      "type": "object",
+      "required": [
+        "url",
+        "output_dir",
+        "language",
+        "ocr_backend",
+        "download_if_needed"
+      ]
+    },
+    "video": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "selected_source": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "review": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Agent review packet and progress. Raw subtitle sources remain immutable."
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "artifact_source",
+          "cue_count"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "platform_subtitle",
+              "hard_ocr",
+              "audio_asr"
+            ]
+          },
+          "artifact_source": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "cue_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source",
+          "status"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "succeeded",
+              "unavailable",
+              "failed"
+            ]
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "path",
+          "source",
+          "owned_by_job"
+        ]
+      }
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "error": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "next_action": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-subtitle-skill"
+version = "0.1.0"
+description = "Composable video subtitle evidence tools and Skill with a Bilibili adapter"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "MindMobius contributors" }]
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/MindMobius/video-subtitle-skill"
+Issues = "https://github.com/MindMobius/video-subtitle-skill/issues"
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+dev = ["pytest>=8", "ruff>=0.16"]
+
+[project.scripts]
+video-subtitle = "video_subtitle.cli:main"
+video-subtitle-mcp = "video_subtitle.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py310"

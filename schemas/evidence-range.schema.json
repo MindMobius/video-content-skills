@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/evidence-range-v1.json",
+  "title": "Video Subtitle Evidence Range v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "evidence",
+    "range",
+    "matching_cue_count",
+    "returned_cue_count",
+    "has_more",
+    "cues"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "video-subtitle/evidence-range-v1"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^sub_[A-Za-z0-9_-]+$"
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "evidence_id",
+        "artifact_kind",
+        "source",
+        "selected",
+        "path"
+      ]
+    },
+    "range": {
+      "type": "object",
+      "required": [
+        "start_ms",
+        "start"
+      ]
+    },
+    "matching_cue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "returned_cue_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "has_more": {
+      "type": "boolean"
+    },
+    "next_start_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "cues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "cue_id",
+          "index",
+          "start_ms",
+          "end_ms",
+          "start",
+          "end",
+          "text"
+        ],
+        "properties": {
+          "cue_id": {
+            "type": "string"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "start_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
