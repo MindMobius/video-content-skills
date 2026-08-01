@@ -6,8 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .backends.asr import Qwen3AsrOptions, asr_doctor
-from .backends.ocr import VideOcrOptions, ocr_doctor
+from .backends.asr import Qwen3AsrOptions
+from .backends.ocr import VideOcrOptions
+from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
 from .core.evidence import (
     list_subtitle_evidence_for_manifest,
     read_subtitle_evidence_range,
@@ -19,14 +20,14 @@ from .core.review import (
     prepare_review_for_manifest,
 )
 from .core.util import json_for_stdout, read_json, utc_now
+from .diagnostics import doctor
+from .environment import normalize_capabilities
 from .jobs import JobStore, run_worker_request
 from .pipeline import ExtractionPipeline, ExtractionRequest
 from .platforms.bilibili import (
     OpenCliClient,
     OpenCliError,
     OpenCliSettings,
-    bilibili_auth_ready,
-    executable_status,
 )
 
 
@@ -36,6 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Composable video subtitle evidence tools",
     )
     parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Persistent config file (default: VIDEO_SUBTITLE_CONFIG or user config)",
+    )
     parser.add_argument(
         "--opencli",
         help="Path to opencli, opencli executable, or the built OpenCLI main.js",
@@ -61,7 +67,57 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("doctor", help="Check OpenCLI login transport and OCR backend")
+    doctor_parser = commands.add_parser(
+        "doctor",
+        help="Verify required capabilities, login state, OCR, and ASR runtime",
+    )
+    _add_capability_arguments(doctor_parser)
+    doctor_parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Check paths and configuration without importing CUDA models",
+    )
+
+    setup_parser = commands.add_parser(
+        "setup",
+        help="Return machine-readable agent and human dependency actions",
+    )
+    _add_capability_arguments(setup_parser)
+    setup_parser.add_argument(
+        "--deep",
+        action="store_true",
+        help="Also import the ASR runtime and verify CUDA",
+    )
+
+    configure_parser = commands.add_parser(
+        "configure",
+        help="Persist discovered dependency paths for future CLI and MCP runs",
+    )
+    configure_parser.add_argument("--opencli", dest="config_opencli")
+    configure_parser.add_argument("--profile", dest="config_opencli_profile")
+    configure_parser.add_argument("--ytdlp", dest="config_ytdlp")
+    configure_parser.add_argument("--ffmpeg", dest="config_ffmpeg")
+    configure_parser.add_argument("--videocr", dest="config_videocr")
+    configure_parser.add_argument("--asr-python", dest="config_asr_python")
+    configure_parser.add_argument(
+        "--qwen-asr-model", dest="config_qwen_asr_model"
+    )
+    configure_parser.add_argument(
+        "--qwen-aligner-model", dest="config_qwen_aligner_model"
+    )
+    configure_parser.add_argument("--home", dest="config_home")
+    configure_parser.add_argument(
+        "--media-execution",
+        dest="config_media_execution",
+        choices=("auto", "serial", "parallel"),
+    )
+    configure_parser.add_argument(
+        "--clear",
+        action="append",
+        choices=tuple(CONFIG_ENVIRONMENT),
+        default=[],
+        help="Remove one persisted field; may be repeated",
+    )
 
     inspect_parser = commands.add_parser("inspect", help="Read Bilibili video metadata")
     inspect_parser.add_argument("url")
@@ -126,6 +182,26 @@ def build_parser() -> argparse.ArgumentParser:
     worker_parser = commands.add_parser("_worker", help=argparse.SUPPRESS)
     worker_parser.add_argument("--request-file", type=Path, required=True)
     return parser
+
+
+def _add_capability_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--capability",
+        action="append",
+        choices=(
+            "all",
+            "platform_subtitle",
+            "video_download",
+            "hard_ocr_local",
+            "hard_ocr_url",
+            "audio_asr_local",
+            "audio_asr_url",
+        ),
+        help=(
+            "Capability that must be ready; may be repeated. Defaults to platform "
+            "subtitles plus URL hard-OCR fallback."
+        ),
+    )
 
 
 def _add_extraction_arguments(parser: argparse.ArgumentParser) -> None:
@@ -227,6 +303,7 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        apply_configuration(args.config)
         result, exit_code = dispatch(args)
     except (TypeError, ValueError, FileNotFoundError, OpenCliError) as error:
         code = (
@@ -306,16 +383,26 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             raise ValueError("Review decisions must be a JSON object")
         return apply_review_document(args.manifest, decisions), 0
 
+    if args.command == "configure":
+        result = update_configuration(
+            _configuration_values_from_args(args),
+            clear=args.clear,
+            path=args.config,
+        )
+        return result, 0
+
     settings = OpenCliSettings.discover(
         opencli=args.opencli,
         profile=args.profile,
         ytdlp=args.ytdlp,
         ffmpeg=args.ffmpeg,
+        allow_missing=args.command in {"doctor", "setup"},
     )
     client = OpenCliClient(settings)
 
-    if args.command == "doctor":
-        return _doctor(
+    if args.command in {"doctor", "setup"}:
+        capabilities = normalize_capabilities(args.capability)
+        result = doctor(
             client,
             Qwen3AsrOptions(
                 python_executable=args.asr_python,
@@ -323,7 +410,11 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 model=args.qwen_asr_model,
                 aligner=args.qwen_aligner_model,
             ),
-        ), 0
+            capabilities=capabilities,
+            deep=(not args.quick if args.command == "doctor" else args.deep),
+            config_path=args.config,
+        )
+        return (result if args.command == "doctor" else result["setup"]), 0
 
     if args.command == "inspect":
         metadata = client.video(args.url, page=args.page)
@@ -347,62 +438,6 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         return manifest, _manifest_exit_code(manifest)
 
     raise ValueError(f"Unsupported command: {args.command}")
-
-
-def _doctor(
-    client: OpenCliClient,
-    asr_options: Qwen3AsrOptions | None = None,
-) -> dict[str, Any]:
-    opencli_result: dict[str, Any] = {
-        "command": client.settings.display_command,
-        "profile": client.settings.profile,
-        "ytdlp": client.settings.ytdlp_path,
-        "ffmpeg": client.settings.ffmpeg_path,
-        "available": client.is_command_available(),
-        "platform_ready": False,
-    }
-    if opencli_result["available"]:
-        try:
-            opencli_result["auth"] = client.auth_status()
-            opencli_result["platform_ready"] = bilibili_auth_ready(
-                opencli_result["auth"]
-            )
-            if not opencli_result["platform_ready"]:
-                opencli_result["error"] = {
-                    "code": "BILIBILI_LOGIN_REQUIRED",
-                    "message": "The selected OpenCLI profile is not logged in to Bilibili.",
-                }
-        except OpenCliError as error:
-            opencli_result["error"] = error.as_dict()
-
-    download_tools = {
-        "yt_dlp": executable_status(client.settings.ytdlp_path, "yt-dlp"),
-        "ffmpeg": executable_status(client.settings.ffmpeg_path, "ffmpeg"),
-    }
-    videocr_options = VideOcrOptions()
-    ocr_result = ocr_doctor(videocr_options)
-    asr_result = asr_doctor(asr_options or Qwen3AsrOptions())
-    local_ocr_ready = bool(ocr_result["available"])
-    url_ocr_ready = local_ocr_ready and all(
-        bool(item["available"]) for item in download_tools.values()
-    )
-    return {
-        "schema_version": "video-subtitle/doctor-v1",
-        "ok": bool(opencli_result["platform_ready"]),
-        "checked_at": utc_now(),
-        "opencli": opencli_result,
-        "download_tools": download_tools,
-        "hard_ocr": ocr_result,
-        "audio_asr": asr_result,
-        "capabilities": {
-            "platform_subtitle": bool(opencli_result["platform_ready"]),
-            "hard_subtitle_ocr_local_video": local_ocr_ready,
-            "hard_subtitle_ocr_from_url": url_ocr_ready,
-            "audio_asr_local_video": bool(asr_result["available"]),
-            "audio_asr_from_url": bool(asr_result["available"])
-            and all(bool(item["available"]) for item in download_tools.values()),
-        },
-    }
 
 
 def _request_from_args(args: argparse.Namespace, output_dir: Path) -> ExtractionRequest:
@@ -483,6 +518,23 @@ def _request_from_args(args: argparse.Namespace, output_dir: Path) -> Extraction
         videocr=options,
         qwen3_asr=asr_options,
     )
+
+
+def _configuration_values_from_args(
+    args: argparse.Namespace,
+) -> dict[str, str | None]:
+    return {
+        "opencli": args.config_opencli,
+        "opencli_profile": args.config_opencli_profile,
+        "ytdlp": args.config_ytdlp,
+        "ffmpeg": args.config_ffmpeg,
+        "videocr": args.config_videocr,
+        "asr_python": args.config_asr_python,
+        "qwen_asr_model": args.config_qwen_asr_model,
+        "qwen_aligner_model": args.config_qwen_aligner_model,
+        "home": args.config_home,
+        "media_execution": args.config_media_execution,
+    }
 
 
 def _parse_crop(value: str) -> tuple[int, int, int, int]:

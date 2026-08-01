@@ -302,7 +302,11 @@ def resolve_asr_backend(
     )
 
 
-def asr_doctor(options: Qwen3AsrOptions) -> dict[str, Any]:
+def asr_doctor(
+    options: Qwen3AsrOptions,
+    *,
+    deep: bool = True,
+) -> dict[str, Any]:
     try:
         backend = resolve_asr_backend("qwen3", options)
     except AsrUnavailable as error:
@@ -313,11 +317,25 @@ def asr_doctor(options: Qwen3AsrOptions) -> dict[str, Any]:
         }
 
     assert isinstance(backend, Qwen3AsrBackend)
+    if not deep:
+        return {
+            "backend": "qwen3",
+            "available": True,
+            "python": str(backend.python_executable),
+            "ffmpeg": str(backend.ffmpeg_executable),
+            "model": backend.model,
+            "aligner": backend.aligner,
+            "runtime": None,
+            "runtime_checked": False,
+            "error": None,
+        }
     probe = (
         "import json, torch; import qwen_asr; "
         "print(json.dumps({'torch': torch.__version__, "
         "'cuda_available': torch.cuda.is_available(), "
-        "'gpu': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}))"
+        "'gpu': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None, "
+        "'gpu_memory_mib': round(torch.cuda.get_device_properties(0).total_memory "
+        "/ 1024 / 1024) if torch.cuda.is_available() else None}))"
     )
     try:
         process = subprocess.run(
@@ -358,6 +376,7 @@ def asr_doctor(options: Qwen3AsrOptions) -> dict[str, Any]:
         "model": backend.model,
         "aligner": backend.aligner,
         "runtime": runtime,
+        "runtime_checked": True,
         "error": None if available else "CUDA is not available to Qwen3-ASR",
     }
 

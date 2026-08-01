@@ -32,6 +32,7 @@ class OpenCliSettings:
         profile: str | None = None,
         ytdlp: str | None = None,
         ffmpeg: str | None = None,
+        allow_missing: bool = False,
     ) -> OpenCliSettings:
         opencli_value = (
             opencli
@@ -41,7 +42,10 @@ class OpenCliSettings:
             or os.getenv("SUBTITLE_AGENT_OPENCLI")
             or ""
         ).strip()
-        command = _resolve_opencli_command(opencli_value)
+        command = _resolve_opencli_command(
+            opencli_value,
+            allow_missing=allow_missing,
+        )
         selected_profile = (
             profile
             or os.getenv("VIDEO_SUBTITLE_OPENCLI_PROFILE")
@@ -94,7 +98,11 @@ class OpenCliSettings:
         return subprocess.list2cmdline(list(self.command))
 
 
-def _resolve_opencli_command(value: str) -> list[str]:
+def _resolve_opencli_command(
+    value: str,
+    *,
+    allow_missing: bool = False,
+) -> list[str]:
     if value:
         if value.startswith("["):
             try:
@@ -128,6 +136,10 @@ def _resolve_opencli_command(value: str) -> list[str]:
         executable = shutil.which(value)
         if executable:
             return [executable]
+        if allow_missing:
+            if candidate.suffix.lower() in {".js", ".mjs", ".cjs"}:
+                return [shutil.which("node") or "node", str(candidate)]
+            return [value]
         raise ValueError(f"Configured OpenCLI executable does not exist: {value}")
 
     executable = shutil.which("opencli")
@@ -147,7 +159,13 @@ class OpenCliClient:
 
     def is_command_available(self) -> bool:
         first = self.settings.command[0]
-        return bool(Path(first).exists() or shutil.which(first))
+        if not (Path(first).exists() or shutil.which(first)):
+            return False
+        if len(self.settings.command) > 1:
+            script = Path(self.settings.command[1])
+            if script.suffix.lower() in {".js", ".mjs", ".cjs"}:
+                return script.is_file()
+        return True
 
     def auth_status(self) -> Any:
         return self._call(

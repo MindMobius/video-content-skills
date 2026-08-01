@@ -5,8 +5,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from .backends.asr import Qwen3AsrOptions, asr_doctor
-from .backends.ocr import VideOcrOptions, ocr_doctor
+from .backends.asr import Qwen3AsrOptions
+from .backends.ocr import VideOcrOptions
+from .config import apply_configuration, update_configuration
 from .core.evidence import (
     list_subtitle_evidence_for_manifest,
     read_subtitle_evidence_range,
@@ -17,15 +18,13 @@ from .core.review import (
     prepare_review_for_manifest,
     submit_review_window,
 )
-from .core.util import utc_now
+from .diagnostics import doctor as run_doctor
+from .environment import normalize_capabilities
 from .jobs import JobStore
 from .pipeline import ExtractionRequest
 from .platforms.bilibili import (
     OpenCliClient,
-    OpenCliError,
     OpenCliSettings,
-    bilibili_auth_ready,
-    executable_status,
 )
 
 try:
@@ -64,75 +63,81 @@ class ReviewUnresolvedInput:
 
 
 def _settings() -> OpenCliSettings:
+    apply_configuration()
     return OpenCliSettings.discover()
 
 
 def _store() -> JobStore:
+    apply_configuration()
     return JobStore.from_environment()
 
 
 def _environment(suffix: str) -> str | None:
+    apply_configuration()
     return os.getenv(f"VIDEO_SUBTITLE_{suffix}") or os.getenv(
         f"SUBTITLE_AGENT_{suffix}"
     )
 
 
-def doctor() -> dict[str, Any]:
-    """Inspect login transport and local extraction capabilities before use."""
-    settings = _settings()
+def doctor(
+    capabilities: list[str] | None = None,
+    deep: bool = True,
+) -> dict[str, Any]:
+    """Verify requested dependencies, browser login, OCR, ASR, and CUDA."""
+    apply_configuration()
+    settings = OpenCliSettings.discover(allow_missing=True)
     client = OpenCliClient(settings)
-    opencli: dict[str, Any] = {
-        "command": settings.display_command,
-        "profile": settings.profile,
-        "ytdlp": settings.ytdlp_path,
-        "ffmpeg": settings.ffmpeg_path,
-        "available": client.is_command_available(),
-        "platform_ready": False,
-    }
-    if opencli["available"]:
-        try:
-            opencli["auth"] = client.auth_status()
-            opencli["platform_ready"] = bilibili_auth_ready(opencli["auth"])
-            if not opencli["platform_ready"]:
-                opencli["error"] = {
-                    "code": "BILIBILI_LOGIN_REQUIRED",
-                    "message": "The selected OpenCLI profile is not logged in to Bilibili.",
-                }
-        except OpenCliError as error:
-            opencli["error"] = error.as_dict()
-    download_tools = {
-        "yt_dlp": executable_status(settings.ytdlp_path, "yt-dlp"),
-        "ffmpeg": executable_status(settings.ffmpeg_path, "ffmpeg"),
-    }
-    ocr = ocr_doctor(VideOcrOptions())
-    asr = asr_doctor(
+    return run_doctor(
+        client,
         Qwen3AsrOptions(
             python_executable=_environment("ASR_PYTHON"),
             ffmpeg_executable=settings.ffmpeg_path,
             model=_environment("QWEN_ASR_MODEL"),
             aligner=_environment("QWEN_ALIGNER_MODEL"),
-        )
+        ),
+        capabilities=normalize_capabilities(capabilities),
+        deep=deep,
     )
-    local_ocr_ready = bool(ocr["available"])
-    url_ocr_ready = local_ocr_ready and all(
-        bool(item["available"]) for item in download_tools.values()
-    )
-    return {
-        "schema_version": "video-subtitle/doctor-v1",
-        "checked_at": utc_now(),
-        "opencli": opencli,
-        "download_tools": download_tools,
-        "hard_ocr": ocr,
-        "audio_asr": asr,
-        "capabilities": {
-            "platform_subtitle": bool(opencli["platform_ready"]),
-            "hard_subtitle_ocr_local_video": local_ocr_ready,
-            "hard_subtitle_ocr_from_url": url_ocr_ready,
-            "audio_asr_local_video": bool(asr["available"]),
-            "audio_asr_from_url": bool(asr["available"])
-            and all(bool(item["available"]) for item in download_tools.values()),
+
+
+def setup_environment(
+    capabilities: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return exact Agent-installable and human-only actions before extraction."""
+    return doctor(capabilities=capabilities, deep=False)["setup"]
+
+
+def configure_environment(
+    opencli: str | None = None,
+    opencli_profile: str | None = None,
+    ytdlp: str | None = None,
+    ffmpeg: str | None = None,
+    videocr: str | None = None,
+    asr_python: str | None = None,
+    qwen_asr_model: str | None = None,
+    qwen_aligner_model: str | None = None,
+    home: str | None = None,
+    media_execution: Literal["auto", "serial", "parallel"] | None = None,
+    clear: list[str] | None = None,
+) -> dict[str, Any]:
+    """Persist dependency paths/profile aliases; never stores cookies or passwords."""
+    document = update_configuration(
+        {
+            "opencli": opencli,
+            "opencli_profile": opencli_profile,
+            "ytdlp": ytdlp,
+            "ffmpeg": ffmpeg,
+            "videocr": videocr,
+            "asr_python": asr_python,
+            "qwen_asr_model": qwen_asr_model,
+            "qwen_aligner_model": qwen_aligner_model,
+            "home": home,
+            "media_execution": media_execution,
         },
-    }
+        clear=clear,
+    )
+    apply_configuration(document["path"])
+    return document
 
 
 def inspect_bilibili_video(url: str, page: int | None = None) -> dict[str, Any]:
@@ -386,7 +391,11 @@ if McpServer is not None:
     mcp = McpServer(
         "video-subtitle",
         instructions=(
-            "Use OpenCLI, hard OCR, and optional Qwen3-ASR as independent evidence "
+            "Call video_subtitle_setup for the capabilities required by the task before "
+            "extraction. Execute agent_actions yourself, ask the user only for explicit "
+            "human_actions, persist paths with configure_video_subtitle, then verify with "
+            "video_subtitle_doctor. Use OpenCLI, hard OCR, and optional Qwen3-ASR as "
+            "independent evidence "
             "sources. Prefer list_subtitle_evidence and read_subtitle_evidence so the "
             "calling Agent chooses which source and time range to inspect. Fixed review "
             "windows are an optional hint, not a required workflow. Raw evidence is "
@@ -394,6 +403,8 @@ if McpServer is not None:
             "actionable state, not success."
         ),
     )
+    mcp.tool(name="video_subtitle_setup")(setup_environment)
+    mcp.tool(name="configure_video_subtitle")(configure_environment)
     mcp.tool(name="video_subtitle_doctor")(doctor)
     mcp.tool(name="inspect_bilibili_video")(inspect_bilibili_video)
     mcp.tool(name="start_subtitle_extraction")(start_subtitle_extraction)

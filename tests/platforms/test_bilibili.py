@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -9,6 +10,18 @@ from video_subtitle.platforms.bilibili import (
     OpenCliSettings,
     bilibili_auth_ready,
 )
+
+
+def test_doctor_discovery_can_report_stale_opencli_path(tmp_path: Path) -> None:
+    missing = tmp_path / "OpenCLI" / "dist" / "src" / "main.js"
+
+    settings = OpenCliSettings.discover(
+        opencli=str(missing),
+        allow_missing=True,
+    )
+
+    assert settings.command[-1] == str(missing)
+    assert OpenCliClient(settings).is_command_available() is False
 
 
 def _client() -> OpenCliClient:

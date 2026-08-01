@@ -1,0 +1,179 @@
+{
+  "schema_version": "video-subtitle/requirements-v1",
+  "capabilities": {
+    "platform_subtitle": {
+      "description": "Read metadata and subtitle tracks exposed by Bilibili.",
+      "requires": ["python", "node", "opencli", "browser_bridge"]
+    },
+    "video_download": {
+      "description": "Download one authenticated source video for OCR or ASR.",
+      "requires": [
+        "python",
+        "node",
+        "opencli",
+        "browser_bridge",
+        "yt_dlp",
+        "ffmpeg"
+      ]
+    },
+    "hard_ocr_local": {
+      "description": "Extract hard subtitles from an existing local video.",
+      "requires": ["python", "videocr"]
+    },
+    "hard_ocr_url": {
+      "description": "Download a video and extract hard subtitles.",
+      "requires": [
+        "python",
+        "node",
+        "opencli",
+        "browser_bridge",
+        "yt_dlp",
+        "ffmpeg",
+        "videocr"
+      ]
+    },
+    "audio_asr_local": {
+      "description": "Transcribe an existing local video with Qwen3-ASR.",
+      "requires": [
+        "python",
+        "ffmpeg",
+        "asr_python",
+        "qwen_asr_model",
+        "qwen_aligner_model",
+        "cuda"
+      ]
+    },
+    "audio_asr_url": {
+      "description": "Download a video and transcribe it with Qwen3-ASR.",
+      "requires": [
+        "python",
+        "node",
+        "opencli",
+        "browser_bridge",
+        "yt_dlp",
+        "ffmpeg",
+        "asr_python",
+        "qwen_asr_model",
+        "qwen_aligner_model",
+        "cuda"
+      ]
+    }
+  },
+  "dependencies": {
+    "python": {
+      "kind": "runtime",
+      "description": "Python 3.10 or newer with this project installed.",
+      "agent_action": {
+        "type": "bootstrap",
+        "command": "python scripts/bootstrap.py --apply",
+        "description": "Create .venv and install the core package plus MCP dependencies."
+      }
+    },
+    "node": {
+      "kind": "executable",
+      "description": "Node.js runtime used by a built OpenCLI main.js.",
+      "agent_action": {
+        "type": "install",
+        "reference": "https://nodejs.org/en/download",
+        "description": "Install a current Node.js LTS release using the host package manager."
+      }
+    },
+    "opencli": {
+      "kind": "external_project",
+      "config_field": "opencli",
+      "environment": "VIDEO_SUBTITLE_OPENCLI",
+      "description": "OpenCLI command or built main.js used for Bilibili transport.",
+      "agent_action": {
+        "type": "install",
+        "reference": "https://github.com/jackwener/OpenCLI",
+        "description": "Clone OpenCLI, install its Node dependencies, build it, then persist the built main.js path."
+      }
+    },
+    "browser_bridge": {
+      "kind": "human_session",
+      "config_field": "opencli_profile",
+      "environment": "VIDEO_SUBTITLE_OPENCLI_PROFILE",
+      "description": "A connected OpenCLI Browser Bridge profile with an authenticated Bilibili tab.",
+      "human_action": {
+        "type": "browser_login",
+        "description": "Enable OpenCLI Browser Bridge in the browser, connect a profile, and log in to Bilibili. Give the profile alias to the Agent; never copy cookies into chat."
+      }
+    },
+    "yt_dlp": {
+      "kind": "executable",
+      "config_field": "ytdlp",
+      "environment": "VIDEO_SUBTITLE_YTDLP",
+      "description": "yt-dlp executable used by OpenCLI downloads.",
+      "agent_action": {
+        "type": "install",
+        "command": "python -m pip install --upgrade yt-dlp",
+        "description": "Install yt-dlp in the selected Python environment and persist its executable path if it is not on PATH."
+      }
+    },
+    "ffmpeg": {
+      "kind": "executable",
+      "config_field": "ffmpeg",
+      "environment": "VIDEO_SUBTITLE_FFMPEG",
+      "description": "FFmpeg executable used for media download merging and ASR audio extraction.",
+      "agent_action": {
+        "type": "install",
+        "reference": "https://ffmpeg.org/download.html",
+        "description": "Install FFmpeg with the host package manager and persist the ffmpeg executable path."
+      }
+    },
+    "videocr": {
+      "kind": "external_binary",
+      "config_field": "videocr",
+      "environment": "VIDEO_SUBTITLE_VIDEOCR",
+      "description": "VideOCR CLI backend for complete hard-subtitle timelines.",
+      "agent_action": {
+        "type": "install",
+        "reference": "https://github.com/timminator/VideOCR/releases",
+        "description": "Inspect the host GPU, download a compatible VideOCR CLI release, and persist the executable path."
+      }
+    },
+    "asr_python": {
+      "kind": "python_environment",
+      "config_field": "asr_python",
+      "environment": "VIDEO_SUBTITLE_ASR_PYTHON",
+      "description": "Separate Python environment containing CUDA PyTorch and qwen-asr.",
+      "agent_action": {
+        "type": "install",
+        "reference": "https://github.com/QwenLM/Qwen3-ASR",
+        "description": "Create an isolated ASR environment and install a CUDA-compatible PyTorch plus qwen-asr."
+      }
+    },
+    "qwen_asr_model": {
+      "kind": "model",
+      "config_field": "qwen_asr_model",
+      "environment": "VIDEO_SUBTITLE_QWEN_ASR_MODEL",
+      "description": "Qwen3-ASR model directory or model identifier.",
+      "agent_action": {
+        "type": "large_download",
+        "reference": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B",
+        "confirmation_required": true,
+        "description": "After confirming disk and network cost with the user, download Qwen3-ASR-1.7B and persist its directory."
+      }
+    },
+    "qwen_aligner_model": {
+      "kind": "model",
+      "config_field": "qwen_aligner_model",
+      "environment": "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
+      "description": "Qwen3 Forced Aligner model directory or model identifier.",
+      "agent_action": {
+        "type": "large_download",
+        "reference": "https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B",
+        "confirmation_required": true,
+        "description": "After confirming disk and network cost with the user, download the forced aligner and persist its directory."
+      }
+    },
+    "cuda": {
+      "kind": "hardware_runtime",
+      "description": "A CUDA-capable GPU visible to the Qwen3-ASR Python environment.",
+      "human_action": {
+        "type": "hardware_or_driver",
+        "description": "If no compatible GPU is available, choose another ASR backend or provide a machine with supported NVIDIA drivers; the Skill cannot manufacture this capability."
+      }
+    }
+  }
+}
