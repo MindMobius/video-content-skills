@@ -96,7 +96,7 @@ def build_setup_report(
         "dependencies": dependencies,
         "agent_actions": agent_actions,
         "human_actions": human_actions,
-        "next_step": _next_step(status),
+        "next_step": _next_step(status, deep=bool(diagnostics.get("deep"))),
     }
 
 
@@ -114,7 +114,7 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
             "status": "ready" if python_ready else "missing",
             "detected": sys.version.split()[0],
         },
-        "node": _executable_state("node"),
+        "node": _node_state(opencli),
         "opencli": {
             "status": "ready" if opencli_ready else "missing",
             "detected": opencli.get("command"),
@@ -142,11 +142,11 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
     states["asr_python"] = _configured_path_state(
         "asr_python", ready=asr_available, detected=asr.get("python")
     )
-    states["qwen_asr_model"] = _configured_reference_state(
-        "qwen_asr_model", ready=asr_available, detected=asr.get("model")
+    states["qwen_asr_model"] = _configured_model_state(
+        "qwen_asr_model", detected=asr.get("model")
     )
-    states["qwen_aligner_model"] = _configured_reference_state(
-        "qwen_aligner_model", ready=asr_available, detected=asr.get("aligner")
+    states["qwen_aligner_model"] = _configured_model_state(
+        "qwen_aligner_model", detected=asr.get("aligner")
     )
     runtime = asr.get("runtime") or {}
     runtime_checked = bool(asr.get("runtime_checked", bool(runtime)))
@@ -178,6 +178,16 @@ def _executable_state(command: str) -> dict[str, Any]:
     }
 
 
+def _node_state(opencli: dict[str, Any]) -> dict[str, Any]:
+    command = str(opencli.get("command") or "")
+    if opencli.get("available") and ".js" not in command.lower():
+        return {
+            "status": "ready",
+            "detected": "not required by configured OpenCLI executable",
+        }
+    return _executable_state("node")
+
+
 def _configured_path_state(
     field: str,
     *,
@@ -192,21 +202,35 @@ def _configured_path_state(
     }
 
 
-def _configured_reference_state(
+def _configured_model_state(
     field: str,
     *,
-    ready: bool,
     detected: str | None,
 ) -> dict[str, Any]:
     configured = detected or os.getenv(CONFIG_ENVIRONMENT[field])
+    local_directory = bool(
+        configured and Path(configured).expanduser().resolve().is_dir()
+    )
     return {
-        "status": "ready" if configured or ready else "missing",
+        "status": "ready" if local_directory else "missing",
         "detected": configured,
+        **(
+            {
+                "detail": (
+                    "Setup requires a local model directory so extraction cannot "
+                    "trigger an unconfirmed model download."
+                )
+            }
+            if configured and not local_directory
+            else {}
+        ),
     }
 
 
-def _next_step(status: str) -> str:
+def _next_step(status: str, *, deep: bool) -> str:
     if status == "ready":
+        if deep:
+            return "Start the subtitle task with the verified capabilities."
         return "Run video_subtitle_doctor with deep=true, then start the task."
     if status == "human_action_required":
         return (

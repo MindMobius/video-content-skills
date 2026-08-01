@@ -1,33 +1,87 @@
 # Video Subtitle Skill
 
-一套供模型按需获取和核验视频字幕证据的 Skill、MCP Server 与 JSON CLI。
+一套让 Agent 按需获取、读取和核验视频字幕证据的 Skill、MCP Server 与 JSON CLI。
 
-它不会把平台字幕、硬字幕 OCR 或音频 ASR 自动包装成唯一真相。工具负责可靠地
-取得证据、处理时间轴并保存产物；调用方负责决定读取哪个来源、检查哪个时间段、
-是否需要补充证据。
+它不会把平台字幕、硬字幕 OCR 或音频 ASR 自动拼成“唯一正确稿”。工具负责依赖
+检查、登录态、下载、识别、时间轴和产物；Agent 负责选择证据、理解语义、判断冲突
+并决定是否继续取证。
 
-## 当前支持范围
+## 当前能力
 
-- Bilibili 普通链接、短链接和分 P：通过 OpenCLI 与 Browser Bridge 登录态；
-- Bilibili 平台字幕；
-- 本地视频或下载视频的硬字幕 OCR；
+- Bilibili 普通链接、短链接和分 P；
+- OpenCLI Browser Bridge 登录态与平台字幕；
+- 本地视频或下载视频的 VideOCR 硬字幕时间轴；
 - Qwen3-ASR 与 Forced Aligner 音频时间轴；
-- 按来源、按任意时间范围读取字幕；
-- 可选的固定窗口审阅和派生字幕。
+- OCR 与 ASR 独立执行、按机器资源安全调度；
+- 按来源、按任意时间范围读取字幕证据；
+- 可选的固定窗口精校与不可变原始产物；
+- 面向 Agent 的依赖检查、配置持久化和修复动作。
 
-YouTube 与抖音适配器尚未实现。核心 OCR、ASR、证据和审阅模块不依赖平台，新增
-平台只需实现 `platforms/base.py` 定义的接口。
+YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
+平台只需实现 [`platforms/base.py`](src/video_subtitle/platforms/base.py) 的最小接口。
 
-## 设计边界
+## Agent 可迁移环境
 
-```text
-Skill / MCP / CLI
-        │
-        ├─ platforms/    链接、登录态、平台字幕、视频下载
-        ├─ backends/     OCR、ASR、Forced Aligner
-        ├─ core/         SRT、证据读取、审阅、派生产物
-        └─ pipeline.py   采集编排与 manifest
+Python 包依赖写在 `pyproject.toml`；外部程序、模型、浏览器登录态和硬件依赖写在
+机器可读的 [`requirements.json`](src/video_subtitle/requirements.json)。后者按能力
+声明依赖，并把修复动作严格分为：
+
+- `agent_actions`：Agent 应自行定位、安装或配置；
+- `human_actions`：浏览器登录、硬件缺失等必须由人处理的边界；
+- `confirmation_required`：模型等大体积下载，Agent 执行前需要确认成本。
+
+Agent 应只请求当前任务需要的能力；setup/doctor 也只运行相应 probe，不会为本地
+OCR 无故检查浏览器登录或导入 ASR/CUDA。
+
+在一台新机器上，从仓库根目录开始：
+
+```powershell
+# 只检查基础安装，不修改环境
+python scripts\bootstrap.py
+
+# 创建 .venv、安装 MCP 支持，并检查当前任务所需能力
+python scripts\bootstrap.py --apply `
+  --capability platform_subtitle `
+  --capability hard_ocr_url
 ```
+
+安装完成后遵循同一个闭环：
+
+```powershell
+# 快速检查并返回精确的 Agent / human actions
+video-subtitle setup `
+  --capability platform_subtitle `
+  --capability hard_ocr_url
+
+# 将 Agent 找到的非秘密路径和 Browser Bridge profile 持久化
+video-subtitle configure `
+  --opencli C:\path\to\OpenCLI\dist\src\main.js `
+  --profile browser-bridge-profile `
+  --ytdlp C:\path\to\yt-dlp.exe `
+  --ffmpeg C:\path\to\ffmpeg.exe `
+  --videocr C:\path\to\videocr-cli.exe
+
+# setup ready 后做真实运行时检查；ASR 会验证 CUDA 与显存
+video-subtitle doctor --capability hard_ocr_url
+video-subtitle doctor --capability audio_asr_url
+```
+
+默认配置位置：
+
+- Windows：`%APPDATA%\video-subtitle\config.json`
+- Linux/macOS：`$XDG_CONFIG_HOME/video-subtitle/config.json`，未设置时使用
+  `~/.config/video-subtitle/config.json`
+
+解析优先级为：命令行参数 > 环境变量 > 持久配置 > `PATH`。配置只保存路径、
+profile 别名、任务目录和执行策略，不保存 cookie、密码或 token。完整说明见
+[`docs/environment.md`](docs/environment.md)。
+
+依赖清单、持久配置和 setup 响应分别由
+[`requirements.schema.json`](schemas/requirements.schema.json)、
+[`config.schema.json`](schemas/config.schema.json) 和
+[`setup.schema.json`](schemas/setup.schema.json) 校验，避免文档、工具输出和测试各自漂移。
+
+## 使用流程
 
 默认主证据顺序为：
 
@@ -35,89 +89,58 @@ Skill / MCP / CLI
 platform subtitle > hard OCR > audio ASR
 ```
 
-这只是快速消费的默认值。多来源任务以
-`fusion_status=independent_evidence` 完成，由调用方自行选择证据。固定 30 秒审阅包
-不再自动生成，只在完整精校确实有价值时显式使用。
+这只是快速消费的默认顺序，不是准确率排名：
 
-## 目录结构
+1. 先查询便宜的平台字幕；
+2. 平台没有字幕时，硬字幕视频以 OCR 为主来源；
+3. 无硬字幕时以 ASR 兜底；
+4. 高价值、外语或术语密集内容可同时保留 OCR 与 ASR，交给 Agent 按时间和语义
+   核验；
+5. 已知冲突优先局部重跑，不因一个词重新处理全片。
 
-```text
-video-subtitle-skill/
-├─ skills/video-subtitle/SKILL.md
-├─ src/video_subtitle/
-│  ├─ platforms/
-│  │  ├─ base.py
-│  │  └─ bilibili.py
-│  ├─ backends/
-│  │  ├─ ocr.py
-│  │  ├─ asr.py
-│  │  └─ qwen_asr_worker.py
-│  ├─ core/
-│  │  ├─ evidence.py
-│  │  ├─ review.py
-│  │  ├─ srt.py
-│  │  └─ util.py
-│  ├─ pipeline.py
-│  ├─ jobs.py
-│  ├─ cli.py
-│  └─ mcp_server.py
-├─ schemas/
-├─ tests/
-└─ docs/
-```
+多来源任务以 `fusion_status=independent_evidence` 完成。这表示证据已齐，不表示
+工具替 Agent 做完了语义裁决。
 
-## 安装
+## OCR / ASR 调度
 
-需要 Python 3.10+。Bilibili 平台能力还需要已经构建的 OpenCLI，以及 Chrome 中
-连接成功的 OpenCLI Browser Bridge。OCR/ASR 能力按需安装。
+OCR 与 ASR 使用同一份本地视频，但写入不同产物，完成后按确定顺序合并 manifest：
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[mcp,dev]"
-```
-
-环境变量示例：
-
-```powershell
-$env:VIDEO_SUBTITLE_OPENCLI = "C:\path\to\OpenCLI\dist\src\main.js"
-$env:VIDEO_SUBTITLE_OPENCLI_PROFILE = "browser-bridge-profile"
-$env:VIDEO_SUBTITLE_YTDLP = "C:\path\to\yt-dlp.exe"
-$env:VIDEO_SUBTITLE_FFMPEG = "C:\path\to\ffmpeg.exe"
-$env:VIDEO_SUBTITLE_VIDEOCR = "C:\path\to\videocr-cli.exe"
-$env:VIDEO_SUBTITLE_ASR_PYTHON = "C:\path\to\asr-env\Scripts\python.exe"
-$env:VIDEO_SUBTITLE_QWEN_ASR_MODEL = "C:\path\to\Qwen3-ASR-1.7B"
-$env:VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL = "C:\path\to\Qwen3-ForcedAligner-0.6B"
-```
-
-## CLI
-
-所有命令只向 stdout 输出 JSON。
-
-```powershell
-video-subtitle doctor
-video-subtitle inspect "https://www.bilibili.com/video/BV..."
-
-# 同步采集
-video-subtitle extract $url --output .\result
-
-# 后台任务
-video-subtitle --home .\.video-subtitle start $url
-video-subtitle --home .\.video-subtitle status <job-id>
-```
-
-高价值视频可以收集 OCR 与 ASR 两路证据：
+- `auto`：GPU OCR 与 Qwen3-ASR 共用显卡时串行；资源独立时并行；
+- `serial`：始终串行，适合未知或紧张的机器资源；
+- `parallel`：显式并行，只应在 deep doctor 和本机实测通过后启用。
 
 ```powershell
 video-subtitle extract $url `
   --output .\result `
   --collect-all-sources `
   --ocr-backend videocr `
+  --ocr-gpu `
   --ocr-consensus-image-max-width 600 `
   --asr-backend qwen3 `
-  --asr-language auto
+  --media-execution auto
 ```
 
-调用方先列举证据，再读取需要的时间段：
+在当前开发机上，16 分 08 秒的真实 Bilibili 视频显式并行用时 165 秒，原串行用时
+251 秒，缩短约 34%；两次均生成 15 份产物且无告警。这只是一次主机级验证，不能
+外推为其他显卡的性能或稳定性保证。详见
+[`BV1KHNC61ExM 实测`](docs/cases/BV1KHNC61ExM.md)。
+
+## CLI
+
+所有命令只向 stdout 输出 JSON。
+
+```powershell
+video-subtitle inspect "https://www.bilibili.com/video/BV..."
+
+# 同步采集
+video-subtitle extract $url --output .\result
+
+# 耗时任务使用后台 job
+video-subtitle --home .\.video-subtitle start $url
+video-subtitle --home .\.video-subtitle status <job-id>
+```
+
+Agent 先列举证据，再读取需要的来源与时间范围：
 
 ```powershell
 video-subtitle evidence-list --manifest .\result\manifest.json
@@ -128,7 +151,7 @@ video-subtitle evidence-read `
   --end-ms 390000
 ```
 
-需要完整精校时再启用可选审阅助手：
+需要交付完整精校 SRT 时再启用可选审阅助手：
 
 ```powershell
 video-subtitle review-prepare --manifest .\result\manifest.json
@@ -140,18 +163,31 @@ video-subtitle review-apply `
 
 ## MCP
 
-MCP Server 使用 stdio，暴露十个工具：
+MCP Server 使用 stdio，共暴露 12 个工具：
 
+环境：
+
+- `video_subtitle_setup`
+- `configure_video_subtitle`
 - `video_subtitle_doctor`
+
+采集：
+
 - `inspect_bilibili_video`
 - `start_subtitle_extraction`
 - `get_subtitle_job`
+
+证据：
+
 - `list_subtitle_evidence`
 - `read_subtitle_evidence`
+- `read_subtitle_artifact`
+
+可选精校：
+
 - `prepare_subtitle_review`
 - `get_subtitle_review_window`
 - `submit_subtitle_review_window`
-- `read_subtitle_artifact`
 
 Codex 配置示例：
 
@@ -159,40 +195,55 @@ Codex 配置示例：
 [mcp_servers.video_subtitle]
 command = "C:\\path\\to\\video-subtitle-skill\\.venv\\Scripts\\python.exe"
 args = ["-m", "video_subtitle.mcp_server"]
-
-[mcp_servers.video_subtitle.env]
-VIDEO_SUBTITLE_OPENCLI = "C:\\path\\to\\OpenCLI\\dist\\src\\main.js"
-VIDEO_SUBTITLE_OPENCLI_PROFILE = "browser-bridge-profile"
-VIDEO_SUBTITLE_HOME = "C:\\path\\to\\video-subtitle-data"
 ```
 
-## 产物
+环境路径已经由 `configure_video_subtitle` 持久化时，MCP 配置无需重复书写。若要
+覆盖，仍可在 MCP `env` 中传入相同的 `VIDEO_SUBTITLE_*` 环境变量。
 
-每个任务以 `manifest.json` 为入口，并按实际执行情况生成：
+## 证据边界
 
-- `subtitle.platform.*`：平台字幕；
-- `subtitle.ocr.*`：硬字幕 OCR；
-- `subtitle.ocr.primary.srt` / `subtitle.ocr.validation.srt`：双尺度原始证据；
-- `subtitle.asr.*`：ASR 与时间戳；
-- `evidence.index.*`：独立证据目录；
-- `review.*` / `subtitle.reviewed.*`：仅在使用可选审阅助手时生成；
-- `ocr.log` / `asr.log`：执行日志。
+- 平台字幕、OCR、ASR 始终保留为独立证据；
+- 双尺度 OCR 一致只说明两种图像尺度读到了同样文字，不证明视频硬字幕本身正确；
+- ASR 能发现 OCR 漏句和疑似错字，但不能独自证明同音人名、数字、符号和术语写法；
+- 外语音频与中文字幕按重叠时间和语义核对，不按字符相似度核对；
+- 原始字幕产物不可修改，修订必须创建带来源、理由和时间戳的派生产物；
+- 没有独立真值集时，不报告虚构的“准确率”。
 
-原始字幕产物不可修改。所有修订必须创建派生产物并保留来源、理由和时间戳。
+每个任务以 `manifest.json` 为入口，包含来源、尝试、调度决策、告警和产物目录。
+典型产物包括 `subtitle.platform.*`、`subtitle.ocr.*`、`subtitle.asr.*`、
+`evidence.index.*`、进程日志和可选的 `subtitle.reviewed.*`。
 
-## Skill 与协议
+## 目录结构
 
-Skill 位于 [`skills/video-subtitle/SKILL.md`](skills/video-subtitle/SKILL.md)。机器
-可读协议位于 [`schemas/`](schemas/)，完整执行边界见
-[`docs/workflow.md`](docs/workflow.md)。
+```text
+video-subtitle-skill/
+├─ skills/video-subtitle/SKILL.md     Agent 决策与安全边界
+├─ src/video_subtitle/
+│  ├─ requirements.json               外部能力依赖契约
+│  ├─ config.py                       持久配置与优先级
+│  ├─ environment.py                  setup 动作规划
+│  ├─ diagnostics.py                  quick/deep doctor
+│  ├─ platforms/                      平台适配器
+│  ├─ backends/                       OCR、ASR、Forced Aligner
+│  ├─ core/                           SRT、证据与派生审阅
+│  ├─ pipeline.py                     采集和资源调度
+│  ├─ jobs.py                         持久后台任务
+│  ├─ cli.py
+│  └─ mcp_server.py
+├─ scripts/bootstrap.py
+├─ schemas/
+├─ tests/
+└─ docs/
+```
 
-## 验证
+## 开发验证
 
 ```powershell
 python -m ruff check .
+python -m ruff format --check .
 python -m pytest
 python scripts\mcp_smoke.py
 ```
 
-现阶段优先补充按范围抽帧、局部 OCR/ASR、通用派生修订，以及 YouTube、抖音
-平台适配器，而不是继续扩大固定启发式审阅规则。
+当前优先级是按范围抽帧、局部 OCR/ASR、通用派生修订，以及 YouTube、抖音平台
+适配器，而不是继续扩大固定启发式审阅规则。

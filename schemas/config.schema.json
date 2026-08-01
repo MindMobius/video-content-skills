@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/config-v1.json",
+  "title": "Video Subtitle Config v1",
+  "type": "object",
+  "required": ["schema_version", "values"],
+  "properties": {
+    "schema_version": {
+      "const": "video-subtitle/config-v1"
+    },
+    "values": {
+      "type": "object",
+      "properties": {
+        "opencli": {"type": "string", "minLength": 1},
+        "opencli_profile": {"type": "string", "minLength": 1},
+        "ytdlp": {"type": "string", "minLength": 1},
+        "ffmpeg": {"type": "string", "minLength": 1},
+        "videocr": {"type": "string", "minLength": 1},
+        "asr_python": {"type": "string", "minLength": 1},
+        "qwen_asr_model": {"type": "string", "minLength": 1},
+        "qwen_aligner_model": {"type": "string", "minLength": 1},
+        "home": {"type": "string", "minLength": 1},
+        "media_execution": {
+          "enum": ["auto", "serial", "parallel"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

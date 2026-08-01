@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-subtitle-skill"
-version = "0.1.0"
+version = "0.2.0"
 description = "Composable video subtitle evidence tools and Skill with a Bilibili adapter"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,7 +18,7 @@ Issues = "https://github.com/MindMobius/video-subtitle-skill/issues"
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.2"]
-dev = ["pytest>=8", "ruff>=0.16"]
+dev = ["jsonschema>=4.23", "pytest>=8", "ruff>=0.16"]
 
 [project.scripts]
 video-subtitle = "video_subtitle.cli:main"

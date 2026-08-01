@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/requirements-v1.json",
+  "title": "Video Subtitle Capability Requirements v1",
+  "type": "object",
+  "required": ["schema_version", "capabilities", "dependencies"],
+  "properties": {
+    "schema_version": {
+      "const": "video-subtitle/requirements-v1"
+    },
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/capability"
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/dependency"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "capability": {
+      "type": "object",
+      "required": ["description", "requires"],
+      "properties": {
+        "description": {"type": "string", "minLength": 1},
+        "requires": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "dependency": {
+      "type": "object",
+      "required": ["kind", "description"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "config_field": {"type": "string", "minLength": 1},
+        "environment": {"type": "string", "minLength": 1},
+        "agent_action": {"$ref": "#/$defs/action"},
+        "human_action": {"$ref": "#/$defs/action"}
+      },
+      "anyOf": [
+        {"required": ["agent_action"]},
+        {"required": ["human_action"]}
+      ],
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["type", "description"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "command": {"type": "string", "minLength": 1},
+        "reference": {"type": "string", "format": "uri"},
+        "confirmation_required": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

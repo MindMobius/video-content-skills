@@ -147,7 +147,7 @@
       "kind": "model",
       "config_field": "qwen_asr_model",
       "environment": "VIDEO_SUBTITLE_QWEN_ASR_MODEL",
-      "description": "Qwen3-ASR model directory or model identifier.",
+      "description": "Local Qwen3-ASR model directory; setup never approves an implicit first-run download.",
       "agent_action": {
         "type": "large_download",
         "reference": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B",
@@ -159,7 +159,7 @@
       "kind": "model",
       "config_field": "qwen_aligner_model",
       "environment": "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
-      "description": "Qwen3 Forced Aligner model directory or model identifier.",
+      "description": "Local Qwen3 Forced Aligner directory; setup never approves an implicit first-run download.",
       "agent_action": {
         "type": "large_download",
         "reference": "https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B",
