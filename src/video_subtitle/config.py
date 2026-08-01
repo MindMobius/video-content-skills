@@ -28,7 +28,9 @@ def resolve_config_path(value: str | Path | None = None) -> Path:
     if selected:
         return Path(selected).expanduser().resolve()
     if os.name == "nt" and os.getenv("APPDATA"):
-        return (Path(os.environ["APPDATA"]) / "video-subtitle" / "config.json").resolve()
+        return (
+            Path(os.environ["APPDATA"]) / "video-subtitle" / "config.json"
+        ).resolve()
     xdg_home = os.getenv("XDG_CONFIG_HOME")
     if xdg_home:
         return (Path(xdg_home) / "video-subtitle" / "config.json").resolve()

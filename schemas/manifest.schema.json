@@ -41,7 +41,12 @@
         "language",
         "ocr_backend",
         "download_if_needed"
-      ]
+      ],
+      "properties": {
+        "media_execution": {
+          "enum": ["auto", "serial", "parallel"]
+        }
+      }
     },
     "video": {
       "type": [
@@ -61,6 +66,43 @@
         "null"
       ],
       "description": "Agent review packet and progress. Raw subtitle sources remain immutable."
+    },
+    "execution": {
+      "type": "object",
+      "description": "Resolved scheduling policy for independent OCR and ASR backends.",
+      "required": [
+        "media_requested",
+        "media_resolved",
+        "backends",
+        "shared_gpu",
+        "decision"
+      ],
+      "properties": {
+        "media_requested": {
+          "enum": ["auto", "serial", "parallel"]
+        },
+        "media_resolved": {
+          "enum": ["serial", "parallel"]
+        },
+        "backends": {
+          "type": "array",
+          "items": {
+            "enum": ["hard_ocr", "audio_asr"]
+          }
+        },
+        "shared_gpu": {
+          "type": "boolean"
+        },
+        "decision": {
+          "enum": [
+            "explicit",
+            "auto_shared_gpu_safe_serial",
+            "auto_independent_parallel",
+            "single_backend"
+          ]
+        }
+      },
+      "additionalProperties": true
     },
     "sources": {
       "type": "array",
@@ -111,6 +153,20 @@
               "unavailable",
               "failed"
             ]
+          },
+          "execution": {
+            "enum": ["serial", "parallel"]
+          },
+          "concurrent_group": {
+            "type": "string"
+          },
+          "backend_started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "backend_elapsed_seconds": {
+            "type": "number",
+            "minimum": 0
           }
         }
       }

@@ -36,7 +36,9 @@ async def smoke() -> None:
         )
         submit_schema = submit_tool.model_dump(by_alias=True)["inputSchema"]
         tool_names = [tool.name for tool in tools_result.tools]
-        doctor_result = await session.call_tool("video_subtitle_doctor", {})
+        doctor_result = await session.call_tool(
+            "video_subtitle_doctor", {"deep": False}
+        )
         artifact_job_id = os.getenv("VIDEO_SUBTITLE_SMOKE_JOB_ID")
         artifact_result = None
         if artifact_job_id:
@@ -69,6 +71,14 @@ async def smoke() -> None:
                             "submit_subtitle_review_window",
                         )
                     ),
+                    "setup_tools_exposed": all(
+                        name in tool_names
+                        for name in (
+                            "video_subtitle_setup",
+                            "configure_video_subtitle",
+                            "video_subtitle_doctor",
+                        )
+                    ),
                     "atomic_evidence_tools_exposed": all(
                         name in tool_names
                         for name in (
@@ -92,6 +102,9 @@ async def smoke() -> None:
                     ),
                     "asr_parameter_exposed": (
                         "asr_backend" in start_schema.get("properties", {})
+                    ),
+                    "media_execution_parameter_exposed": (
+                        "media_execution" in start_schema.get("properties", {})
                     ),
                     "doctor_is_error": doctor_result.is_error,
                     "artifact_is_error": (

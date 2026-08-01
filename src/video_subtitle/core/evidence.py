@@ -96,8 +96,7 @@ def read_subtitle_evidence_range(
     matching = [
         (cue_index, cue)
         for cue_index, cue in enumerate(cues, start=1)
-        if cue.end_ms > start_ms
-        and (end_ms is None or cue.start_ms < end_ms)
+        if cue.end_ms > start_ms and (end_ms is None or cue.start_ms < end_ms)
     ]
     returned = matching[:max_cues]
     has_more = len(matching) > len(returned)

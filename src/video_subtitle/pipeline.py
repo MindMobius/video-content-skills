@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 from .backends.asr import (
@@ -48,6 +50,7 @@ class ExtractionRequest:
     download_quality: str = "1080p"
     collect_all_sources: bool = False
     asr_backend: str = "none"
+    media_execution: str = "auto"
     videocr: VideOcrOptions = field(default_factory=VideOcrOptions)
     qwen3_asr: Qwen3AsrOptions = field(default_factory=Qwen3AsrOptions)
 
@@ -63,6 +66,7 @@ class ExtractionRequest:
             "download_quality": self.download_quality,
             "collect_all_sources": self.collect_all_sources,
             "asr_backend": self.asr_backend,
+            "media_execution": self.media_execution,
             "videocr": self.videocr.as_dict(),
             "qwen3_asr": self.qwen3_asr.as_dict(),
         }
@@ -81,6 +85,7 @@ class ExtractionRequest:
             download_quality=str(value.get("download_quality") or "1080p"),
             collect_all_sources=bool(value.get("collect_all_sources", False)),
             asr_backend=str(value.get("asr_backend") or "none"),
+            media_execution=str(value.get("media_execution") or "auto"),
             videocr=VideOcrOptions.from_dict(value.get("videocr") or {}),
             qwen3_asr=Qwen3AsrOptions.from_dict(value.get("qwen3_asr") or {}),
         )
@@ -464,88 +469,20 @@ class ExtractionPipeline:
             return manifest
 
         title = str((manifest["video"] or {}).get("title") or "视频字幕")
+        media_jobs: list[tuple[str, dict[str, Any], Callable[[], dict[str, Any]]]] = []
         if ocr_backend is not None and ocr_attempt is not None:
-            manifest["stage"] = "hard_ocr"
-            ocr_output = output_dir / "subtitle.ocr.srt"
-            ocr_log = output_dir / "ocr.log"
-            save()
-            try:
-                ocr_run_result = ocr_backend.run(video_path, ocr_output, ocr_log) or {}
-                cues = parse_srt(ocr_output)
-                if not cues:
-                    raise OcrExecutionError(
-                        "VideOCR produced an SRT file with no usable cues",
-                        log_path=ocr_log,
-                    )
-                write_srt(ocr_output, cues)
-                artifact_source = f"hard_ocr:{ocr_backend.name}"
-                manifest["artifacts"].extend(
-                    _write_subtitle_artifacts(
+            media_jobs.append(
+                (
+                    "hard_ocr",
+                    ocr_attempt,
+                    lambda: _run_ocr_evidence(
+                        ocr_backend,
+                        video_path,
                         output_dir,
-                        cues,
-                        stem="subtitle.ocr",
-                        title=title,
-                        source=artifact_source,
-                        existing_srt=ocr_output,
-                    )
+                        title,
+                    ),
                 )
-                _append_supporting_artifacts(
-                    manifest,
-                    ocr_run_result,
-                    source=artifact_source,
-                )
-                manifest["artifacts"].append(
-                    _artifact(
-                        "process_log",
-                        ocr_log,
-                        source=ocr_backend.name,
-                        owned=True,
-                    )
-                )
-                manifest["warnings"].extend(ocr_run_result.get("warnings", []))
-                source_summary = {
-                    "kind": "hard_ocr",
-                    "artifact_source": artifact_source,
-                    "backend": ocr_backend.name,
-                    "cue_count": len(cues),
-                    "strategy": (ocr_run_result.get("strategy") or "single_scale"),
-                }
-                if ocr_run_result.get("reconciliation"):
-                    source_summary["reconciliation"] = ocr_run_result["reconciliation"]
-                manifest["sources"].append(source_summary)
-                run_summary = {
-                    key: value
-                    for key, value in ocr_run_result.items()
-                    if key not in {"supporting_artifacts", "warnings"}
-                }
-                _finish_attempt(
-                    ocr_attempt,
-                    "succeeded",
-                    cue_count=len(cues),
-                    result=run_summary,
-                )
-            except (OcrExecutionError, ValueError) as error:
-                _finish_attempt(
-                    ocr_attempt,
-                    "failed",
-                    error={"code": "OCR_FAILED", "message": str(error)},
-                )
-                if ocr_log.exists():
-                    manifest["artifacts"].append(
-                        _artifact(
-                            "process_log",
-                            ocr_log,
-                            source=ocr_backend.name,
-                            owned=True,
-                        )
-                    )
-                manifest["warnings"].append(
-                    {
-                        "code": "OCR_FAILED",
-                        "message": str(error),
-                    }
-                )
-            save()
+            )
 
         if asr_backend is not None:
             asr_attempt = _start_attempt(
@@ -554,99 +491,68 @@ class ExtractionPipeline:
                 backend=asr_backend_description or asr_backend.describe(),
                 context_source=effective_asr_options.context_source,
             )
-            manifest["stage"] = "audio_asr"
-            asr_output = output_dir / "subtitle.asr.srt"
-            asr_log = output_dir / "asr.log"
-            save()
-            try:
-                asr_run_result = asr_backend.run(
-                    video_path,
-                    asr_output,
-                    asr_log,
-                )
-                cues = parse_srt(asr_output)
-                if not cues:
-                    raise AsrExecutionError(
-                        "Qwen3-ASR produced an SRT file with no usable cues",
-                        log_path=asr_log,
-                    )
-                write_srt(asr_output, cues)
-                artifact_source = f"audio_asr:{asr_backend.name}"
-                manifest["artifacts"].extend(
-                    _write_subtitle_artifacts(
+            media_jobs.append(
+                (
+                    "audio_asr",
+                    asr_attempt,
+                    lambda: _run_asr_evidence(
+                        asr_backend,
+                        video_path,
                         output_dir,
-                        cues,
-                        stem="subtitle.asr",
-                        title=title,
-                        source=artifact_source,
-                        existing_srt=asr_output,
-                    )
+                        title,
+                    ),
                 )
-                _append_supporting_artifacts(
-                    manifest,
-                    asr_run_result,
-                    source=artifact_source,
-                )
-                manifest["warnings"].extend(asr_run_result.get("warnings", []))
-                manifest["artifacts"].append(
-                    _artifact(
-                        "process_log",
-                        asr_log,
-                        source=asr_backend.name,
-                        owned=True,
-                    )
-                )
-                manifest["sources"].append(
-                    {
-                        "kind": "audio_asr",
-                        "artifact_source": artifact_source,
-                        "backend": asr_backend.name,
-                        "cue_count": len(cues),
-                        "strategy": asr_run_result.get("strategy"),
-                        "language_requested": asr_run_result.get("language_requested"),
-                        "detected_languages": asr_run_result.get(
-                            "detected_languages",
-                            [],
-                        ),
-                        "context_source": asr_run_result.get("context_source"),
-                        "context_echo_retries": asr_run_result.get(
-                            "context_echo_retries",
-                            0,
-                        ),
-                    }
-                )
-                run_summary = {
-                    key: value
-                    for key, value in asr_run_result.items()
-                    if key not in {"supporting_artifacts", "warnings"}
-                }
-                _finish_attempt(
-                    asr_attempt,
-                    "succeeded",
-                    cue_count=len(cues),
-                    result=run_summary,
-                )
-            except (AsrExecutionError, ValueError) as error:
-                _finish_attempt(
-                    asr_attempt,
-                    "failed",
-                    error={"code": "ASR_FAILED", "message": str(error)},
-                )
-                if asr_log.exists():
-                    manifest["artifacts"].append(
-                        _artifact(
-                            "process_log",
-                            asr_log,
-                            source=asr_backend.name,
-                            owned=True,
-                        )
-                    )
-                manifest["warnings"].append(
-                    {
-                        "code": "ASR_FAILED",
-                        "message": str(error),
-                    }
-                )
+            )
+
+        shared_gpu = bool(
+            ocr_backend is not None
+            and asr_backend is not None
+            and request.videocr.use_gpu
+        )
+        resolved_execution = _resolve_media_execution(
+            request.media_execution,
+            len(media_jobs),
+            shared_gpu=shared_gpu,
+        )
+        manifest["execution"] = {
+            "media_requested": request.media_execution,
+            "media_resolved": resolved_execution,
+            "backends": [name for name, _, _ in media_jobs],
+            "shared_gpu": shared_gpu,
+            "decision": (
+                "explicit"
+                if request.media_execution != "auto"
+                else "auto_shared_gpu_safe_serial"
+                if shared_gpu
+                else "auto_independent_parallel"
+                if len(media_jobs) > 1
+                else "single_backend"
+            ),
+        }
+        concurrent_group = f"{job_id}:media"
+        for _, attempt, _ in media_jobs:
+            attempt["execution"] = resolved_execution
+            if resolved_execution == "parallel":
+                attempt["concurrent_group"] = concurrent_group
+
+        outcomes: list[dict[str, Any]] = []
+        if resolved_execution == "parallel":
+            manifest["stage"] = "media_parallel"
+            save()
+            with ThreadPoolExecutor(
+                max_workers=len(media_jobs),
+                thread_name_prefix="video-subtitle",
+            ) as executor:
+                futures = [executor.submit(runner) for _, _, runner in media_jobs]
+                outcomes = [future.result() for future in futures]
+        else:
+            for name, _, runner in media_jobs:
+                manifest["stage"] = name
+                save()
+                outcomes.append(runner())
+
+        for (_, attempt, _), outcome in zip(media_jobs, outcomes, strict=True):
+            _apply_media_outcome(manifest, attempt, outcome)
             save()
 
         if manifest["sources"]:
@@ -727,18 +633,208 @@ def _finish_media_attempts(
             _finish_attempt(attempt, status, error=error)
 
 
-def _append_supporting_artifacts(
+def _resolve_media_execution(
+    requested: str,
+    job_count: int,
+    *,
+    shared_gpu: bool,
+) -> str:
+    selected = requested.strip().lower()
+    if selected not in {"auto", "serial", "parallel"}:
+        raise ValueError("media_execution must be auto, serial, or parallel")
+    if job_count < 2:
+        return "serial"
+    if selected == "auto":
+        return "serial" if shared_gpu else "parallel"
+    return selected
+
+
+def _run_ocr_evidence(
+    backend: OcrBackend,
+    video_path: Path,
+    output_dir: Path,
+    title: str,
+) -> dict[str, Any]:
+    backend_started_at = utc_now()
+    started = monotonic()
+    output = output_dir / "subtitle.ocr.srt"
+    log = output_dir / "ocr.log"
+    try:
+        run_result = backend.run(video_path, output, log) or {}
+        cues = parse_srt(output)
+        if not cues:
+            raise OcrExecutionError(
+                "VideOCR produced an SRT file with no usable cues",
+                log_path=log,
+            )
+        write_srt(output, cues)
+        artifact_source = f"hard_ocr:{backend.name}"
+        artifacts = _write_subtitle_artifacts(
+            output_dir,
+            cues,
+            stem="subtitle.ocr",
+            title=title,
+            source=artifact_source,
+            existing_srt=output,
+        )
+        artifacts.extend(_supporting_artifacts(run_result, source=artifact_source))
+        artifacts.append(_artifact("process_log", log, source=backend.name, owned=True))
+        source = {
+            "kind": "hard_ocr",
+            "artifact_source": artifact_source,
+            "backend": backend.name,
+            "cue_count": len(cues),
+            "strategy": (run_result.get("strategy") or "single_scale"),
+        }
+        if run_result.get("reconciliation"):
+            source["reconciliation"] = run_result["reconciliation"]
+        return {
+            "status": "succeeded",
+            "source": source,
+            "artifacts": artifacts,
+            "warnings": run_result.get("warnings", []),
+            "attempt": {
+                "cue_count": len(cues),
+                "result": _run_summary(run_result),
+                "backend_started_at": backend_started_at,
+                "backend_elapsed_seconds": round(monotonic() - started, 3),
+                "finished_at": utc_now(),
+            },
+        }
+    except (OcrExecutionError, ValueError) as error:
+        artifacts = []
+        if log.exists():
+            artifacts.append(
+                _artifact("process_log", log, source=backend.name, owned=True)
+            )
+        detail = {"code": "OCR_FAILED", "message": str(error)}
+        return {
+            "status": "failed",
+            "source": None,
+            "artifacts": artifacts,
+            "warnings": [detail],
+            "attempt": {
+                "error": detail,
+                "backend_started_at": backend_started_at,
+                "backend_elapsed_seconds": round(monotonic() - started, 3),
+                "finished_at": utc_now(),
+            },
+        }
+
+
+def _run_asr_evidence(
+    backend: AsrBackend,
+    video_path: Path,
+    output_dir: Path,
+    title: str,
+) -> dict[str, Any]:
+    backend_started_at = utc_now()
+    started = monotonic()
+    output = output_dir / "subtitle.asr.srt"
+    log = output_dir / "asr.log"
+    try:
+        run_result = backend.run(video_path, output, log)
+        cues = parse_srt(output)
+        if not cues:
+            raise AsrExecutionError(
+                "Qwen3-ASR produced an SRT file with no usable cues",
+                log_path=log,
+            )
+        write_srt(output, cues)
+        artifact_source = f"audio_asr:{backend.name}"
+        artifacts = _write_subtitle_artifacts(
+            output_dir,
+            cues,
+            stem="subtitle.asr",
+            title=title,
+            source=artifact_source,
+            existing_srt=output,
+        )
+        artifacts.extend(_supporting_artifacts(run_result, source=artifact_source))
+        artifacts.append(_artifact("process_log", log, source=backend.name, owned=True))
+        return {
+            "status": "succeeded",
+            "source": {
+                "kind": "audio_asr",
+                "artifact_source": artifact_source,
+                "backend": backend.name,
+                "cue_count": len(cues),
+                "strategy": run_result.get("strategy"),
+                "language_requested": run_result.get("language_requested"),
+                "detected_languages": run_result.get("detected_languages", []),
+                "context_source": run_result.get("context_source"),
+                "context_echo_retries": run_result.get("context_echo_retries", 0),
+            },
+            "artifacts": artifacts,
+            "warnings": run_result.get("warnings", []),
+            "attempt": {
+                "cue_count": len(cues),
+                "result": _run_summary(run_result),
+                "backend_started_at": backend_started_at,
+                "backend_elapsed_seconds": round(monotonic() - started, 3),
+                "finished_at": utc_now(),
+            },
+        }
+    except (AsrExecutionError, ValueError) as error:
+        artifacts = []
+        if log.exists():
+            artifacts.append(
+                _artifact("process_log", log, source=backend.name, owned=True)
+            )
+        detail = {"code": "ASR_FAILED", "message": str(error)}
+        return {
+            "status": "failed",
+            "source": None,
+            "artifacts": artifacts,
+            "warnings": [detail],
+            "attempt": {
+                "error": detail,
+                "backend_started_at": backend_started_at,
+                "backend_elapsed_seconds": round(monotonic() - started, 3),
+                "finished_at": utc_now(),
+            },
+        }
+
+
+def _apply_media_outcome(
     manifest: dict[str, Any],
+    attempt: dict[str, Any],
+    outcome: dict[str, Any],
+) -> None:
+    manifest["artifacts"].extend(outcome["artifacts"])
+    manifest["warnings"].extend(outcome["warnings"])
+    if outcome.get("source"):
+        manifest["sources"].append(outcome["source"])
+    attempt_details = dict(outcome["attempt"])
+    finished_at = attempt_details.pop("finished_at", None)
+    _finish_attempt(
+        attempt,
+        outcome["status"],
+        finished_at=finished_at,
+        **attempt_details,
+    )
+
+
+def _run_summary(run_result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in run_result.items()
+        if key not in {"supporting_artifacts", "warnings"}
+    }
+
+
+def _supporting_artifacts(
     run_result: dict[str, Any],
     *,
     source: str,
-) -> None:
+) -> list[dict[str, Any]]:
+    artifacts: list[dict[str, Any]] = []
     for supporting in run_result.get("supporting_artifacts", []):
         supporting_path = Path(str(supporting["path"])).resolve()
         if not supporting_path.is_file():
             continue
         cue_count = supporting.get("cue_count")
-        manifest["artifacts"].append(
+        artifacts.append(
             _artifact(
                 str(supporting["kind"]),
                 supporting_path,
@@ -747,6 +843,7 @@ def _append_supporting_artifacts(
                 cue_count=int(cue_count) if cue_count is not None else None,
             )
         )
+    return artifacts
 
 
 def _finalize_evidence_bundle(
@@ -900,9 +997,11 @@ def _start_attempt(
 def _finish_attempt(
     attempt: dict[str, Any],
     status: str,
+    *,
+    finished_at: str | None = None,
     **details: Any,
 ) -> None:
-    finished_at = utc_now()
+    finished_at = finished_at or utc_now()
     attempt["status"] = status
     attempt["finished_at"] = finished_at
     started_at = attempt.get("started_at")

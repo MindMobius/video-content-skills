@@ -1,4 +1,5 @@
 from pathlib import Path
+from threading import Barrier
 
 from video_subtitle.backends.asr import Qwen3AsrOptions
 from video_subtitle.backends.ocr import OcrUnavailable, VideOcrOptions
@@ -62,6 +63,24 @@ class FakeAsrBackend:
             "detected_languages": ["English"],
             "context_source": "test",
         }
+
+
+class CoordinatedOcrBackend(FakeOcrBackend):
+    def __init__(self, barrier: Barrier) -> None:
+        self.barrier = barrier
+
+    def run(self, video_path: Path, output_path: Path, log_path: Path):
+        self.barrier.wait(timeout=2)
+        return super().run(video_path, output_path, log_path)
+
+
+class CoordinatedAsrBackend(FakeAsrBackend):
+    def __init__(self, barrier: Barrier) -> None:
+        self.barrier = barrier
+
+    def run(self, video_path: Path, output_path: Path, log_path: Path):
+        self.barrier.wait(timeout=2)
+        return super().run(video_path, output_path, log_path)
 
 
 class MultipartFakeClient(FakeClient):
@@ -231,6 +250,105 @@ def test_collect_all_preserves_platform_ocr_and_asr_evidence(
     assert not (output / "review.packet.json").exists()
     assert manifest["review"] is None
     assert manifest["selected_source"]["fusion_status"] == "independent_evidence"
+    assert manifest["execution"]["media_requested"] == "auto"
+    assert manifest["execution"]["media_resolved"] == "parallel"
+
+
+def test_parallel_media_execution_starts_ocr_and_asr_together(
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    barrier = Barrier(2)
+    client = FakeClient(OpenCliError("EMPTY_RESULT", "no subtitle"))
+
+    manifest = ExtractionPipeline(
+        client,
+        ocr_resolver=lambda *_: CoordinatedOcrBackend(barrier),  # type: ignore[arg-type]
+        asr_resolver=lambda *_: CoordinatedAsrBackend(barrier),  # type: ignore[arg-type]
+    ).run(
+        ExtractionRequest(
+            url="https://www.bilibili.com/video/BV1fake",
+            output_dir=tmp_path / "result",
+            video_path=video,
+            collect_all_sources=True,
+            asr_backend="qwen3",
+            media_execution="parallel",
+        )
+    )
+
+    assert manifest["status"] == "completed"
+    assert manifest["execution"]["media_resolved"] == "parallel"
+    assert [source["kind"] for source in manifest["sources"]] == [
+        "hard_ocr",
+        "audio_asr",
+    ]
+    media_attempts = manifest["attempts"][-2:]
+    assert (
+        media_attempts[0]["concurrent_group"] == media_attempts[1]["concurrent_group"]
+    )
+    assert all(attempt["backend_started_at"] for attempt in media_attempts)
+    assert all(attempt["backend_elapsed_seconds"] >= 0 for attempt in media_attempts)
+
+
+def test_serial_media_execution_remains_available(tmp_path: Path) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    client = FakeClient(OpenCliError("EMPTY_RESULT", "no subtitle"))
+
+    manifest = ExtractionPipeline(
+        client,
+        ocr_resolver=lambda *_: FakeOcrBackend(),  # type: ignore[arg-type]
+        asr_resolver=lambda *_: FakeAsrBackend(),  # type: ignore[arg-type]
+    ).run(
+        ExtractionRequest(
+            url="https://www.bilibili.com/video/BV1fake",
+            output_dir=tmp_path / "result",
+            video_path=video,
+            collect_all_sources=True,
+            asr_backend="qwen3",
+            media_execution="serial",
+        )
+    )
+
+    assert manifest["status"] == "completed"
+    assert manifest["execution"]["media_resolved"] == "serial"
+    assert all(
+        "concurrent_group" not in attempt
+        for attempt in manifest["attempts"]
+        if attempt["source"] in {"hard_ocr", "audio_asr"}
+    )
+
+
+def test_auto_media_execution_is_conservative_for_shared_gpu(
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    client = FakeClient(OpenCliError("EMPTY_RESULT", "no subtitle"))
+
+    manifest = ExtractionPipeline(
+        client,
+        ocr_resolver=lambda *_: FakeOcrBackend(),  # type: ignore[arg-type]
+        asr_resolver=lambda *_: FakeAsrBackend(),  # type: ignore[arg-type]
+    ).run(
+        ExtractionRequest(
+            url="https://www.bilibili.com/video/BV1fake",
+            output_dir=tmp_path / "result",
+            video_path=video,
+            collect_all_sources=True,
+            asr_backend="qwen3",
+            videocr=VideOcrOptions(use_gpu=True),
+        )
+    )
+
+    assert manifest["execution"] == {
+        "media_requested": "auto",
+        "media_resolved": "serial",
+        "backends": ["hard_ocr", "audio_asr"],
+        "shared_gpu": True,
+        "decision": "auto_shared_gpu_safe_serial",
+    }
 
 
 def test_asr_can_complete_when_platform_and_ocr_are_unavailable(

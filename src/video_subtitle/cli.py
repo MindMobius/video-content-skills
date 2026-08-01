@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -99,9 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     configure_parser.add_argument("--ffmpeg", dest="config_ffmpeg")
     configure_parser.add_argument("--videocr", dest="config_videocr")
     configure_parser.add_argument("--asr-python", dest="config_asr_python")
-    configure_parser.add_argument(
-        "--qwen-asr-model", dest="config_qwen_asr_model"
-    )
+    configure_parser.add_argument("--qwen-asr-model", dest="config_qwen_asr_model")
     configure_parser.add_argument(
         "--qwen-aligner-model", dest="config_qwen_aligner_model"
     )
@@ -220,6 +219,15 @@ def _add_extraction_arguments(parser: argparse.ArgumentParser) -> None:
         "--collect-all-sources",
         action="store_true",
         help="Continue after platform subtitles and preserve all configured evidence",
+    )
+    parser.add_argument(
+        "--media-execution",
+        choices=("auto", "serial", "parallel"),
+        default=None,
+        help=(
+            "Schedule OCR/ASR serially or concurrently. auto uses serial when "
+            "both backends share the GPU and parallel otherwise."
+        ),
     )
     parser.add_argument(
         "--asr-backend",
@@ -515,6 +523,11 @@ def _request_from_args(args: argparse.Namespace, output_dir: Path) -> Extraction
         download_quality=args.quality,
         collect_all_sources=args.collect_all_sources,
         asr_backend=args.asr_backend,
+        media_execution=(
+            args.media_execution
+            or os.getenv("VIDEO_SUBTITLE_MEDIA_EXECUTION")
+            or "auto"
+        ),
         videocr=options,
         qwen3_asr=asr_options,
     )

@@ -60,7 +60,9 @@ def main() -> None:
                 "ready": installed,
                 "repo": str(root),
                 "venv_python": str(python),
-                "requirements": str(root / "src" / "video_subtitle" / "requirements.json"),
+                "requirements": str(
+                    root / "src" / "video_subtitle" / "requirements.json"
+                ),
                 "agent_actions": actions,
                 "next_step": (
                     "Run video-subtitle setup for the task capabilities."

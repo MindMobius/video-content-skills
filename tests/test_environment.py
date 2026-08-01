@@ -101,6 +101,5 @@ def test_setup_report_separates_agent_and_human_actions(
         "browser_bridge"
     ]
     assert not any(
-        item["dependency_id"].startswith("qwen")
-        for item in report["dependencies"]
+        item["dependency_id"].startswith("qwen") for item in report["dependencies"]
     )

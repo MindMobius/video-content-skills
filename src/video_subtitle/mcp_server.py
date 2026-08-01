@@ -156,6 +156,7 @@ def start_subtitle_extraction(
     page: int | None = None,
     ocr_backend: str = "auto",
     collect_all_sources: bool = False,
+    media_execution: Literal["auto", "serial", "parallel"] | None = None,
     asr_backend: str = "none",
     asr_language: str = "auto",
     asr_context: str = "",
@@ -177,7 +178,7 @@ def start_subtitle_extraction(
     ocr_consensus_image_max_width: int | None = None,
     min_subtitle_duration: float = 0.2,
 ) -> dict[str, Any]:
-    """Start a durable job; return immediately and poll get_subtitle_job."""
+    """Start a durable job; auto avoids concurrent OCR/ASR on a shared GPU."""
     parsed_crop: tuple[int, int, int, int] | None = None
     if crop is not None:
         if len(crop) != 4:
@@ -199,6 +200,11 @@ def start_subtitle_extraction(
         raise ValueError("min_subtitle_duration cannot be negative")
     if asr_backend not in {"none", "auto", "qwen3"}:
         raise ValueError("asr_backend must be none, auto, or qwen3")
+    selected_media_execution = (
+        media_execution or _environment("MEDIA_EXECUTION") or "auto"
+    )
+    if selected_media_execution not in {"auto", "serial", "parallel"}:
+        raise ValueError("media_execution must be auto, serial, or parallel")
     if not 30 <= asr_chunk_seconds <= 300:
         raise ValueError("asr_chunk_seconds must be between 30 and 300")
     if asr_max_cue_seconds <= 0:
@@ -243,6 +249,7 @@ def start_subtitle_extraction(
         download_quality=download_quality,
         collect_all_sources=collect_all_sources,
         asr_backend=asr_backend,
+        media_execution=selected_media_execution,
         videocr=options,
         qwen3_asr=asr_options,
     )
@@ -396,7 +403,9 @@ if McpServer is not None:
             "human_actions, persist paths with configure_video_subtitle, then verify with "
             "video_subtitle_doctor. Use OpenCLI, hard OCR, and optional Qwen3-ASR as "
             "independent evidence "
-            "sources. Prefer list_subtitle_evidence and read_subtitle_evidence so the "
+            "sources. media_execution=auto keeps shared-GPU OCR and ASR serial; use "
+            "parallel only after verifying host capacity. Prefer list_subtitle_evidence "
+            "and read_subtitle_evidence so the "
             "calling Agent chooses which source and time range to inspect. Fixed review "
             "windows are an optional hint, not a required workflow. Raw evidence is "
             "immutable; create derived artifacts for corrections. needs_ocr is an "
