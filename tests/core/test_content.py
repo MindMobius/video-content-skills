@@ -425,3 +425,57 @@ def test_passing_audit_must_cover_every_used_claim(tmp_path: Path) -> None:
             kind="fidelity_audit",
             document=audit,
         )
+
+
+def test_validation_surfaces_passing_audit_warnings(tmp_path: Path) -> None:
+    project = initialize_content_project(_manifest(tmp_path))
+    project_path = Path(project["project_path"])
+    map_result = save_content_document(
+        project_path,
+        kind="content_map",
+        document=_content_map(project),
+    )
+    save_content_document(
+        project_path,
+        kind="media_plan",
+        document=_media_plan(project, map_result["artifact"]["sha256"]),
+    )
+    deliverable = save_content_deliverable(
+        project_path,
+        medium="one_page",
+        format="svg",
+        title="完整稿",
+        content="<svg />",
+        used_claim_ids=["claim-0001", "claim-0002"],
+        used_caveat_ids=["caveat-0001"],
+    )["deliverable"]
+    audit = _audit(project, map_result["artifact"]["sha256"], deliverable)
+    audit["status"] = "pass_with_warnings"
+    audit["findings"] = [
+        {
+            "finding_id": "finding-0001",
+            "severity": "warning",
+            "category": "other",
+            "message": "External facts were not independently checked",
+            "claim_ids": ["claim-0001"],
+        }
+    ]
+    save_content_document(
+        project_path,
+        kind="fidelity_audit",
+        document=audit,
+    )
+
+    validation = validate_content_project(project_path)
+
+    assert validation["ready_for_delivery"] is True
+    assert validation["warnings"] == [
+        {
+            "code": "FIDELITY_AUDIT_WARNINGS",
+            "message": (
+                "The current deliverable passed with warnings; read and disclose "
+                "the current fidelity audit before delivery"
+            ),
+            "artifact_id": "audit-001",
+        }
+    ]

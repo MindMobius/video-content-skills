@@ -195,6 +195,8 @@ video-subtitle content-validate `
 
 完整工作流、状态失效规则和 dbskill 复用边界见
 [`docs/content-workflow.md`](docs/content-workflow.md)。
+真实的 16 分钟视频全链路结果见
+[`BV1KHNC61ExM 内容转换实测`](docs/cases/BV1KHNC61ExM-content.md)。
 
 ## MCP
 

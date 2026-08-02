@@ -512,6 +512,17 @@ def validate_content_project(project_path: Path) -> dict[str, Any]:
         )
     elif current_audit.get("audit_status") in {"pass", "pass_with_warnings"}:
         ready = not errors
+        if current_audit.get("audit_status") == "pass_with_warnings":
+            warnings.append(
+                {
+                    "code": "FIDELITY_AUDIT_WARNINGS",
+                    "message": (
+                        "The current deliverable passed with warnings; read and "
+                        "disclose the current fidelity audit before delivery"
+                    ),
+                    "artifact_id": str(current_audit.get("artifact_id") or ""),
+                }
+            )
 
     return _validation_result(project, errors, warnings, ready=ready)
 
