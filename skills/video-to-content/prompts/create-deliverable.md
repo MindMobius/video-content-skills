@@ -20,6 +20,22 @@ provenance: claim IDs and speaker attribution remain unchanged in metadata.
 With `preserve_speakers`, keep each speaker distinguishable. Do not collapse an
 interview into a fictional single-author voice.
 
+For a public adaptation whose publication profile or user instructions require
+source disclosure, place a visually separate attribution block before the body:
+
+- use the original cover when it is available and authorized for this use;
+- name the source creator, source title, and canonical source URL;
+- state that the artifact was transcribed, compressed, reorganized, translated,
+  or otherwise adapted when applicable;
+- disclose that those transformations can introduce deviations and direct the
+  reader back to the original source.
+
+This block is publication metadata, not an editorial narrator wrapping the
+body, so it does not violate `source_author` voice. Keep it outside the author's
+argument. Do not use a disclaimer to hide unsupported additions, transfer all
+factual responsibility to the source, or imply the creator endorsed the
+adaptation.
+
 Carrier-specific guidance:
 
 - Article: preserve the reasoning chain and use headings to expose structure.
