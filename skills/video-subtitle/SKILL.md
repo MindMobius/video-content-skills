@@ -101,6 +101,19 @@ Optional full-subtitle review:
 
 The review tools are helpers, not a mandatory pipeline.
 
+## Downstream content handoff
+
+When the user's goal continues beyond subtitles into an article, one-page
+visual, card series, brief, script, or another carrier, finish the required
+subtitle evidence work and then use the
+[`video-to-content` Skill](../video-to-content/SKILL.md). That Skill pins this
+job's evidence, reconstructs a medium-independent content map, selects one
+suitable carrier, and requires a fidelity audit before delivery.
+
+Do not bypass the handoff by summarizing metadata or an unresolved evidence
+bundle directly. Subtitle correction and content transformation are separate
+derived layers; neither may rewrite raw evidence.
+
 ## Acquisition policy
 
 Use the smallest useful loop:

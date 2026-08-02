@@ -1,0 +1,89 @@
+{
+  "schema_version": "video-content/content-map-v1",
+  "project_id": "content_0123456789abcdef",
+  "source_manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "content_type": "explanation",
+  "summary": "示例视频说明，降低长视频的接收门槛不能以丢失论点边界为代价。",
+  "coverage": {
+    "mode": "full",
+    "evidence_ids": ["ev-0001"],
+    "analyzed_ranges": [{ "start_ms": 0, "end_ms": 9000 }],
+    "omitted_ranges": []
+  },
+  "thesis": {
+    "text": "媒介可以改变，证据边界不能丢失。",
+    "claim_ids": ["claim-0001", "claim-0002"]
+  },
+  "evidence_refs": [
+    {
+      "evidence_ref_id": "evref-0001",
+      "evidence_id": "ev-0001",
+      "cue_ids": ["ev-0001-cue-00001"],
+      "start_ms": 0,
+      "end_ms": 4000,
+      "text": "长视频的问题不是信息少，而是接收门槛高。",
+      "language": "zh-CN",
+      "relationship": "supports"
+    },
+    {
+      "evidence_ref_id": "evref-0002",
+      "evidence_id": "ev-0001",
+      "cue_ids": ["ev-0001-cue-00002"],
+      "start_ms": 4000,
+      "end_ms": 9000,
+      "text": "转换媒介时要保留论点、证据和限定条件。",
+      "language": "zh-CN",
+      "relationship": "supports"
+    }
+  ],
+  "speakers": [
+    { "speaker_id": "speaker-0001", "name": "示例讲述者", "role": "讲述者" }
+  ],
+  "claims": [
+    {
+      "claim_id": "claim-0001",
+      "text": "长视频具有较高的接收门槛。",
+      "kind": "explanation",
+      "importance": "core",
+      "attribution": "speaker",
+      "speaker_id": "speaker-0001",
+      "evidence_refs": ["evref-0001"],
+      "confidence": "high",
+      "source_support": "direct",
+      "external_verification": "not_checked"
+    },
+    {
+      "claim_id": "claim-0002",
+      "text": "转换媒介必须保留论点、证据和限定条件。",
+      "kind": "recommendation",
+      "importance": "core",
+      "attribution": "speaker",
+      "speaker_id": "speaker-0001",
+      "evidence_refs": ["evref-0002"],
+      "confidence": "high",
+      "source_support": "direct",
+      "external_verification": "not_checked"
+    }
+  ],
+  "caveats": [
+    {
+      "caveat_id": "caveat-0001",
+      "text": "字幕只能证明视频表达了什么，不自动证明观点为事实。",
+      "claim_ids": ["claim-0001", "claim-0002"],
+      "evidence_refs": ["evref-0001", "evref-0002"]
+    }
+  ],
+  "counterpoints": [],
+  "terms": [],
+  "visual_refs": [],
+  "uncertainties": [],
+  "agent_inferences": [],
+  "sections": [
+    {
+      "section_id": "section-0001",
+      "title": "问题与原则",
+      "purpose": "说明为什么需要转换以及转换边界",
+      "claim_ids": ["claim-0001", "claim-0002"]
+    }
+  ]
+}

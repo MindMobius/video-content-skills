@@ -1,0 +1,47 @@
+{
+  "schema_version": "video-content/fidelity-audit-v1",
+  "project_id": "content_0123456789abcdef",
+  "source_manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "content_map_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "target": {
+    "deliverable_id": "dlv-001",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "status": "pass",
+  "claim_checks": [
+    {
+      "statement": "长视频的接收门槛高",
+      "claim_ids": ["claim-0001"],
+      "verdict": "compressed_but_faithful",
+      "notes": "保留了原句的核心含义"
+    },
+    {
+      "statement": "转换媒介必须保留论点、证据和限定条件",
+      "claim_ids": ["claim-0002"],
+      "verdict": "faithful",
+      "notes": "与内容地图一致"
+    }
+  ],
+  "required_element_checks": [
+    {
+      "element_type": "claim",
+      "element_id": "claim-0001",
+      "present": true,
+      "notes": "位于问题区"
+    },
+    {
+      "element_type": "claim",
+      "element_id": "claim-0002",
+      "present": true,
+      "notes": "位于原则区"
+    },
+    {
+      "element_type": "caveat",
+      "element_id": "caveat-0001",
+      "present": true,
+      "notes": "位于页脚限定说明"
+    }
+  ],
+  "findings": [],
+  "repair_actions": []
+}

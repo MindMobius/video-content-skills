@@ -1,0 +1,149 @@
+# 从视频证据到其他内容媒介
+
+## 目标
+
+字幕提取不是终点。内容工程层把已经核验的视频字幕证据转换为适合传播和阅读的载体，
+同时保留“这句话来自哪里、哪些内容被省略、哪些结论仍不确定”。默认目标是降低信息接收
+门槛，不是制造流量或营销文案。
+
+```mermaid
+flowchart LR
+    E["字幕证据包<br/>平台字幕 / OCR / ASR"] --> M["Content Map<br/>论点 / 证据 / 限定 / 不确定项"]
+    M --> R["媒介路由<br/>根据内容结构选择一种载体"]
+    R --> D["文章 / 一图流 / 卡片 / Brief / 口播稿"]
+    D --> A["忠实度审计"]
+    A -->|通过| O["可交付产物"]
+    A -->|失败| D
+```
+
+## Agent 与工具的边界
+
+| 层 | 负责 | 不负责 |
+| --- | --- | --- |
+| 工具 | 固定证据哈希、保存版本、校验 ID/引用、检测过期产物、持久化成品 | 理解观点、判断语义、选择载体、写作、设计 |
+| Agent | 分段读取证据、重建语义、决定取舍、生成成品、逐句审计 | 修改原始证据、把自我推断伪装成原作者观点 |
+| Skill | 决策步骤、Prompt、证据边界、媒介选择与审计规范 | 强制所有视频走同一模板、以传播效果覆盖准确性 |
+
+这一区分是刻意的。可重复、可验证的工作交给工具；依赖上下文和判断的工作保留给 Agent。
+
+## 四类核心产物
+
+### Content project
+
+`initialize_video_content` 在字幕 job 内创建项目，并记录：
+
+- 字幕 manifest 的 SHA-256；
+- 每份可读字幕证据的 ID、路径、类型与 SHA-256；
+- 目标、受众和输出语言；
+- 所有派生产物的版本与当前指针。
+
+原始字幕不会被复制、改写或覆盖。源 manifest 或任何证据变化后，旧项目会变为无效，应从
+新证据重新创建项目。
+
+### Content map
+
+Content map 是与载体无关的标准内容模型，主要包含：
+
+- 实际分析范围和未覆盖范围；
+- 带字幕来源和时间戳的证据引用；
+- 归属到说话人、发布者或 Agent 综合判断的论点；
+- 限定条件、反方观点、术语、画面信息和不确定项；
+- 内容的论证或解释结构。
+
+“视频中说了什么”和“这个说法在现实中是否正确”是两个字段层级。没有外部核验时，
+`external_verification` 必须保持 `not_checked`。
+
+### Media plan
+
+媒介计划不根据平台热度选择载体，而根据四项内容结构判断：
+
+- 论证深度；
+- 上下文依赖；
+- 视觉表达潜力；
+- 不确定性水平。
+
+计划只选择一个主要载体，并明确必须保留的论点、限定条件、主动省略的内容及原因。
+一图流不是默认结果：当论证依赖多层上下文或限定条件无法清晰放入单页时，应选择文章。
+
+### Fidelity audit
+
+忠实度审计逐项检查成品中的实质性表述，确认它们对应哪些 claim，并检查媒介计划要求的
+论点和限定条件是否在人类可见的成品中出现。
+
+`pass_with_warnings` 只能表示不改变语义的非阻断限制。无依据的结论、语义强化、遗漏关键
+限定、隐藏不确定性、错误归因或翻译错误必须标记为 `fail`。失败后保存新的成品版本并重新
+审计，不能覆盖旧版本。
+
+## 状态和版本失效
+
+```text
+initialized
+  -> mapped
+  -> planned
+  -> drafted
+  -> complete | needs_revision
+```
+
+- 新 content map 会让当前媒介计划、成品和审计失效；
+- 新媒介计划会让当前成品和审计失效；
+- 新成品会让当前审计失效；
+- 每次保存产生 `cmap-001`、`mplan-001`、`dlv-001`、`audit-001` 一类独立版本。
+
+## Prompt 组成
+
+`video-to-content` Skill 只在相应阶段加载四个 Prompt：
+
+1. `build-content-map.md`：从分段证据重建内容模型；
+2. `select-medium.md`：根据内容结构选择一种载体；
+3. `create-deliverable.md`：按计划生成成品并声明引用的 claim/caveat；
+4. `audit-fidelity.md`：以独立审阅视角逐句核验。
+
+Prompt 只规定问题、边界和交付契约，不提供固定摘要算法。
+
+## CLI 示例
+
+```powershell
+$init = video-subtitle content-init `
+  --manifest .\result\manifest.json `
+  --objective faithful_information_transfer `
+  --audience "没有时间观看完整视频的读者" `
+  --output-language zh-CN | ConvertFrom-Json
+
+$project = $init.project_path
+
+video-subtitle content-save --project $project `
+  --kind content_map --document .\content-map.json
+video-subtitle content-save --project $project `
+  --kind media_plan --document .\media-plan.json
+video-subtitle content-deliverable --project $project `
+  --medium article --format markdown --content-file .\article.md `
+  --title "文章标题" `
+  --used-claim-id claim-0001 `
+  --used-caveat-id caveat-0001
+video-subtitle content-save --project $project `
+  --kind fidelity_audit --document .\fidelity-audit.json
+video-subtitle content-validate --project $project
+```
+
+## 对 dbskill 的复用边界
+
+[`dontbesilent2025/dbskill`](https://github.com/dontbesilent2025/dbskill) 的内容资产工程、
+动态路由和成稿检查思路对本层设计有参考价值，尤其是“原始材料不变、以语义单元组织、
+先建立结构再扩展”。本项目没有把 dbskill 作为依赖，也没有复制其 Prompt：
+
+- dbskill 的输入通常已经是文本或内容资产，不负责视频字幕证据；
+- 本项目需要更细的 claim—evidence—timestamp 追溯；
+- 部分传播方法偏向产品、情绪和立场，不适合作为忠实信息转换的上游原则；
+- dbskill README 声明 `CC BY-NC 4.0`，本项目保持独立实现，避免把非商业许可内容混入
+  MIT 代码与 Prompt。
+
+未来可以把用户已安装的 dbskill 作为可选下游检查器，但它不会成为核心运行依赖。
+
+## 当前限制
+
+- 内容工程入口目前只接受本项目完成的字幕 manifest；
+- 一图流的 SVG/HTML、文章 Markdown 等内容由 Agent 或独立渲染 Skill 生成，本项目只保存
+  和校验，不内置模板化设计器；
+- 当前 content map 的视觉引用由 Agent 从视频上下文判断，尚无按范围抽帧工具；
+- 外部事实核验不自动执行；
+- Bilibili 是当前唯一实现的平台适配器，YouTube 和抖音仍待接入。

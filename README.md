@@ -1,10 +1,15 @@
 # Video Subtitle Skill
 
-一套让 Agent 按需获取、读取和核验视频字幕证据的 Skill、MCP Server 与 JSON CLI。
+一套让 Agent 按需获取、读取和核验视频字幕证据，并把已核验内容转换为合适媒介的
+Skill、MCP Server 与 JSON CLI。
 
 它不会把平台字幕、硬字幕 OCR 或音频 ASR 自动拼成“唯一正确稿”。工具负责依赖
 检查、登录态、下载、识别、时间轴和产物；Agent 负责选择证据、理解语义、判断冲突
 并决定是否继续取证。
+
+仓库包含两个相互解耦的 Skill：`video-subtitle` 负责建立证据，`video-to-content` 负责
+把证据重建为可追溯的内容模型，再选择文章、一图流、卡片、Brief 或口播稿等一种合适
+载体。语义判断始终由 Agent 完成，工具只做依赖、持久化、版本和确定性校验。
 
 ## 当前能力
 
@@ -16,6 +21,10 @@
 - 按来源、按任意时间范围读取字幕证据；
 - 可选的固定窗口精校与不可变原始产物；
 - 面向 Agent 的依赖检查、配置持久化和修复动作。
+- 固定字幕 manifest 与各路证据哈希的内容工程项目；
+- 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
+- Agent 决策的一种媒介计划、版本化成品和逐项忠实度审计；
+- 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
 平台只需实现 [`platforms/base.py`](src/video_subtitle/platforms/base.py) 的最小接口。
@@ -80,6 +89,11 @@ profile 别名、任务目录和执行策略，不保存 cookie、密码或 toke
 [`requirements.schema.json`](schemas/requirements.schema.json)、
 [`config.schema.json`](schemas/config.schema.json) 和
 [`setup.schema.json`](schemas/setup.schema.json) 校验，避免文档、工具输出和测试各自漂移。
+内容工程的项目、内容地图、媒介计划和忠实度审计分别由
+[`content-project.schema.json`](schemas/content-project.schema.json)、
+[`content-map.schema.json`](schemas/content-map.schema.json)、
+[`media-plan.schema.json`](schemas/media-plan.schema.json) 和
+[`fidelity-audit.schema.json`](schemas/fidelity-audit.schema.json) 定义。
 
 ## 使用流程
 
@@ -161,9 +175,30 @@ video-subtitle review-apply `
   --decisions .\review-decisions.json
 ```
 
+将已完成的字幕证据继续转换为其他内容媒介：
+
+```powershell
+video-subtitle content-init --manifest .\result\manifest.json
+video-subtitle content-save --project .\result\content\<project-id>\project.json `
+  --kind content_map --document .\content-map.json
+video-subtitle content-save --project .\result\content\<project-id>\project.json `
+  --kind media_plan --document .\media-plan.json
+video-subtitle content-deliverable `
+  --project .\result\content\<project-id>\project.json `
+  --medium article --format markdown --content-file .\article.md `
+  --title "文章标题" --used-claim-id claim-0001
+video-subtitle content-save --project .\result\content\<project-id>\project.json `
+  --kind fidelity_audit --document .\fidelity-audit.json
+video-subtitle content-validate `
+  --project .\result\content\<project-id>\project.json
+```
+
+完整工作流、状态失效规则和 dbskill 复用边界见
+[`docs/content-workflow.md`](docs/content-workflow.md)。
+
 ## MCP
 
-MCP Server 使用 stdio，共暴露 12 个工具：
+MCP Server 使用 stdio，共暴露 18 个工具：
 
 环境：
 
@@ -188,6 +223,15 @@ MCP Server 使用 stdio，共暴露 12 个工具：
 - `prepare_subtitle_review`
 - `get_subtitle_review_window`
 - `submit_subtitle_review_window`
+
+内容工程：
+
+- `initialize_video_content`
+- `get_video_content_project`
+- `save_video_content_document`
+- `save_video_content_deliverable`
+- `read_video_content_artifact`
+- `validate_video_content_project`
 
 Codex 配置示例：
 
@@ -218,6 +262,7 @@ args = ["-m", "video_subtitle.mcp_server"]
 ```text
 video-subtitle-skill/
 ├─ skills/video-subtitle/SKILL.md     Agent 决策与安全边界
+├─ skills/video-to-content/           内容重建、媒介选择、生成与审计 Prompt
 ├─ src/video_subtitle/
 │  ├─ requirements.json               外部能力依赖契约
 │  ├─ config.py                       持久配置与优先级
@@ -225,7 +270,7 @@ video-subtitle-skill/
 │  ├─ diagnostics.py                  quick/deep doctor
 │  ├─ platforms/                      平台适配器
 │  ├─ backends/                       OCR、ASR、Forced Aligner
-│  ├─ core/                           SRT、证据与派生审阅
+│  ├─ core/                           SRT、证据、派生审阅与内容工程
 │  ├─ pipeline.py                     采集和资源调度
 │  ├─ jobs.py                         持久后台任务
 │  ├─ cli.py
@@ -245,5 +290,6 @@ python -m pytest
 python scripts\mcp_smoke.py
 ```
 
-当前优先级是按范围抽帧、局部 OCR/ASR、通用派生修订，以及 YouTube、抖音平台
-适配器，而不是继续扩大固定启发式审阅规则。
+当前优先级是用真实长视频验证 content map 与媒介路由、增加按范围抽帧和可选渲染器，
+以及局部 OCR/ASR、通用派生修订、YouTube 和抖音平台适配器，而不是继续扩大固定启发式
+审阅或摘要规则。

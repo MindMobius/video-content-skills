@@ -9,6 +9,7 @@
 | [video-subtitle-extractor (VSE)](https://github.com/YaoFANGUK/video-subtitle-extractor) | 字幕区域检测、抽帧、PaddleOCR、相似文本去重、时间轴/SRT 后处理 | README 中的 CLI 实际仍用 `input()` 询问视频和区域；配置与输出路径依赖内部状态，不适合无交互 agent | OCR 算法和后处理参考 |
 | [VideOCR](https://github.com/timminator/VideOCR) | 完整非交互 CLI；底部区域默认值；PaddleOCR；GPU；裁剪、跳帧、置信度与时间范围 | 本身不负责 B 站登录/下载，也没有 MCP/任务状态 | 第一个硬字幕 OCR 后端 |
 | [RapidVideOCR](https://github.com/SWHL/RapidVideOCR) | 可 pip 安装、将 VideoSubFinder 的关键字幕帧转成 SRT/ASS/TXT | 主要输入是 VideoSubFinder 产生的 `RGBImages`/`TXTImages`，不是直接视频 | 未来可选的两阶段后端 |
+| [dbskill](https://github.com/dontbesilent2025/dbskill) | 内容资产工程、语义单元、动态能力路由、成稿流畅度与发布检查 | 不读取视频字幕证据；缺少 claim—timestamp 追溯；部分方法以产品、情绪和立场为目标；README 声明 CC BY-NC 4.0 | 仅作为内容工程方法参考和未来可选下游检查器，不复制 Prompt、不建立运行依赖 |
 
 ## 核心判断
 
@@ -49,3 +50,5 @@
 - 通用派生字幕修订工具，脱离固定窗口助手也能保存可审计修改；
 - YouTube 与抖音平台适配器；
 - `visual_keyframe_ocr` 证据，用于保存非字幕画面文字。
+- 在 `video-to-content` 已建立的 content map、媒介计划和忠实度审计契约上，增加可选的
+  一图流与文章渲染器；渲染器不参与语义裁决。
