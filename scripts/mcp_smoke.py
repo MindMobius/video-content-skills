@@ -86,6 +86,17 @@ async def smoke() -> None:
                             "read_subtitle_evidence",
                         )
                     ),
+                    "content_engineering_tools_exposed": all(
+                        name in tool_names
+                        for name in (
+                            "initialize_video_content",
+                            "get_video_content_project",
+                            "save_video_content_document",
+                            "save_video_content_deliverable",
+                            "read_video_content_artifact",
+                            "validate_video_content_project",
+                        )
+                    ),
                     "typed_review_decisions": (
                         "ReviewDecisionInput" in submit_schema.get("$defs", {})
                         and submit_schema["$defs"]["ReviewDecisionInput"]["properties"][

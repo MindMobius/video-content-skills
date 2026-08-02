@@ -8,6 +8,19 @@ from typing import Any, Literal
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import apply_configuration, update_configuration
+from .core.content import (
+    get_content_project as get_content_project_state,
+)
+from .core.content import (
+    initialize_content_project,
+    safe_content_project_id,
+    save_content_deliverable,
+    save_content_document,
+    validate_content_project,
+)
+from .core.content import (
+    read_content_artifact as read_content_project_artifact,
+)
 from .core.evidence import (
     list_subtitle_evidence_for_manifest,
     read_subtitle_evidence_range,
@@ -394,6 +407,92 @@ def read_subtitle_artifact(
     }
 
 
+def initialize_video_content(
+    job_id: str,
+    objective: str = "faithful_information_transfer",
+    audience: str = "",
+    output_language: str = "zh-CN",
+) -> dict[str, Any]:
+    """Create an evidence-pinned workspace before the Agent builds a content map."""
+    return initialize_content_project(
+        _job_manifest_path(job_id),
+        objective=objective,
+        audience=audience,
+        output_language=output_language,
+    )
+
+
+def get_video_content_project(job_id: str, project_id: str) -> dict[str, Any]:
+    """Read content-project state, current artifacts, and integrity findings."""
+    return get_content_project_state(_content_project_path(job_id, project_id))
+
+
+def save_video_content_document(
+    job_id: str,
+    project_id: str,
+    kind: Literal["content_map", "media_plan", "fidelity_audit"],
+    document: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate and version Agent-authored semantics; the tool never invents them."""
+    return save_content_document(
+        _content_project_path(job_id, project_id),
+        kind=kind,
+        document=document,
+    )
+
+
+def save_video_content_deliverable(
+    job_id: str,
+    project_id: str,
+    medium: Literal["article", "one_page", "card_series", "brief", "script", "custom"],
+    format: Literal["markdown", "html", "svg", "json", "text"],
+    content: str,
+    title: str,
+    used_claim_ids: list[str],
+    used_caveat_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    """Version one selected deliverable and record the claims and caveats it uses."""
+    return save_content_deliverable(
+        _content_project_path(job_id, project_id),
+        medium=medium,
+        format=format,
+        content=content,
+        title=title,
+        used_claim_ids=used_claim_ids,
+        used_caveat_ids=used_caveat_ids,
+    )
+
+
+def read_video_content_artifact(
+    job_id: str,
+    project_id: str,
+    artifact: Literal[
+        "project",
+        "latest_content_map",
+        "latest_media_plan",
+        "latest_deliverable",
+        "latest_fidelity_audit",
+        "artifact_id",
+    ] = "latest_deliverable",
+    artifact_id: str = "",
+    offset: int = 0,
+    max_chars: int = 20_000,
+) -> dict[str, Any]:
+    """Read a bounded semantic document, deliverable, or fidelity audit."""
+    return read_content_project_artifact(
+        _content_project_path(job_id, project_id),
+        artifact=artifact,
+        artifact_id=artifact_id,
+        offset=offset,
+        max_chars=max_chars,
+    )
+
+
+def validate_video_content_project(job_id: str, project_id: str) -> dict[str, Any]:
+    """Verify source hashes, derived artifact hashes, and audited delivery readiness."""
+    return validate_content_project(_content_project_path(job_id, project_id))
+
+
 if McpServer is not None:
     mcp = McpServer(
         "video-subtitle",
@@ -409,7 +508,10 @@ if McpServer is not None:
             "calling Agent chooses which source and time range to inspect. Fixed review "
             "windows are an optional hint, not a required workflow. Raw evidence is "
             "immutable; create derived artifacts for corrections. needs_ocr is an "
-            "actionable state, not success."
+            "actionable state, not success. For content transformation, initialize an "
+            "evidence-pinned project, let the calling Agent author the content map, media "
+            "plan, deliverable, and fidelity audit, and use tools only to validate and "
+            "version those artifacts."
         ),
     )
     mcp.tool(name="video_subtitle_setup")(setup_environment)
@@ -424,6 +526,12 @@ if McpServer is not None:
     mcp.tool(name="get_subtitle_review_window")(get_subtitle_review_window)
     mcp.tool(name="submit_subtitle_review_window")(submit_subtitle_review_window)
     mcp.tool(name="read_subtitle_artifact")(read_subtitle_artifact)
+    mcp.tool(name="initialize_video_content")(initialize_video_content)
+    mcp.tool(name="get_video_content_project")(get_video_content_project)
+    mcp.tool(name="save_video_content_document")(save_video_content_document)
+    mcp.tool(name="save_video_content_deliverable")(save_video_content_deliverable)
+    mcp.tool(name="read_video_content_artifact")(read_video_content_artifact)
+    mcp.tool(name="validate_video_content_project")(validate_video_content_project)
 else:
     mcp = None
 
@@ -439,6 +547,12 @@ def main() -> None:
 def _job_manifest_path(job_id: str) -> Path:
     manifest = _store().get(job_id)
     return Path(str(manifest["job_directory"])) / "manifest.json"
+
+
+def _content_project_path(job_id: str, project_id: str) -> Path:
+    manifest_path = _job_manifest_path(job_id)
+    project_id = safe_content_project_id(project_id)
+    return manifest_path.parent / "content" / project_id / "project.json"
 
 
 def _compact_dataclass(value: Any) -> dict[str, Any]:

@@ -10,6 +10,14 @@ from . import __version__
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
+from .core.content import (
+    get_content_project,
+    initialize_content_project,
+    read_content_artifact,
+    save_content_deliverable,
+    save_content_document,
+    validate_content_project,
+)
 from .core.evidence import (
     list_subtitle_evidence_for_manifest,
     read_subtitle_evidence_range,
@@ -177,6 +185,84 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_apply_parser.add_argument("--manifest", type=Path, required=True)
     review_apply_parser.add_argument("--decisions", type=Path, required=True)
+
+    content_init_parser = commands.add_parser(
+        "content-init",
+        help="Create a content project pinned to one completed subtitle manifest",
+    )
+    content_init_parser.add_argument("--manifest", type=Path, required=True)
+    content_init_parser.add_argument(
+        "--objective", default="faithful_information_transfer"
+    )
+    content_init_parser.add_argument("--audience", default="")
+    content_init_parser.add_argument("--output-language", default="zh-CN")
+
+    content_status_parser = commands.add_parser(
+        "content-status", help="Read a content project and its integrity status"
+    )
+    content_status_parser.add_argument("--project", type=Path, required=True)
+
+    content_save_parser = commands.add_parser(
+        "content-save",
+        help="Validate and version an Agent-authored content document",
+    )
+    content_save_parser.add_argument("--project", type=Path, required=True)
+    content_save_parser.add_argument(
+        "--kind",
+        choices=("content_map", "media_plan", "fidelity_audit"),
+        required=True,
+    )
+    content_save_parser.add_argument("--document", type=Path, required=True)
+
+    content_deliverable_parser = commands.add_parser(
+        "content-deliverable",
+        help="Version a generated article, one-page visual, card set, brief, or script",
+    )
+    content_deliverable_parser.add_argument("--project", type=Path, required=True)
+    content_deliverable_parser.add_argument(
+        "--medium",
+        choices=("article", "one_page", "card_series", "brief", "script", "custom"),
+        required=True,
+    )
+    content_deliverable_parser.add_argument(
+        "--format",
+        choices=("markdown", "html", "svg", "json", "text"),
+        required=True,
+    )
+    content_deliverable_parser.add_argument("--content-file", type=Path, required=True)
+    content_deliverable_parser.add_argument("--title", required=True)
+    content_deliverable_parser.add_argument(
+        "--used-claim-id", action="append", default=[]
+    )
+    content_deliverable_parser.add_argument(
+        "--used-caveat-id", action="append", default=[]
+    )
+
+    content_read_parser = commands.add_parser(
+        "content-read", help="Read a bounded content-project artifact"
+    )
+    content_read_parser.add_argument("--project", type=Path, required=True)
+    content_read_parser.add_argument(
+        "--artifact",
+        choices=(
+            "project",
+            "latest_content_map",
+            "latest_media_plan",
+            "latest_deliverable",
+            "latest_fidelity_audit",
+            "artifact_id",
+        ),
+        default="latest_deliverable",
+    )
+    content_read_parser.add_argument("--artifact-id", default="")
+    content_read_parser.add_argument("--offset", type=int, default=0)
+    content_read_parser.add_argument("--max-chars", type=int, default=20_000)
+
+    content_validate_parser = commands.add_parser(
+        "content-validate",
+        help="Verify pinned evidence, artifact hashes, and delivery readiness",
+    )
+    content_validate_parser.add_argument("--project", type=Path, required=True)
 
     worker_parser = commands.add_parser("_worker", help=argparse.SUPPRESS)
     worker_parser.add_argument("--request-file", type=Path, required=True)
@@ -390,6 +476,64 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         if not isinstance(decisions, dict):
             raise ValueError("Review decisions must be a JSON object")
         return apply_review_document(args.manifest, decisions), 0
+
+    if args.command == "content-init":
+        return (
+            initialize_content_project(
+                args.manifest,
+                objective=args.objective,
+                audience=args.audience,
+                output_language=args.output_language,
+            ),
+            0,
+        )
+
+    if args.command == "content-status":
+        return get_content_project(args.project), 0
+
+    if args.command == "content-save":
+        document = read_json(args.document.resolve())
+        if not isinstance(document, dict):
+            raise ValueError("Content document must be a JSON object")
+        return (
+            save_content_document(args.project, kind=args.kind, document=document),
+            0,
+        )
+
+    if args.command == "content-deliverable":
+        content_path = args.content_file.resolve()
+        if not content_path.is_file():
+            raise FileNotFoundError(
+                f"Deliverable source does not exist: {content_path}"
+            )
+        return (
+            save_content_deliverable(
+                args.project,
+                medium=args.medium,
+                format=args.format,
+                content=content_path.read_text(encoding="utf-8", errors="replace"),
+                title=args.title,
+                used_claim_ids=args.used_claim_id,
+                used_caveat_ids=args.used_caveat_id,
+            ),
+            0,
+        )
+
+    if args.command == "content-read":
+        return (
+            read_content_artifact(
+                args.project,
+                artifact=args.artifact,
+                artifact_id=args.artifact_id,
+                offset=args.offset,
+                max_chars=args.max_chars,
+            ),
+            0,
+        )
+
+    if args.command == "content-validate":
+        result = validate_content_project(args.project)
+        return result, 0 if result["valid"] else 1
 
     if args.command == "configure":
         result = update_configuration(

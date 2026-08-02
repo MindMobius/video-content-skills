@@ -41,6 +41,25 @@ def write_json_atomic(path: Path, value: Any) -> None:
             temp_path.unlink()
 
 
+def write_text_atomic(path: Path, value: str) -> None:
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=str(path.parent),
+        text=True,
+    )
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(value)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def read_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as stream:
         return json.load(stream)
