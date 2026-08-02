@@ -13,6 +13,17 @@
   },
   "selected_medium": "one_page",
   "selection_reason": "两个核心观点可以在单页中形成问题—原则结构。",
+  "adaptation_strategy": {
+    "relationship_to_source": "reconstructed_for_medium",
+    "rationale": "单页先给结论，再合并解释与边界，不复刻视频时间顺序。",
+    "transformations": ["重排论点", "合并解释", "把限定贴近所约束的结论"]
+  },
+  "narrative_voice": {
+    "mode": "source_author",
+    "speaker_ids": ["speaker-0001"],
+    "description": "以讲述者的直接口吻表达，不添加外部转述框架。",
+    "prohibited_wrappers": ["这个视频认为", "作者表示"]
+  },
   "alternatives": [
     {
       "medium": "article",

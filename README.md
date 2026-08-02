@@ -23,7 +23,7 @@ Skill、MCP Server 与 JSON CLI。
 - 面向 Agent 的依赖检查、配置持久化和修复动作。
 - 固定字幕 manifest 与各路证据哈希的内容工程项目；
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
-- Agent 决策的一种媒介计划、版本化成品和逐项忠实度审计；
+- Agent 决策的载体重构策略、叙述口吻、版本化成品和逐项忠实度审计；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增

@@ -7,7 +7,8 @@
 - [`content-map.schema.json`](../../../schemas/content-map.schema.json):
   medium-independent semantic reconstruction.
 - [`media-plan.schema.json`](../../../schemas/media-plan.schema.json): selected
-  carrier, required elements, omissions, structure, and rendering contract.
+  carrier, required elements, omissions, carrier-specific restructuring,
+  narrative voice, structure, and rendering contract.
 - [`fidelity-audit.schema.json`](../../../schemas/fidelity-audit.schema.json):
   statement-level review and delivery gate.
 
@@ -40,4 +41,6 @@ ranges.
 Tools enforce schemas, known IDs, source/artifact hashes, current-revision
 relationships, required-element coverage, and audit bookkeeping. The Agent is
 responsible for whether a paraphrase is faithful, a source truly supports a
-claim, a caveat is consequential, and a medium is appropriate.
+claim, a caveat is consequential, a narrative voice matches the source, and a
+medium-specific information architecture is appropriate. Tools validate the
+declared strategy and references; they do not algorithmically rewrite content.

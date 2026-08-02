@@ -181,6 +181,17 @@ def _media_plan(project: dict, content_map_sha256: str) -> dict:
         },
         "selected_medium": "one_page",
         "selection_reason": "两个核心观点可以在单页中形成问题—原则结构。",
+        "adaptation_strategy": {
+            "relationship_to_source": "reconstructed_for_medium",
+            "rationale": "单页先给结论，再合并解释与边界，不复刻视频时间顺序。",
+            "transformations": ["重排论点", "合并解释", "把限定贴近所约束的结论"],
+        },
+        "narrative_voice": {
+            "mode": "source_author",
+            "speaker_ids": ["speaker-0001"],
+            "description": "以讲述者的直接口吻表达，不添加外部转述框架。",
+            "prohibited_wrappers": ["这个视频认为", "作者表示"],
+        },
         "alternatives": [
             {"medium": "article", "rejected_because": "当前论证较短，不需要长文展开。"}
         ],
@@ -381,6 +392,21 @@ def test_deliverable_requires_every_media_plan_core_element(tmp_path: Path) -> N
             used_claim_ids=["claim-0001"],
             used_caveat_ids=["caveat-0001"],
         )
+
+
+def test_source_author_voice_requires_known_source_speakers(tmp_path: Path) -> None:
+    project = initialize_content_project(_manifest(tmp_path))
+    project_path = Path(project["project_path"])
+    map_result = save_content_document(
+        project_path,
+        kind="content_map",
+        document=_content_map(project),
+    )
+    plan = _media_plan(project, map_result["artifact"]["sha256"])
+    plan["narrative_voice"]["speaker_ids"] = ["speaker-9999"]
+
+    with pytest.raises(ValueError, match="narrative_voice.speaker_ids"):
+        save_content_document(project_path, kind="media_plan", document=plan)
 
 
 def test_validation_detects_changed_source_evidence(tmp_path: Path) -> None:

@@ -79,6 +79,8 @@
               "missing_caveat",
               "uncertainty_hidden",
               "attribution",
+              "narrative_voice",
+              "carrier_structure",
               "translation",
               "other"
             ]

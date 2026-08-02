@@ -13,6 +13,8 @@
     "content_topology",
     "selected_medium",
     "selection_reason",
+    "adaptation_strategy",
+    "narrative_voice",
     "alternatives",
     "required_claim_ids",
     "required_caveat_ids",
@@ -46,6 +48,39 @@
     },
     "selected_medium": { "$ref": "#/$defs/medium" },
     "selection_reason": { "type": "string", "minLength": 1 },
+    "adaptation_strategy": {
+      "type": "object",
+      "required": ["relationship_to_source", "rationale", "transformations"],
+      "properties": {
+        "relationship_to_source": {
+          "enum": ["reconstructed_for_medium", "preserve_source_order"]
+        },
+        "rationale": { "type": "string", "minLength": 1 },
+        "transformations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "narrative_voice": {
+      "type": "object",
+      "required": ["mode", "speaker_ids", "description", "prohibited_wrappers"],
+      "properties": {
+        "mode": { "enum": ["source_author", "preserve_speakers", "editorial"] },
+        "speaker_ids": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^speaker-[0-9]{4}$" }
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "prohibited_wrappers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "additionalProperties": false
+    },
     "alternatives": {
       "type": "array",
       "items": {

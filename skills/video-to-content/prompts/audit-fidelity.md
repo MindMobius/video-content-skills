@@ -13,7 +13,13 @@ and relevant source ranges, not memory of the drafting process.
    presence.
 5. Check attribution, translation, certainty, causal language, numbers, names,
    and whether uncertainty was hidden by compression or design.
-6. Record concrete repair actions for every error.
+6. Check the declared narrative voice. For `source_author`, flag external
+   wrappers such as “这个视频认为”; for `preserve_speakers`, flag collapsed or
+   ambiguous speaker identities.
+7. Check that the carrier has a coherent information architecture. A different
+   order from the source is not an error unless it changes causality, sequence,
+   qualification, or meaning.
+8. Record concrete repair actions for every error.
 
 ## Status rule
 

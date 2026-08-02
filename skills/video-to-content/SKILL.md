@@ -45,7 +45,9 @@ in context merely because it fits.
 Author a `video-content/content-map-v1` document and save it with
 `save_video_content_document(kind="content_map")`.
 
-The map is canonical and independent of the eventual carrier. It must contain:
+The map is canonical and independent of the eventual carrier. Its timestamps
+preserve traceability; its sections describe semantic relationships and do not
+need to follow the video's sequence. It must contain:
 
 - actual analysis coverage and omitted ranges;
 - evidence excerpts with source IDs and timestamps;
@@ -76,14 +78,24 @@ changing the medium. Otherwise choose from content topology:
 - `custom`: a user-specified carrier not covered above.
 
 Save one `video-content/media-plan-v1` document. Record rejected alternatives,
-required claims and caveats, and every deliberate omission. Do not generate all
+required claims and caveats, every deliberate omission, the carrier-specific
+restructuring strategy, and the intended narrative voice. Do not generate all
 possible media by default.
+
+For a single-author monologue, default to `narrative_voice.mode=source_author`:
+write from the source author's perspective instead of wrapping the content in
+phrases such as “这个视频认为” or “作者表示”. For interviews or multi-speaker
+material, preserve speaker identities unless the user explicitly requests a
+separate editorial voice.
 
 ### 3. Create the deliverable
 
 Read [`prompts/create-deliverable.md`](prompts/create-deliverable.md).
 
-Create the selected artifact using your own language and reasoning. Use an
+Create the selected artifact using your own language and reasoning. Rebuild its
+information architecture for the selected carrier: claims may be merged,
+split, reordered, foregrounded, or moved into supporting context. Source order
+is evidence metadata, not a layout template. Use an
 available rendering or image skill only when it materially improves the chosen
 carrier. Rendering may improve hierarchy and appearance; it must not decide
 what the source means.
@@ -164,6 +176,10 @@ artifact versioning, and field semantics.
   evidence.
 - Never treat source agreement as external factual verification.
 - Never manufacture a quote from a paraphrase or translation.
+- Never mistake a changed section order for a fidelity error; audit meaning,
+  attribution, certainty, and necessary context instead.
+- Never add an external narrator wrapper to a single-author adaptation whose
+  media plan calls for the source author's voice.
 - Never silently remove a limitation that changes a conclusion.
 - Never optimize emotion, stance, click-through, or conversion unless the user
   explicitly asks for that separate objective.

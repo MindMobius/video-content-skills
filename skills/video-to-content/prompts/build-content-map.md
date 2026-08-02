@@ -27,8 +27,9 @@ Reconstruct the video's semantic structure before considering presentation.
    that category.
 7. Put any cross-section synthesis in `agent_inferences`, with its evidence and
    reasoning. Do not place it in a speaker-attributed claim.
-8. Build sections that expose the argument or explanatory structure, not merely
-   equal-duration transcript chunks.
+8. Build conceptual sections that expose the argument or explanatory structure.
+   They may merge, split, or reorder source ranges. Timestamps belong to
+   evidence references for traceability; they do not prescribe section order.
 
 ## Quality gate
 
@@ -41,6 +42,7 @@ Before saving, verify:
   overlapping time, not string similarity;
 - `external_verification` does not exceed what was actually checked;
 - partial coverage and unresolved ambiguity are explicit;
+- sections reflect semantic relationships rather than the playback timeline;
 - no target-medium wording or layout choice has leaked into the canonical map.
 
 Return the JSON document required by

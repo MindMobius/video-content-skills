@@ -706,6 +706,8 @@ def _validate_media_plan(project: dict[str, Any], document: dict[str, Any]) -> N
         "audience",
         "selected_medium",
         "selection_reason",
+        "adaptation_strategy",
+        "narrative_voice",
         "required_claim_ids",
         "required_caveat_ids",
         "omissions",
@@ -728,6 +730,48 @@ def _validate_media_plan(project: dict[str, Any], document: dict[str, Any]) -> N
         raise ValueError("media_plan.selected_medium is unsupported")
     claims = _ids(content_map["claims"], "claim_id")
     caveats = _ids(content_map["caveats"], "caveat_id")
+    speakers = _ids(content_map.get("speakers", []), "speaker_id")
+    adaptation = document["adaptation_strategy"]
+    _require_fields(
+        adaptation,
+        ("relationship_to_source", "rationale", "transformations"),
+        "adaptation_strategy",
+    )
+    if adaptation["relationship_to_source"] not in {
+        "reconstructed_for_medium",
+        "preserve_source_order",
+    }:
+        raise ValueError("adaptation_strategy.relationship_to_source is unsupported")
+    if not str(adaptation["rationale"]).strip():
+        raise ValueError("adaptation_strategy.rationale cannot be empty")
+    if not adaptation["transformations"]:
+        raise ValueError("adaptation_strategy.transformations must not be empty")
+
+    narrative_voice = document["narrative_voice"]
+    _require_fields(
+        narrative_voice,
+        ("mode", "speaker_ids", "description", "prohibited_wrappers"),
+        "narrative_voice",
+    )
+    if narrative_voice["mode"] not in {
+        "source_author",
+        "preserve_speakers",
+        "editorial",
+    }:
+        raise ValueError("narrative_voice.mode is unsupported")
+    _require_known_refs(
+        narrative_voice["speaker_ids"], speakers, "narrative_voice.speaker_ids"
+    )
+    if narrative_voice["mode"] == "source_author" and not narrative_voice[
+        "speaker_ids"
+    ]:
+        raise ValueError("source_author narrative voice requires source speakers")
+    if narrative_voice["mode"] == "preserve_speakers" and not narrative_voice[
+        "speaker_ids"
+    ]:
+        raise ValueError("preserve_speakers narrative voice requires speakers")
+    if not str(narrative_voice["description"]).strip():
+        raise ValueError("narrative_voice.description cannot be empty")
     if not document["required_claim_ids"]:
         raise ValueError("media_plan.required_claim_ids must not be empty")
     _require_known_refs(document["required_claim_ids"], claims, "required_claim_ids")
