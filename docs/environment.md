@@ -135,7 +135,9 @@ deep doctor 会进入独立 ASR Python 环境，验证：
 - GPU VideOCR 与 GPU ASR：串行，防止未知显存机器 OOM；
 - 用户显式选择 `parallel`：并行，并在 manifest 中记为显式决策。
 
-只有 deep doctor 和真实样本都证明本机资源足够后，Agent 才应持久化 `parallel`。
+只有 deep doctor 和有代表性的真实样本都证明并发稳定且更快后，Agent 才应持久化
+`parallel`。显存足够只能证明两路进程可能同时容纳，不能证明吞吐更高；样本还应覆盖实际
+使用的 OCR 分辨率、双尺度共识、视频画面形态和 ASR 参数。
 迁移配置到另一台机器时，应恢复 `auto` 并重新验证。
 
 ## Agent 执行规则

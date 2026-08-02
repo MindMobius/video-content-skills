@@ -139,6 +139,10 @@ video-subtitle extract $url `
 外推为其他显卡的性能或稳定性保证。详见
 [`BV1KHNC61ExM 实测`](docs/cases/BV1KHNC61ExM.md)。
 
+同一台机器对另一条双尺度 OCR 视频的结果相反：并行争抢 GPU 时 ASR 第一段曾用时
+470 秒，串行时为 35 秒。并行结论也不能跨 OCR 分辨率、共识轮次和视频形态外推；详见
+[`BV1v6Kf6rEYh 一图流实测`](docs/cases/BV1v6Kf6rEYh-one-page.md)。
+
 ## CLI
 
 所有命令只向 stdout 输出 JSON。
@@ -197,6 +201,8 @@ video-subtitle content-validate `
 [`docs/content-workflow.md`](docs/content-workflow.md)。
 真实的 16 分钟视频全链路结果见
 [`BV1KHNC61ExM 内容转换实测`](docs/cases/BV1KHNC61ExM-content.md)。
+按载体重构、使用联合作者口吻并输出 SVG/PNG 一图流的结果见
+[`BV1v6Kf6rEYh 一图流实测`](docs/cases/BV1v6Kf6rEYh-one-page.md)。
 
 ## MCP
 

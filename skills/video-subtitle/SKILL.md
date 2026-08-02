@@ -155,7 +155,10 @@ order after both finish.
   share the GPU; use serial execution when GPU VideOCR and Qwen3-ASR share it.
 - `media_execution=serial`: always minimize concurrent resource pressure.
 - `media_execution=parallel`: explicit opt-in. Use only after a deep doctor check
-  and a successful host-specific validation show enough GPU memory.
+  and a representative workload validation show that concurrent execution is
+  both stable and faster. Available GPU memory proves only that the processes
+  may fit; it does not prove throughput. Match the validation to OCR resolution,
+  consensus passes, video shape, and ASR settings.
 
 Persist a proven host policy with `configure_video_subtitle`; otherwise leave it
 at `auto`. Treat benchmark results as host-specific evidence, never as a general
