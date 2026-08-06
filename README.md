@@ -71,9 +71,16 @@ python scripts\bootstrap.py
 
 # 创建 .venv、安装 MCP 支持，并检查当前任务所需能力
 python scripts\bootstrap.py --apply `
+  --config .\.video-subtitle-local\config.json `
   --capability platform_subtitle `
   --capability hard_ocr_url
 ```
+
+Bootstrap 始终只向 stdout 输出一份 `video-subtitle/bootstrap-v2` JSON。除了安装状态，
+它还给出规范 Skill 路径、可直接执行的 JSON CLI 命令、stdio MCP 启动参数，以及嵌套的
+setup 结果。MCP 的注册方式由调用它的 Agent 决定；尚未注册时，直接使用返回的 CLI
+命令即可继续同一契约。干净 clone、CI 或可复现实验应显式传入 `--config`，避免继承宿主机
+默认配置。
 
 安装完成后遵循同一个闭环：
 
@@ -106,7 +113,8 @@ video-subtitle doctor --capability audio_asr_url
 profile 别名、任务目录和执行策略，不保存 cookie、密码或 token。完整说明见
 [`docs/environment.md`](docs/environment.md)。
 
-依赖清单、持久配置和 setup 响应分别由
+Bootstrap、依赖清单、持久配置和 setup 响应分别由
+[`bootstrap.schema.json`](schemas/bootstrap.schema.json)、
 [`requirements.schema.json`](schemas/requirements.schema.json)、
 [`config.schema.json`](schemas/config.schema.json) 和
 [`setup.schema.json`](schemas/setup.schema.json) 校验，避免文档、工具输出和测试各自漂移。
@@ -305,8 +313,8 @@ video-subtitle-skill/
 │  ├─ jobs.py                         持久后台任务
 │  ├─ cli.py
 │  └─ mcp_server.py
-├─ scripts/bootstrap.py
-├─ schemas/
+├─ scripts/bootstrap.py                无依赖安装入口与 Agent 运行契约
+├─ schemas/                            Bootstrap、环境、证据与内容契约
 ├─ tests/
 └─ docs/
 ```

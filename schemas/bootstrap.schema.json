@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/bootstrap-v2.json",
+  "title": "Video Subtitle Bootstrap Report v2",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "ready",
+    "repo",
+    "installation",
+    "skills",
+    "cli",
+    "mcp",
+    "setup",
+    "agent_actions",
+    "human_actions",
+    "next_step"
+  ],
+  "properties": {
+    "schema_version": { "const": "video-subtitle/bootstrap-v2" },
+    "status": {
+      "enum": ["ready", "agent_action_required", "human_action_required", "failed"]
+    },
+    "ready": { "type": "boolean" },
+    "repo": { "type": "string", "minLength": 1 },
+    "installation": {
+      "type": "object",
+      "required": ["ready", "venv_python", "requirements"],
+      "properties": {
+        "ready": { "type": "boolean" },
+        "venv_python": { "type": "string", "minLength": 1 },
+        "requirements": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "skills": {
+      "type": "object",
+      "required": ["discovery_root", "available"],
+      "properties": {
+        "discovery_root": { "type": "string", "minLength": 1 },
+        "available": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "path"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "cli": {
+      "type": "object",
+      "required": ["transport", "command"],
+      "properties": {
+        "transport": { "const": "process" },
+        "command": { "$ref": "#/$defs/command" }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "required": [
+        "server_name",
+        "transport",
+        "command",
+        "args",
+        "registration_required",
+        "registration_owner",
+        "fallback_command"
+      ],
+      "properties": {
+        "server_name": { "const": "video_subtitle" },
+        "transport": { "const": "stdio" },
+        "command": { "type": "string", "minLength": 1 },
+        "args": { "$ref": "#/$defs/command" },
+        "registration_required": { "type": "boolean" },
+        "registration_owner": { "const": "calling_agent" },
+        "fallback_command": { "$ref": "#/$defs/command" }
+      },
+      "additionalProperties": false
+    },
+    "setup": { "type": ["object", "null"] },
+    "agent_actions": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "human_actions": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "next_step": { "type": "string", "minLength": 1 },
+    "error": {
+      "type": "object",
+      "required": ["stage", "message"],
+      "properties": {
+        "stage": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 },
+        "details": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}

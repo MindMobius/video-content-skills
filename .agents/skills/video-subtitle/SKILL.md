@@ -36,12 +36,18 @@ run this from the repository root:
 
 ```powershell
 python scripts/bootstrap.py
-python scripts/bootstrap.py --apply --capability platform_subtitle
+python scripts/bootstrap.py --apply `
+  --config .video-subtitle-local/config.json `
+  --capability platform_subtitle
 ```
 
 The first command reports bootstrap actions without changing the environment.
 The second creates `.venv`, installs the package with MCP support, and returns
-the setup report. Continue with the same action loop.
+one `video-subtitle/bootstrap-v2` JSON document. Its `skills`, `cli`, and `mcp`
+sections are the discovery and invocation contract; its nested `setup` section
+continues the capability action loop. Use an explicit `--config` path for an
+isolated checkout, CI run, or reproducibility audit so host configuration does
+not silently affect the result.
 
 Never ask the user to paste cookies, passwords, or tokens. The Bilibili human
 step is to connect OpenCLI Browser Bridge, log in in the browser, and provide the

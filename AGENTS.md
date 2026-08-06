@@ -28,10 +28,12 @@ repository root:
 
 ```text
 python scripts/bootstrap.py
-python scripts/bootstrap.py --apply --capability <required-capability>
+python scripts/bootstrap.py --apply --config <config-path> --capability <required-capability>
 ```
 
-Treat the JSON output as the environment contract:
+Treat the single `video-subtitle/bootstrap-v2` JSON output as the environment
+contract. It reports the canonical Skill paths, the JSON CLI command, the stdio
+MCP launch contract, and the nested capability setup result:
 
 1. Execute safe `agent_actions` yourself.
 2. Persist discovered non-secret paths with `video-subtitle configure`.

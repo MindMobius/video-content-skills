@@ -10,7 +10,7 @@
 
 ```text
 scripts/bootstrap.py
-  → 安装 Python 包与 MCP 入口
+  → 安装 Python 包，报告 Skill、CLI、MCP 入口与 setup 结果
 video_subtitle_setup
   → 按能力解析外部依赖，返回 Agent / human actions
 configure_video_subtitle
@@ -18,6 +18,18 @@ configure_video_subtitle
 video_subtitle_doctor
   → 验证实际登录态、进程、CUDA 与显存
 ```
+
+Bootstrap 返回一份由 `schemas/bootstrap.schema.json` 约束的
+`video-subtitle/bootstrap-v2` JSON；pip 和子进程日志不会混入 stdout。调用方可据此：
+
+1. 从 `skills.available` 找到规范 Skill；
+2. 直接执行 `cli.command`，或按 `mcp` 注册 stdio 服务；
+3. 继续处理 `setup.agent_actions` 与 `setup.human_actions`；
+4. 在 CI、干净 clone 和验收时用 `--config <隔离路径>` 排除宿主机默认配置。
+
+MCP 客户端的配置格式各不相同，因此 Bootstrap 报告可移植的 `command`、`args` 和
+`transport`，不直接改写任一 Agent 的全局配置。MCP 不可用时，`fallback_command` 指向
+同一份 JSON CLI 契约。
 
 ## 两类依赖清单
 
