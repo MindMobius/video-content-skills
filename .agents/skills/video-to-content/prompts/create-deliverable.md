@@ -48,6 +48,30 @@ Carrier-specific guidance:
 - Brief: lead with the answer, then evidence, limits, and where to inspect more.
 - Script: write for speech while retaining attribution and logical transitions.
 
+### Local image handoff for paste-oriented HTML
+
+When an article is meant to be copied into a rich-text editor and an image is
+only available as a local file, keep the image local and leave a human-visible
+insertion slot in the HTML. The slot must name the file and describe the image
+that belongs there. Place the local files beside the deliverable or in a clearly
+named assets directory, and provide a short import checklist in article order.
+
+Do not leave a relative path, `file:` URL, `data:` URL, or `blob:` URL in an
+`img` element and call the artifact directly pasteable. A local browser may
+render that reference, but copying rich HTML does not reliably transfer the
+image bytes into the target editor. Renderer documentation does not override
+this handoff rule.
+
+Uploading images, rewriting them to a platform CDN, or inserting them into a
+platform editor is a separate publishing integration and remains outside this
+project. The deliverable should make the manual boundary obvious rather than
+hide it behind a successful copy message.
+
+If the deliverable includes a browser preview with a copy button, its label and
+success message must say that only the formatted body was copied and that local
+images still need manual insertion. Never show an unqualified "ready to paste"
+message while local image slots remain.
+
 ## Output handoff
 
 Alongside the artifact, prepare:

@@ -113,6 +113,13 @@ available rendering or image skill only when it materially improves the chosen
 carrier. Rendering may improve hierarchy and appearance; it must not decide
 what the source means.
 
+For paste-oriented HTML, local images are a handoff boundary rather than an
+embeddable publishing asset. Keep them in the local deliverable package, replace
+their rendered positions with visible insertion slots that name the matching
+files, and include a short import checklist. Do not claim that relative,
+`file:`, `data:`, or `blob:` image references will transfer through rich-text
+copy and paste. Do not upload the files merely to make the HTML self-contained.
+
 Call `save_video_content_deliverable` with:
 
 - the selected medium and actual serialization format;
