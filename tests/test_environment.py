@@ -70,6 +70,11 @@ def test_requirements_document_covers_agent_capabilities() -> None:
     assert "hard_ocr_url" in document["capabilities"]
     assert "audio_asr_url" in document["capabilities"]
     assert document["dependencies"]["browser_bridge"]["kind"] == "human_session"
+    assert document["dependencies"]["opencli"]["tested_version"] == "1.8.6"
+    assert (
+        "@jackwener/opencli@1.8.6"
+        in document["dependencies"]["opencli"]["agent_action"]["command"]
+    )
 
 
 def test_setup_report_separates_agent_and_human_actions(
@@ -82,6 +87,10 @@ def test_setup_report_separates_agent_and_human_actions(
         "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(
+        "video_subtitle.environment.shutil.which",
+        lambda command: f"/tools/{command}" if command == "node" else None,
+    )
     diagnostics = {
         "opencli": {
             "available": True,
@@ -104,7 +113,7 @@ def test_setup_report_separates_agent_and_human_actions(
     )
 
     assert report["ready"] is False
-    assert report["status"] == "human_action_required"
+    assert report["status"] == "agent_action_required"
     assert {item["dependency_id"] for item in report["agent_actions"]} == {
         "yt_dlp",
         "videocr",
@@ -116,6 +125,133 @@ def test_setup_report_separates_agent_and_human_actions(
     assert not any(
         item["dependency_id"].startswith("qwen") for item in report["dependencies"]
     )
+
+
+def test_opencli_waits_for_node_before_install_or_login(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "video_subtitle.environment.shutil.which",
+        lambda _command: None,
+    )
+    diagnostics = {
+        "opencli": {
+            "available": False,
+            "platform_ready": False,
+            "command": "opencli",
+            "profile": None,
+        },
+        "download_tools": {},
+        "hard_ocr": {},
+        "audio_asr": {},
+    }
+
+    report = build_setup_report(
+        diagnostics,
+        capabilities=["platform_subtitle"],
+        config_path=tmp_path / "config.json",
+    )
+
+    dependencies = {item["dependency_id"]: item for item in report["dependencies"]}
+    assert dependencies["node"]["status"] == "missing"
+    assert dependencies["opencli"]["status"] == "blocked"
+    assert dependencies["opencli"]["blocked_by"] == ["node"]
+    assert dependencies["browser_bridge"]["status"] == "blocked"
+    assert [item["dependency_id"] for item in report["agent_actions"]] == ["node"]
+    assert report["human_actions"] == []
+
+
+def test_cuda_waits_for_agent_installable_asr_prerequisites(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    for name in (
+        "VIDEO_SUBTITLE_ASR_PYTHON",
+        "VIDEO_SUBTITLE_QWEN_ASR_MODEL",
+        "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    diagnostics = {
+        "deep": True,
+        "opencli": {},
+        "download_tools": {
+            "ffmpeg": {"available": False, "path": None},
+        },
+        "hard_ocr": {},
+        "audio_asr": {
+            "available": False,
+            "runtime_checked": False,
+            "error": "not configured",
+        },
+    }
+
+    report = build_setup_report(
+        diagnostics,
+        capabilities=["audio_asr_local"],
+        config_path=tmp_path / "config.json",
+    )
+
+    cuda = next(
+        item for item in report["dependencies"] if item["dependency_id"] == "cuda"
+    )
+    assert cuda["status"] == "blocked"
+    assert cuda["blocked_by"] == [
+        "ffmpeg",
+        "asr_python",
+        "qwen_asr_model",
+        "qwen_aligner_model",
+    ]
+    assert report["status"] == "agent_action_required"
+    assert report["human_actions"] == []
+    assert {item["dependency_id"] for item in report["agent_actions"]} == {
+        "ffmpeg",
+        "asr_python",
+        "qwen_asr_model",
+        "qwen_aligner_model",
+    }
+
+
+def test_cuda_becomes_human_boundary_only_after_runtime_probe(
+    tmp_path: Path,
+) -> None:
+    asr_python = tmp_path / "python"
+    asr_python.write_text("", encoding="utf-8")
+    asr_model = tmp_path / "asr-model"
+    aligner_model = tmp_path / "aligner-model"
+    asr_model.mkdir()
+    aligner_model.mkdir()
+    diagnostics = {
+        "deep": True,
+        "opencli": {},
+        "download_tools": {
+            "ffmpeg": {"available": True, "path": "ffmpeg"},
+        },
+        "hard_ocr": {},
+        "audio_asr": {
+            "available": False,
+            "python": str(asr_python),
+            "model": str(asr_model),
+            "aligner": str(aligner_model),
+            "runtime_checked": True,
+            "runtime": {"cuda_available": False, "gpu": None},
+            "error": "CUDA is not available to Qwen3-ASR",
+        },
+    }
+
+    report = build_setup_report(
+        diagnostics,
+        capabilities=["audio_asr_local"],
+        config_path=tmp_path / "config.json",
+    )
+
+    cuda = next(
+        item for item in report["dependencies"] if item["dependency_id"] == "cuda"
+    )
+    assert cuda["status"] == "human_action_required"
+    assert report["status"] == "human_action_required"
+    assert report["agent_actions"] == []
+    assert [item["dependency_id"] for item in report["human_actions"]] == ["cuda"]
 
 
 def test_deep_ready_report_starts_task_instead_of_rechecking(
@@ -215,4 +351,4 @@ def test_bundled_opencli_executable_does_not_require_node(
         item for item in report["dependencies"] if item["dependency_id"] == "node"
     )
     assert node["status"] == "ready"
-    assert node["detected"] == "not required by configured OpenCLI executable"
+    assert node["detected"] == "not required by standalone OpenCLI executable"

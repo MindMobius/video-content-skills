@@ -58,6 +58,11 @@ def build_setup_report(
             "kind": definition["kind"],
             "description": definition["description"],
             "required_by": capability_ids,
+            **{
+                key: definition[key]
+                for key in ("tested_version", "tested_revision")
+                if key in definition
+            },
             **state,
         }
         dependencies.append(item)
@@ -75,10 +80,10 @@ def build_setup_report(
             agent_actions.append({"dependency_id": dependency_id, **action})
 
     ready = all(item["status"] == "ready" for item in dependencies)
-    if human_actions:
-        status = "human_action_required"
-    elif agent_actions or not ready:
+    if agent_actions or (not ready and not human_actions):
         status = "agent_action_required"
+    elif human_actions:
+        status = "human_action_required"
     else:
         status = "ready"
     config = read_configuration(config_path)
@@ -107,18 +112,26 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
     asr = diagnostics.get("audio_asr") or {}
 
     python_ready = sys.version_info >= (3, 10)
-    opencli_ready = bool(opencli.get("available"))
-    bridge_ready = bool(opencli.get("platform_ready"))
+    opencli_detected = bool(opencli.get("available"))
+    node_state = _node_state(opencli)
+    node_ready = node_state["status"] == "ready"
+    opencli_ready = opencli_detected and node_ready
+    bridge_ready = bool(opencli.get("platform_ready")) and opencli_ready
+    opencli_state: dict[str, Any] = {
+        "status": (
+            "ready" if opencli_ready else "blocked" if not node_ready else "missing"
+        ),
+        "detected": opencli.get("command"),
+    }
+    if not node_ready:
+        opencli_state["blocked_by"] = ["node"]
     states: dict[str, dict[str, Any]] = {
         "python": {
             "status": "ready" if python_ready else "missing",
             "detected": sys.version.split()[0],
         },
-        "node": _node_state(opencli),
-        "opencli": {
-            "status": "ready" if opencli_ready else "missing",
-            "detected": opencli.get("command"),
-        },
+        "node": node_state,
+        "opencli": opencli_state,
         "browser_bridge": {
             "status": (
                 "ready"
@@ -150,15 +163,49 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
     )
     runtime = asr.get("runtime") or {}
     runtime_checked = bool(asr.get("runtime_checked", bool(runtime)))
-    if asr_available and (not runtime_checked or runtime.get("cuda_available")):
-        cuda_status = "ready"
+    cuda_prerequisites = [
+        "ffmpeg",
+        "asr_python",
+        "qwen_asr_model",
+        "qwen_aligner_model",
+    ]
+    cuda_blockers = [
+        dependency_id
+        for dependency_id in cuda_prerequisites
+        if states[dependency_id]["status"] != "ready"
+    ]
+    if (
+        diagnostics.get("deep")
+        and not cuda_blockers
+        and not asr_available
+        and not runtime_checked
+    ):
+        states["asr_python"]["status"] = "missing"
+        states["asr_python"]["detail"] = (
+            asr.get("error") or "The deep ASR runtime probe did not complete."
+        )
+        cuda_blockers.append("asr_python")
+
+    if cuda_blockers:
+        cuda_state: dict[str, Any] = {
+            "status": "blocked",
+            "detected": runtime.get("gpu"),
+            "runtime_checked": runtime_checked,
+            "blocked_by": cuda_blockers,
+        }
+    elif asr_available and (not runtime_checked or bool(runtime.get("cuda_available"))):
+        cuda_state = {
+            "status": "ready",
+            "detected": runtime.get("gpu"),
+            "runtime_checked": runtime_checked,
+        }
     else:
-        cuda_status = "human_action_required"
-    states["cuda"] = {
-        "status": cuda_status,
-        "detected": runtime.get("gpu"),
-        "runtime_checked": runtime_checked,
-    }
+        cuda_state = {
+            "status": "human_action_required",
+            "detected": runtime.get("gpu"),
+            "runtime_checked": runtime_checked,
+        }
+    states["cuda"] = cuda_state
     return states
 
 
@@ -180,10 +227,11 @@ def _executable_state(command: str) -> dict[str, Any]:
 
 def _node_state(opencli: dict[str, Any]) -> dict[str, Any]:
     command = str(opencli.get("command") or "")
-    if opencli.get("available") and ".js" not in command.lower():
+    executable = command.strip().strip('"')
+    if opencli.get("available") and executable.lower().endswith(".exe"):
         return {
             "status": "ready",
-            "detected": "not required by configured OpenCLI executable",
+            "detected": "not required by standalone OpenCLI executable",
         }
     return _executable_state("node")
 

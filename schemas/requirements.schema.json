@@ -3,11 +3,12 @@
   "$id": "https://video-subtitle.local/schemas/requirements-v1.json",
   "title": "Video Subtitle Capability Requirements v1",
   "type": "object",
-  "required": ["schema_version", "capabilities", "dependencies"],
+  "required": ["schema_version", "verified_at", "capabilities", "dependencies"],
   "properties": {
     "schema_version": {
       "const": "video-subtitle/requirements-v1"
     },
+    "verified_at": {"type": "string", "format": "date"},
     "capabilities": {
       "type": "object",
       "minProperties": 1,
@@ -45,6 +46,8 @@
       "properties": {
         "kind": {"type": "string", "minLength": 1},
         "description": {"type": "string", "minLength": 1},
+        "tested_version": {"type": "string", "minLength": 1},
+        "tested_revision": {"type": "string", "minLength": 1},
         "config_field": {"type": "string", "minLength": 1},
         "environment": {"type": "string", "minLength": 1},
         "agent_action": {"$ref": "#/$defs/action"},

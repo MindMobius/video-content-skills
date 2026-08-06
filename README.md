@@ -60,6 +60,10 @@ Python 包依赖写在 `pyproject.toml`；外部程序、模型、浏览器登�
 - `human_actions`：浏览器登录、硬件缺失等必须由人处理的边界；
 - `confirmation_required`：模型等大体积下载，Agent 执行前需要确认成本。
 
+`requirements.json` 还记录 `verified_at`、已验证工具版本和模型 revision。它们是当前
+可复现基线，不是“永远使用旧版本”的锁死策略；升级时应先更新版本或 revision、完成
+schema 与回归测试，再改写基线，不能在同一次任务中静默漂移。
+
 Agent 应只请求当前任务需要的能力；setup/doctor 也只运行相应 probe，不会为本地
 OCR 无故检查浏览器登录或导入 ASR/CUDA。
 

@@ -47,6 +47,11 @@ MCP 客户端的配置格式各不相同，因此 Bootstrap 报告可移植的 `
 每项能力只引用自己真正需要的依赖。Agent 应请求最小能力集合，不应默认安装全部
 模型和后端。
 
+清单根级 `verified_at` 记录基线核验日期；依赖可带 `tested_version` 或
+`tested_revision`。这是可复现实验和故障回退使用的已验证组合，不代表永不升级。
+升级者应查验上游来源，明确改动版本或模型 revision，并让 schema、单元测试和干净
+clone 验收同时通过。不能把无版本的“安装最新版”当作可复现安装动作。
+
 ## 能力矩阵
 
 | 能力 | 用途 | 关键依赖 |
@@ -82,6 +87,12 @@ ready
 依赖被上游缺失项阻塞时标记为 `blocked`。例如 OpenCLI 尚未安装时，Browser Bridge
 不是立刻要求人处理，而是先让 Agent 安装 OpenCLI；安装完成后重新检查，才可能出现
 真实的登录动作。
+
+当同一轮同时存在 Agent 与 human 动作时，顶层状态保持
+`agent_action_required`：`human_actions` 可以作为后续计划被观察，但必须先执行
+Agent 动作并重跑 setup。CUDA 只有在 FFmpeg、独立 ASR Python、ASR 模型与 Aligner
+都就绪并完成运行时探测后，才可能成为 `human_action_required`；在此之前它只会标为
+`blocked`，不会把软件未安装误报成用户缺少硬件。
 
 `confirmation_required=true` 仍属于 Agent 动作，但涉及较大网络或磁盘成本。Agent
 应先报告模型和动作，再取得确认，不能把整项安装劳动转交给用户。
