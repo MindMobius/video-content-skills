@@ -1,6 +1,6 @@
 ---
 name: video-to-content
-description: Transform verified video subtitle evidence into a traceable content map and one suitable medium such as an article, one-page visual, card series, brief, or script. Use when the user wants to understand, condense, republish, or share a video's information without losing claims, evidence, caveats, attribution, or uncertainty.
+description: Transform verified video subtitle evidence into a traceable content map and a user-authorized deliverable such as an article, one-page visual, card series, brief, or script. Use when the user wants to understand, condense, adapt, or share a video's information without losing claims, evidence, caveats, attribution, or uncertainty.
 ---
 
 # Video to Content
@@ -9,8 +9,9 @@ Use this Skill after a video has at least one readable subtitle evidence source.
 The default goal is faithful information transfer, not engagement optimization.
 
 The tools preserve state, validate references, version artifacts, and detect
-stale sources. You perform semantic reconstruction, medium selection, writing,
-visual planning, and fidelity judgment. Do not replace those decisions with a
+stale sources. You perform semantic reconstruction, carrier analysis, writing,
+visual planning, and fidelity judgment. The user owns the carrier decision
+unless they explicitly delegate it. Do not replace semantic decisions with a
 fixed summarization script.
 
 ## Entry conditions
@@ -18,6 +19,11 @@ fixed summarization script.
 For a video URL or local video without a completed subtitle job, use the
 `video-subtitle` Skill first. Do not build a content map from title,
 description, or metadata alone.
+
+If the user supplied only an input and did not request a transformed artifact,
+complete and report the subtitle evidence first, then ask whether they want
+only the subtitle or a particular carrier. Do not initialize a content project
+merely to make that choice for them.
 
 When a completed subtitle job already exists:
 
@@ -61,14 +67,15 @@ need to follow the video's sequence. It must contain:
 Subtitle evidence proves what the video says or displays. It does not by itself
 prove that the claim is factually correct.
 
-### 2. Select one suitable medium
+### 2. Resolve and record the carrier decision
 
 Read [`prompts/select-medium.md`](prompts/select-medium.md) and
 [`references/media-routing.md`](references/media-routing.md).
 
 If the user explicitly requested a medium, honor it unless the requested
-compression would materially distort the content; explain that conflict before
-changing the medium. Otherwise choose from content topology:
+compression would materially distort the content; explain that conflict and
+ask before changing the medium. If the user explicitly delegated the choice,
+select from content topology:
 
 - `article`: deep argument, high context dependency, important qualifications;
 - `one_page`: one clear structure that remains truthful under strong compression;
@@ -77,10 +84,16 @@ changing the medium. Otherwise choose from content topology:
 - `script`: a spoken adaptation whose delivery and transitions matter;
 - `custom`: a user-specified carrier not covered above.
 
-Save one `video-content/media-plan-v1` document. Record rejected alternatives,
-required claims and caveats, every deliberate omission, the carrier-specific
-restructuring strategy, and the intended narrative voice. Do not generate all
-possible media by default.
+Otherwise analyze the viable carriers, give a concise recommendation with its
+tradeoff, and stop for the user's decision. Do not save a media plan or start a
+deliverable while the decision is unresolved. A request for “only subtitles”
+ends the workflow in the subtitle layer.
+
+After the user has selected a carrier or delegated the choice, save one
+`video-content/media-plan-v1` document. Record the decision basis, rejected
+alternatives, required claims and caveats, every deliberate omission, the
+carrier-specific restructuring strategy, and the intended narrative voice. Do
+not generate all possible media by default.
 
 For a single-author monologue, default to `narrative_voice.mode=source_author`:
 write from the source author's perspective instead of wrapping the content in
@@ -186,6 +199,9 @@ artifact versioning, and field semantics.
 - Never choose a visual carrier merely because it looks more shareable. Choose
   it only when the content remains understandable and accurate after visual
   compression.
+- Never log in to a publishing platform, upload an artifact, save it to a draft
+  box, schedule it, publish it, or manage a channel account. This project ends
+  at a faithful, appropriate, polished, audited deliverable.
 - Never claim full-video coverage when only selected ranges were read.
 
 Final reporting must state the selected medium, analysis coverage, unresolved

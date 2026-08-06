@@ -1,6 +1,7 @@
 # Media Routing Reference
 
-Choose from information structure, not channel fashion.
+Recommend from information structure, not channel fashion. The user selects the
+carrier unless they explicitly delegate that decision to the Agent.
 
 | Structure | Usually suitable | Warning sign |
 | --- | --- | --- |
@@ -14,7 +15,8 @@ Visual potential means a relationship becomes easier to understand through
 layout, not merely that the output can be decorated. A low-visual-potential
 argument should remain an article or brief even if an image is more shareable.
 
-After selecting a carrier, reconstruct its information architecture. Subtitle
+After the carrier decision is authorized, reconstruct its information
+architecture. Subtitle
 timestamps remain the audit trail, but the artifact can merge related passages,
 split dense passages, move conclusions forward, and place caveats beside the
 claims they constrain. Preserve source order only when order carries meaning.
@@ -24,5 +26,6 @@ speaks directly from that author's perspective. Interviews and debates retain
 their distinct speakers. An editorial wrapper is a deliberate third option,
 not the default summary voice.
 
-When two carriers are equally faithful, prefer the one with lower production
-cost and lower reading effort for the stated audience.
+When two carriers are equally faithful, recommend the one with lower production
+cost and lower reading effort for the stated audience. Do not silently turn
+that recommendation into a deliverable.

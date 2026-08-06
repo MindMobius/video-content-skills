@@ -7,8 +7,9 @@
 - [`content-map.schema.json`](../../../schemas/content-map.schema.json):
   medium-independent semantic reconstruction.
 - [`media-plan.schema.json`](../../../schemas/media-plan.schema.json): selected
-  carrier, required elements, omissions, carrier-specific restructuring,
-  narrative voice, structure, and rendering contract.
+  carrier, user selection authority, required elements, omissions,
+  carrier-specific restructuring, narrative voice, structure, and rendering
+  contract.
 - [`fidelity-audit.schema.json`](../../../schemas/fidelity-audit.schema.json):
   statement-level review and delivery gate.
 

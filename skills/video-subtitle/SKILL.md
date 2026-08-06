@@ -103,12 +103,20 @@ The review tools are helpers, not a mandatory pipeline.
 
 ## Downstream content handoff
 
-When the user's goal continues beyond subtitles into an article, one-page
-visual, card series, brief, script, or another carrier, finish the required
-subtitle evidence work and then use the
+If the user provides only a video URL, video file, audio file, or subtitle file
+without naming a desired deliverable, finish the required subtitle evidence
+work first. Then stop and ask whether the user wants only the organized
+subtitle or wants it transformed into a specific carrier. You may recommend a
+carrier, but do not choose or generate one without either an explicit carrier
+request or explicit delegation of that decision.
+
+When the user has requested an article, one-page visual, card series, brief,
+script, or another carrier, use the
 [`video-to-content` Skill](../video-to-content/SKILL.md). That Skill pins this
-job's evidence, reconstructs a medium-independent content map, selects one
-suitable carrier, and requires a fidelity audit before delivery.
+job's evidence, reconstructs a medium-independent content map, records the
+user-authorized carrier, and requires a fidelity audit before delivery. If the
+carrier was already specified in the initial request, continue without asking
+the same question again.
 
 Do not bypass the handoff by summarizing metadata or an unresolved evidence
 bundle directly. Subtitle correction and content transformation are separate

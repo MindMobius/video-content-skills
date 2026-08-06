@@ -1,12 +1,13 @@
-# Select Medium
+# Decide the Medium with the User
 
-Use this reasoning frame to author `video-content/media-plan-v1` from the current
-content map.
+Use this reasoning frame to analyze viable carriers from the current content
+map. Author `video-content/media-plan-v1` only after the user has selected a
+carrier or explicitly delegated the decision.
 
 ## Task
 
-Choose the smallest carrier that preserves the source's essential reasoning.
-Do not select by popularity or presumed algorithmic performance.
+Identify the smallest carrier that preserves the source's essential reasoning.
+Do not recommend by popularity or presumed algorithmic performance.
 
 Evaluate:
 
@@ -31,11 +32,25 @@ Evaluate:
 - Prefer a script when oral rhythm, examples, or transitions are part of the
   intended experience.
 
+## Decision gate
+
+- If the user named a carrier, use it unless it would materially distort the
+  content; ask before substituting another carrier.
+- If the user explicitly asked the Agent to choose, select one carrier and
+  record why.
+- Otherwise present a concise recommendation and its main tradeoff, then stop.
+  Do not create a media plan or deliverable until the user decides.
+- If the user wants only the organized subtitle, return to the subtitle
+  deliverable and end the transformation workflow.
+
 ## Quality gate
 
 Mark every core claim and consequential caveat as required. Record other claims
 as deliberate omissions with reasons. Describe at least one rejected alternative
-so the decision can be reviewed. The plan chooses one primary deliverable.
+so the decision can be reviewed. The plan records one user-authorized primary
+deliverable. Set `selection_authority=user_selected` when the user named the
+carrier, or `selection_authority=user_delegated` when the user explicitly asked
+the Agent to choose.
 
 Declare an `adaptation_strategy` for that carrier. Prefer
 `reconstructed_for_medium`: state how the Agent will merge, split, reorder, or

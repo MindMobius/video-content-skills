@@ -180,6 +180,7 @@ def _media_plan(project: dict, content_map_sha256: str) -> dict:
             "uncertainty_level": "low",
         },
         "selected_medium": "one_page",
+        "selection_authority": "user_selected",
         "selection_reason": "两个核心观点可以在单页中形成问题—原则结构。",
         "adaptation_strategy": {
             "relationship_to_source": "reconstructed_for_medium",
@@ -298,6 +299,8 @@ def test_content_project_versions_agent_artifacts_and_preserves_evidence(
         kind="content_map",
         document=_content_map(project),
     )
+    assert map_result["project_status"] == "mapped"
+    assert map_result["next_action"]["code"] == "RESOLVE_MEDIUM_DECISION"
     map_path = project_path.parent / map_result["artifact"]["path"]
     jsonschema.validate(read_json(map_path), _schema("content-map.schema.json"))
 
@@ -406,6 +409,21 @@ def test_source_author_voice_requires_known_source_speakers(tmp_path: Path) -> N
     plan["narrative_voice"]["speaker_ids"] = ["speaker-9999"]
 
     with pytest.raises(ValueError, match="narrative_voice.speaker_ids"):
+        save_content_document(project_path, kind="media_plan", document=plan)
+
+
+def test_media_plan_requires_user_selection_authority(tmp_path: Path) -> None:
+    project = initialize_content_project(_manifest(tmp_path))
+    project_path = Path(project["project_path"])
+    map_result = save_content_document(
+        project_path,
+        kind="content_map",
+        document=_content_map(project),
+    )
+    plan = _media_plan(project, map_result["artifact"]["sha256"])
+    plan["selection_authority"] = "agent_assumed"
+
+    with pytest.raises(ValueError, match="selection_authority"):
         save_content_document(project_path, kind="media_plan", document=plan)
 
 

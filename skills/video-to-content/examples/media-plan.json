@@ -12,6 +12,7 @@
     "uncertainty_level": "low"
   },
   "selected_medium": "one_page",
+  "selection_authority": "user_selected",
   "selection_reason": "两个核心观点可以在单页中形成问题—原则结构。",
   "adaptation_strategy": {
     "relationship_to_source": "reconstructed_for_medium",

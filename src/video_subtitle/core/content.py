@@ -231,9 +231,10 @@ def save_content_document(
         project["current"]["deliverable_id"] = None
         project["current"]["fidelity_audit_id"] = None
         project["status"] = "mapped"
-        next_action = "SELECT_MEDIUM"
+        next_action = "RESOLVE_MEDIUM_DECISION"
         next_message = (
-            "Choose one medium from the content topology and save a media plan."
+            "Use the user's explicit carrier request or delegation; otherwise "
+            "pause and ask before saving a media plan."
         )
     elif kind == "media_plan":
         project["current"]["deliverable_id"] = None
@@ -705,6 +706,7 @@ def _validate_media_plan(project: dict[str, Any], document: dict[str, Any]) -> N
         "communication_goal",
         "audience",
         "selected_medium",
+        "selection_authority",
         "selection_reason",
         "adaptation_strategy",
         "narrative_voice",
@@ -728,6 +730,11 @@ def _validate_media_plan(project: dict[str, Any], document: dict[str, Any]) -> N
         "custom",
     }:
         raise ValueError("media_plan.selected_medium is unsupported")
+    if document["selection_authority"] not in {
+        "user_selected",
+        "user_delegated",
+    }:
+        raise ValueError("media_plan.selection_authority is unsupported")
     claims = _ids(content_map["claims"], "claim_id")
     caveats = _ids(content_map["caveats"], "caveat_id")
     speakers = _ids(content_map.get("speakers", []), "speaker_id")
@@ -762,13 +769,15 @@ def _validate_media_plan(project: dict[str, Any], document: dict[str, Any]) -> N
     _require_known_refs(
         narrative_voice["speaker_ids"], speakers, "narrative_voice.speaker_ids"
     )
-    if narrative_voice["mode"] == "source_author" and not narrative_voice[
-        "speaker_ids"
-    ]:
+    if (
+        narrative_voice["mode"] == "source_author"
+        and not narrative_voice["speaker_ids"]
+    ):
         raise ValueError("source_author narrative voice requires source speakers")
-    if narrative_voice["mode"] == "preserve_speakers" and not narrative_voice[
-        "speaker_ids"
-    ]:
+    if (
+        narrative_voice["mode"] == "preserve_speakers"
+        and not narrative_voice["speaker_ids"]
+    ):
         raise ValueError("preserve_speakers narrative voice requires speakers")
     if not str(narrative_voice["description"]).strip():
         raise ValueError("narrative_voice.description cannot be empty")

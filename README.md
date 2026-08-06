@@ -8,8 +8,12 @@ Skill、MCP Server 与 JSON CLI。
 并决定是否继续取证。
 
 仓库包含两个相互解耦的 Skill：`video-subtitle` 负责建立证据，`video-to-content` 负责
-把证据重建为可追溯的内容模型，再选择文章、一图流、卡片、Brief 或口播稿等一种合适
-载体。语义判断始终由 Agent 完成，工具只做依赖、持久化、版本和确定性校验。
+把证据重建为可追溯的内容模型，再按用户指定的文章、一图流、卡片、Brief 或口播稿等
+载体生成成品。用户没有指定载体时，Agent 可以分析和推荐，但必须等待用户选择；只有用户
+明确委托时才能代选。语义判断始终由 Agent 完成，工具只做依赖、持久化、版本和确定性校验。
+
+项目的终点是忠实、得体、恰当、优雅且通过审计的可交付成品。登录发布平台、上传文件、
+写入草稿箱、定时发布和账号管理均不属于本项目职责。
 
 ## 当前能力
 
@@ -23,7 +27,7 @@ Skill、MCP Server 与 JSON CLI。
 - 面向 Agent 的依赖检查、配置持久化和修复动作。
 - 固定字幕 manifest 与各路证据哈希的内容工程项目；
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
-- Agent 决策的载体重构策略、叙述口吻、版本化成品和逐项忠实度审计；
+- 用户授权的载体决策，以及由 Agent 完成的重构策略、叙述口吻、版本化成品和逐项忠实度审计；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
@@ -270,7 +274,7 @@ args = ["-m", "video_subtitle.mcp_server"]
 ```text
 video-subtitle-skill/
 ├─ skills/video-subtitle/SKILL.md     Agent 决策与安全边界
-├─ skills/video-to-content/           内容重建、媒介选择、生成与审计 Prompt
+├─ skills/video-to-content/           内容重建、载体决策门、生成与审计 Prompt
 ├─ src/video_subtitle/
 │  ├─ requirements.json               外部能力依赖契约
 │  ├─ config.py                       持久配置与优先级
