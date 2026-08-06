@@ -15,6 +15,23 @@ Skill、MCP Server 与 JSON CLI。
 项目的终点是忠实、得体、恰当、优雅且通过审计的可交付成品。登录发布平台、上传文件、
 写入草稿箱、定时发布和账号管理均不属于本项目职责。
 
+## Agent 快速入口
+
+仓库内的两个 Skill 位于标准项目目录 [`.agents/skills`](.agents/skills)，支持该约定的
+Agent 在进入仓库后可以直接发现。其他项目或个人环境可先检查再安装：
+
+```powershell
+npx skills add MindMobius/video-subtitle-skill --list
+npx skills add MindMobius/video-subtitle-skill `
+  --skill video-subtitle `
+  --skill video-to-content
+```
+
+不支持 Agent Skills 自动发现的 Coding Agent 应从 [`AGENTS.md`](AGENTS.md) 开始；它会
+把任务路由到对应 Skill，并给出全新机器的 bootstrap、依赖检查、人机边界和验证规则。
+Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经注册；MCP 不可用时使用同契约
+的 JSON CLI。
+
 ## 当前能力
 
 - Bilibili 普通链接、短链接和分 P；
@@ -273,8 +290,9 @@ args = ["-m", "video_subtitle.mcp_server"]
 
 ```text
 video-subtitle-skill/
-├─ skills/video-subtitle/SKILL.md     Agent 决策与安全边界
-├─ skills/video-to-content/           内容重建、载体决策门、生成与审计 Prompt
+├─ AGENTS.md                          通用 Agent 发现、路由与环境入口
+├─ .agents/skills/video-subtitle/     字幕证据决策与安全边界
+├─ .agents/skills/video-to-content/   内容重建、载体决策门、生成与审计 Prompt
 ├─ src/video_subtitle/
 │  ├─ requirements.json               外部能力依赖契约
 │  ├─ config.py                       持久配置与优先级

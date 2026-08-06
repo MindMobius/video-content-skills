@@ -46,4 +46,4 @@ Before saving, verify:
 - no target-medium wording or layout choice has leaked into the canonical map.
 
 Return the JSON document required by
-[`../../../schemas/content-map.schema.json`](../../../schemas/content-map.schema.json).
+[`../../../../schemas/content-map.schema.json`](../../../../schemas/content-map.schema.json).

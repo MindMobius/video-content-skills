@@ -32,4 +32,4 @@ A warning is not a softer label for an unresolved error. A failed deliverable
 must be revised and saved as a new revision before another audit.
 
 Return the JSON document required by
-[`../../../schemas/fidelity-audit.schema.json`](../../../schemas/fidelity-audit.schema.json).
+[`../../../../schemas/fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json).

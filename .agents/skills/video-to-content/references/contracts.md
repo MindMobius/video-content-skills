@@ -2,15 +2,15 @@
 
 ## Schemas
 
-- [`content-project.schema.json`](../../../schemas/content-project.schema.json):
+- [`content-project.schema.json`](../../../../schemas/content-project.schema.json):
   pinned evidence snapshot, lifecycle, and artifact registry.
-- [`content-map.schema.json`](../../../schemas/content-map.schema.json):
+- [`content-map.schema.json`](../../../../schemas/content-map.schema.json):
   medium-independent semantic reconstruction.
-- [`media-plan.schema.json`](../../../schemas/media-plan.schema.json): selected
+- [`media-plan.schema.json`](../../../../schemas/media-plan.schema.json): selected
   carrier, user selection authority, required elements, omissions,
   carrier-specific restructuring, narrative voice, structure, and rendering
   contract.
-- [`fidelity-audit.schema.json`](../../../schemas/fidelity-audit.schema.json):
+- [`fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json):
   statement-level review and delivery gate.
 
 ## Versioning

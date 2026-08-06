@@ -20,9 +20,9 @@ def test_video_to_content_examples_match_published_schemas(
     schema_name: str,
 ) -> None:
     example = json.loads(
-        (ROOT / "skills" / "video-to-content" / "examples" / example_name).read_text(
-            encoding="utf-8"
-        )
+        (
+            ROOT / ".agents" / "skills" / "video-to-content" / "examples" / example_name
+        ).read_text(encoding="utf-8")
     )
     schema = json.loads((ROOT / "schemas" / schema_name).read_text(encoding="utf-8"))
 

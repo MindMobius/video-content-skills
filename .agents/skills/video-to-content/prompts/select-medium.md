@@ -71,4 +71,4 @@ such as “这个视频认为” and “作者表示”. Attribution remains in 
 even when the visible artifact speaks directly as the author.
 
 Return the JSON document required by
-[`../../../schemas/media-plan.schema.json`](../../../schemas/media-plan.schema.json).
+[`../../../../schemas/media-plan.schema.json`](../../../../schemas/media-plan.schema.json).
