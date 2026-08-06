@@ -52,8 +52,14 @@ content map 同时保留了几个容易在摘要中丢失的边界：
 
 ## 媒介选择
 
-媒介计划将论证深度和上下文依赖都评为 `high`，视觉潜力为 `medium`，最终选择
-`article`，拒绝一图流、卡片组和 brief。
+用户在转换开始前已明确要求“转成文章看看”，所以按当前契约，这次选择权应记录为
+`selection_authority=user_selected`。媒介计划将论证深度和上下文依赖都评为 `high`，
+视觉潜力为 `medium`，确认 `article` 适配，并说明为什么不应擅自改成一图流、卡片组或
+brief。
+
+这次历史运行早于 `selection_authority` 成为 media plan 必填字段。仓库没有保留当时完整
+JSON，下面的 SHA-256 也属于当时产物，因此没有事后伪造字段或改写哈希。若按当前 schema
+重建，JSON 与哈希会变化，但选择权必须明确记为 `user_selected`。
 
 原因不是文章更“高级”，而是这个内容需要连续保留：
 

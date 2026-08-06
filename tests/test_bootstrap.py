@@ -47,4 +47,10 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
     ]
     assert report["mcp"]["transport"] == "stdio"
     assert report["mcp"]["registration_owner"] == "calling_agent"
-    assert report["cli"]["command"][-2:] == ["-m", "video_subtitle.cli"]
+    assert report["cli"]["command"][-2:] == [
+        "--config",
+        str((tmp_path / "config.json").resolve()),
+    ]
+    assert report["mcp"]["env"] == {
+        "VIDEO_SUBTITLE_CONFIG": str((tmp_path / "config.json").resolve())
+    }

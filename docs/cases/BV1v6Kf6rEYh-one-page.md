@@ -65,8 +65,12 @@ OCR 使用 1280px 主识别和 600px 验证识别。共识稿覆盖 91.01% 的�
 
 ## 一图流的信息结构与口吻
 
-用户指定 `one_page`，内容也确实能由一个并列判断框架承载，因此没有改成文章。媒介计划
-明确使用 `reconstructed_for_medium`：
+用户指定 `one_page`，选择权按当前契约应记录为
+`selection_authority=user_selected`；内容也确实能由一个并列判断框架承载，因此没有改成
+文章。媒介计划明确使用 `reconstructed_for_medium`：
+
+本案例的 SHA-256 来自历史运行，早于 `selection_authority` 成为 media plan 必填字段，
+仓库也未保存可回写的完整历史 JSON。这里如实补记用户授权，不事后改写产物或冒充哈希未变。
 
 ```text
 作者立场

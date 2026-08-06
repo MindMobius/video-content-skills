@@ -30,7 +30,8 @@ npx skills add MindMobius/video-subtitle-skill `
 不支持 Agent Skills 自动发现的 Coding Agent 应从 [`AGENTS.md`](AGENTS.md) 开始；它会
 把任务路由到对应 Skill，并给出全新机器的 bootstrap、依赖检查、人机边界和验证规则。
 Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经注册；MCP 不可用时使用同契约
-的 JSON CLI。
+的 JSON CLI。可验证范围、干净 clone 验收和非确定性边界见
+[`docs/reproducibility.md`](docs/reproducibility.md)。
 
 ## 当前能力
 
@@ -90,21 +91,21 @@ setup 结果。MCP 的注册方式由调用它的 Agent 决定；尚未注册时
 
 ```powershell
 # 快速检查并返回精确的 Agent / human actions
-video-subtitle setup `
+video-subtitle --config .\.video-subtitle-local\config.json setup `
   --capability platform_subtitle `
   --capability hard_ocr_url
 
 # 将 Agent 找到的非秘密路径和 Browser Bridge profile 持久化
-video-subtitle configure `
-  --opencli C:\path\to\OpenCLI\dist\src\main.js `
+video-subtitle --config .\.video-subtitle-local\config.json configure `
+  --opencli opencli `
   --profile browser-bridge-profile `
   --ytdlp C:\path\to\yt-dlp.exe `
   --ffmpeg C:\path\to\ffmpeg.exe `
   --videocr C:\path\to\videocr-cli.exe
 
 # setup ready 后做真实运行时检查；ASR 会验证 CUDA 与显存
-video-subtitle doctor --capability hard_ocr_url
-video-subtitle doctor --capability audio_asr_url
+video-subtitle --config .\.video-subtitle-local\config.json doctor --capability hard_ocr_url
+video-subtitle --config .\.video-subtitle-local\config.json doctor --capability audio_asr_url
 ```
 
 默认配置位置：
@@ -116,6 +117,8 @@ video-subtitle doctor --capability audio_asr_url
 解析优先级为：命令行参数 > 环境变量 > 持久配置 > `PATH`。配置只保存路径、
 profile 别名、任务目录和执行策略，不保存 cookie、密码或 token。完整说明见
 [`docs/environment.md`](docs/environment.md)。
+完整的可复现定义、跨平台 CI 和真实媒体验收边界见
+[`docs/reproducibility.md`](docs/reproducibility.md)。
 
 Bootstrap、依赖清单、持久配置和 setup 响应分别由
 [`bootstrap.schema.json`](schemas/bootstrap.schema.json)、
@@ -280,6 +283,7 @@ Codex 配置示例：
 [mcp_servers.video_subtitle]
 command = "C:\\path\\to\\video-subtitle-skill\\.venv\\Scripts\\python.exe"
 args = ["-m", "video_subtitle.mcp_server"]
+env = { VIDEO_SUBTITLE_CONFIG = "C:\\path\\to\\config.json" }
 ```
 
 环境路径已经由 `configure_video_subtitle` 持久化时，MCP 配置无需重复书写。若要
@@ -320,7 +324,7 @@ video-subtitle-skill/
 ├─ scripts/bootstrap.py                无依赖安装入口与 Agent 运行契约
 ├─ schemas/                            Bootstrap、环境、证据与内容契约
 ├─ tests/
-└─ docs/
+└─ docs/reproducibility.md             干净 clone、CI 与真实媒体验收边界
 ```
 
 ## 开发验证

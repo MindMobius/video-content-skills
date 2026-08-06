@@ -6,9 +6,11 @@ on:
 
 jobs:
   python:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [windows-latest, ubuntu-latest]
         python-version: ["3.10", "3.12"]
 
     steps:
@@ -29,3 +31,38 @@ jobs:
 
       - name: MCP protocol smoke
         run: python scripts/mcp_smoke.py
+
+  clean-agent-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Discover project Skills
+        run: npx -y skills@1.5.22 add . --list
+
+      - name: Bootstrap clean checkout
+        run: >-
+          python scripts/bootstrap.py --apply
+          --config .video-subtitle-local/config.json
+          --capability hard_ocr_local > bootstrap.json
+
+      - name: Validate Agent invocation contract
+        run: >-
+          python -c "import json, pathlib;
+          report=json.loads(pathlib.Path('bootstrap.json').read_text());
+          assert report['schema_version']=='video-subtitle/bootstrap-v2';
+          assert report['installation']['ready'];
+          assert [item['name'] for item in report['skills']['available']]
+          == ['video-subtitle', 'video-to-content'];
+          assert report['mcp']['transport']=='stdio';
+          assert report['mcp']['env']['VIDEO_SUBTITLE_CONFIG']
+          == report['setup']['configuration']['path']"

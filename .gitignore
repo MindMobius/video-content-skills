@@ -3,6 +3,7 @@
 __pycache__/
 *.py[cod]
 .video-subtitle/
+.video-subtitle-local/
 .subtitle-agent/
 dist/
 build/

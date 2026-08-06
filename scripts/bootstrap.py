@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     root = Path(__file__).resolve().parents[1]
+    if args.config:
+        args.config = str(Path(args.config).expanduser().resolve())
     venv_dir = root / ".venv"
     python = _venv_python(venv_dir)
     installed = python.is_file() and _package_available(python)
@@ -63,6 +65,7 @@ def main() -> None:
                         python,
                         installed=False,
                         status="failed",
+                        config_path=args.config,
                         error={"stage": "create_venv", "message": str(error)},
                     ),
                     exit_code=1,
@@ -86,6 +89,7 @@ def main() -> None:
                         python,
                         installed=False,
                         status="failed",
+                        config_path=args.config,
                         error={
                             "stage": "install_project",
                             "message": f"pip install exited with code {install.returncode}",
@@ -110,6 +114,7 @@ def main() -> None:
                 python,
                 installed=False,
                 status="agent_action_required",
+                config_path=args.config,
                 agent_actions=[
                     {
                         "action_id": "install_core",
@@ -133,6 +138,7 @@ def main() -> None:
                 python,
                 installed=True,
                 status="failed",
+                config_path=args.config,
                 error={
                     "stage": "capability_setup",
                     "message": (
@@ -153,6 +159,7 @@ def main() -> None:
                 python,
                 installed=True,
                 status="failed",
+                config_path=args.config,
                 error={
                     "stage": "capability_setup",
                     "message": f"setup returned invalid JSON: {error}",
@@ -168,6 +175,7 @@ def main() -> None:
             python,
             installed=True,
             status=str(setup["status"]),
+            config_path=args.config,
             setup=setup,
             agent_actions=list(setup.get("agent_actions") or []),
             human_actions=list(setup.get("human_actions") or []),
@@ -182,6 +190,7 @@ def _bootstrap_report(
     *,
     installed: bool,
     status: str,
+    config_path: str | None = None,
     setup: dict[str, Any] | None = None,
     agent_actions: list[dict[str, Any]] | None = None,
     human_actions: list[dict[str, Any]] | None = None,
@@ -197,7 +206,10 @@ def _bootstrap_report(
         for skill_path in sorted(skills_root.glob("*/SKILL.md"))
     ]
     cli_command = [str(python), "-m", "video_subtitle.cli"]
+    if config_path:
+        cli_command += ["--config", config_path]
     mcp_args = ["-m", "video_subtitle.mcp_server"]
+    mcp_environment = {"VIDEO_SUBTITLE_CONFIG": config_path} if config_path else {}
     report: dict[str, Any] = {
         "schema_version": "video-subtitle/bootstrap-v2",
         "status": status,
@@ -221,6 +233,7 @@ def _bootstrap_report(
             "transport": "stdio",
             "command": str(python),
             "args": mcp_args,
+            "env": mcp_environment,
             "registration_required": True,
             "registration_owner": "calling_agent",
             "fallback_command": cli_command,

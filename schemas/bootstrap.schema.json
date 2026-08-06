@@ -70,6 +70,7 @@
         "transport",
         "command",
         "args",
+        "env",
         "registration_required",
         "registration_owner",
         "fallback_command"
@@ -79,6 +80,10 @@
         "transport": { "const": "stdio" },
         "command": { "type": "string", "minLength": 1 },
         "args": { "$ref": "#/$defs/command" },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
         "registration_required": { "type": "boolean" },
         "registration_owner": { "const": "calling_agent" },
         "fallback_command": { "$ref": "#/$defs/command" }
