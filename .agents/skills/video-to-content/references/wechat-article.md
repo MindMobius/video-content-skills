@@ -1,0 +1,178 @@
+# WeChat Article Delivery
+
+Read this reference only when the selected medium is `article` and the requested
+handoff is a WeChat Official Account article or another rich-text editor with
+the same copy-and-paste constraints.
+
+This is a delivery protocol, not a writing template. The content map, media
+plan, source evidence, and user instructions remain authoritative. A renderer
+may decide typography and component markup; it may not decide what the source
+means, add an editorial stance, or turn the article into marketing copy.
+
+## Responsibility split
+
+- `video-to-content` owns semantic reconstruction, source attribution,
+  narrative voice, public disclosure, deliberate omissions, and fidelity.
+- An optional renderer Skill owns theme selection, rich-text-safe markup,
+  preview generation, and renderer-specific HTML validation.
+- The user owns the communication objective and any account signature, CTA, or
+  promotional framing.
+- The human handoff owns importing local images into the target editor.
+- Publishing-platform login, upload, draft creation, scheduling, and publishing
+  remain outside this project.
+
+Renderer defaults never override the media plan or user preferences. Omit a
+stock author signature, follow prompt, QR-code block, “点赞 / 在看 / 转发” CTA,
+or other account-growth shell unless the source already contains it or the user
+explicitly requests it. Do not invent the source creator's endorsement or use
+the renderer's sample author as the article author.
+
+## Build the manuscript first
+
+Create the semantic article before styling it. The article may merge, split,
+reorder, or foreground source material to suit reading; it should not mirror
+the playback timeline. For `source_author`, the body speaks directly in the
+source author's voice. Do not add “这个视频认为”, “原视频称”, “视频里提到”, or
+similar narrator wrappers.
+
+For a public adaptation whose media plan requires attribution, use this order:
+
+1. a visible slot for the original cover when it is a local asset;
+2. a visually separate source and transformation disclosure block;
+3. the reconstructed article body.
+
+The disclosure names the source creator, original title, and canonical URL. It
+also states the actual transformations and any material uncertainty, including
+whether external facts were checked. This disclosure is provenance metadata,
+not part of the source author's argument. Scan the body separately from the
+disclosure when checking narrator wrappers.
+
+Keep a Markdown manuscript such as `article.md` in the delivery package. It is
+the canonical manuscript for that deliverable revision; the content map and
+media plan remain the semantic and provenance contracts. The rich-text HTML is
+a rendered derivative, not a replacement for either layer.
+
+## Use a renderer as an optional downstream Skill
+
+If an appropriate renderer Skill is installed or discoverable, read its
+instructions and use it after the manuscript is stable. The tested integration
+is [`isjiamu/gzh-design-skill`](https://github.com/isjiamu/gzh-design-skill), but
+it is not a dependency of this repository and other renderers may be used.
+
+A standard Skill installer can inspect that repository without installing it:
+
+```powershell
+npx -y skills@1.5.22 add isjiamu/gzh-design-skill --list
+```
+
+It should report the `gzh-design` Skill. If it is absent and rich-text styling
+is required, inspect the third-party source, then install `gzh-design` in the
+caller's user-level or isolated Skill scope according to that Agent's policy.
+Do not copy it into this repository or add it to the core Python requirements.
+If no renderer is available, deliver the stable manuscript and use only markup
+the calling Agent can validate; do not block semantic content work on a theme.
+
+When using `gzh-design-skill`:
+
+- select a registered theme from the content's tone and density rather than
+  copying a theme from an unrelated example;
+- treat its component library as presentation guidance and remove stock
+  signature or CTA components when they conflict with the objective;
+- produce a clean `<section>...</section>` body fragment with inline styles,
+  then run its `scripts/validate_gzh_html.py` until both errors and warnings are
+  zero;
+- create the browser preview with its `scripts/wrap_preview.py`, but do not save
+  the preview shell as the content deliverable.
+
+On Windows PowerShell, set UTF-8 before running renderer scripts that print
+Unicode symbols:
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+python <gzh-skill-root>\scripts\validate_gzh_html.py <clean-html>
+python <gzh-skill-root>\scripts\wrap_preview.py <clean-html>
+```
+
+Renderer validation proves markup compatibility, not semantic fidelity. A
+beautiful page with unsupported claims still fails the content audit.
+
+## Package local images explicitly
+
+A reusable handoff package should contain the smallest useful set of artifacts:
+
+```text
+wechat-article/
+├─ article.md
+├─ article.html
+├─ article-preview.html
+├─ cover.jpg                    # or assets/<descriptive-name>.<ext>
+└─ image-import-checklist.md
+```
+
+Names may be localized, but their roles must remain obvious. Optional desktop
+or mobile QA screenshots may be included as inspection evidence; they are not
+part of the article body.
+
+For every local image:
+
+1. keep the binary file in the package;
+2. put a visible insertion slot at the exact article position;
+3. show the matching filename and a short description in the slot;
+4. list the same file in article order in `image-import-checklist.md`;
+5. do not leave a relative, `file:`, `data:`, or `blob:` source in an `img`
+   element.
+
+The checklist must say that copied rich text does not contain local image
+bytes, where each image belongs, and that the slot should be removed after
+manual insertion. Do not upload an image to invent a transferable URL.
+
+If the preview has a copy button, use qualified wording such as “复制排版正文”.
+The success message must say that the formatted body was copied and local
+images still require manual insertion. The preview may render insertion slots;
+it must not claim that an incomplete package is “ready to paste”.
+
+## Validate two independent layers
+
+Before saving the final deliverable, validate both layers:
+
+### Content and provenance
+
+- all required claim and caveat IDs are visibly represented;
+- the body follows the declared narrative voice;
+- the cover slot and disclosure precede the body when required;
+- the disclosure states the real transformation and verification boundary;
+- renderer defaults did not add a new author identity, stance, CTA, or
+  promotional promise;
+- title, headings, and highlighted text do not strengthen the source claim.
+
+### Rendering and handoff
+
+- the clean HTML passes the chosen renderer's deterministic validator;
+- the clean HTML contains no document or preview shell when the renderer
+  requires a body fragment;
+- local image slots, local files, and checklist entries match one-to-one and in
+  article order;
+- no local image is hidden behind an `img` reference that cannot survive copy
+  and paste;
+- the preview copy message describes the manual image boundary;
+- when browser inspection is available, check both a desktop width and a narrow
+  mobile width for overflow, illegible text, broken hierarchy, and accidental
+  empty space.
+
+Save the clean human-visible article HTML with
+`save_video_content_deliverable`; do not save the preview wrapper. Perform a
+fresh fidelity audit against that saved revision, then call
+`validate_video_content_project`.
+
+A package with disclosed external-verification limits or a correctly declared
+manual image step may use `pass_with_warnings` if no semantic error remains. A
+missing required disclosure, hidden uncertainty, unsupported statement, wrong
+voice, or absent local-image handoff is a blocker and must be repaired before
+delivery.
+
+## Final handoff
+
+Report the clean HTML, preview, manuscript, local assets, and import checklist
+as separate files. State the one remaining human action precisely: paste the
+formatted body, import each local image at its named slot, and remove the slot.
+Do not continue into the publishing platform.

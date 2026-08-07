@@ -105,6 +105,12 @@ separate editorial voice.
 
 Read [`prompts/create-deliverable.md`](prompts/create-deliverable.md).
 
+When the selected target is a WeChat Official Account article or an equivalent
+copy-oriented rich-text handoff, also read
+[`references/wechat-article.md`](references/wechat-article.md). It defines the
+article manuscript, optional renderer, public source block, local-image package,
+preview, and validation boundaries without turning writing into a fixed script.
+
 Create the selected artifact using your own language and reasoning. Rebuild its
 information architecture for the selected carrier: claims may be merged,
 split, reordered, foregrounded, or moved into supporting context. Source order
@@ -119,6 +125,11 @@ their rendered positions with visible insertion slots that name the matching
 files, and include a short import checklist. Do not claim that relative,
 `file:`, `data:`, or `blob:` image references will transfer through rich-text
 copy and paste. Do not upload the files merely to make the HTML self-contained.
+
+Renderer defaults are subordinate to the media plan and the user's objective.
+Do not add a stock account signature, author identity, QR-code block, follow
+prompt, or engagement CTA merely because a theme includes one. Save and audit
+the clean human-visible content artifact, not a browser preview wrapper.
 
 Call `save_video_content_deliverable` with:
 

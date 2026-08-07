@@ -19,7 +19,15 @@ and relevant source ranges, not memory of the drafting process.
 7. Check that the carrier has a coherent information architecture. A different
    order from the source is not an error unless it changes causality, sequence,
    qualification, or meaning.
-8. Record concrete repair actions for every error.
+8. For a public adaptation, check the source and transformation disclosure
+   separately from the body. A required disclosure must precede the argument;
+   narrator language inside that disclosure does not excuse narrator wrappers
+   inside a `source_author` body.
+9. For a rendered article, check that renderer defaults did not introduce a
+   fictional author, unsupported stance, stock CTA, or promotional promise. If
+   local images remain, require named visible slots, matching local files, an
+   import checklist, and an explicit preview-copy warning.
+10. Record concrete repair actions for every error.
 
 ## Status rule
 
@@ -30,6 +38,10 @@ and relevant source ranges, not memory of the drafting process.
 
 A warning is not a softer label for an unresolved error. A failed deliverable
 must be revised and saved as a new revision before another audit.
+
+A correctly disclosed manual image step can be a warning because the package is
+still truthful and usable. A missing required cover/disclosure, hidden local
+image dependency, or false “ready to paste” claim is a blocker.
 
 Return the JSON document required by
 [`../../../../schemas/fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json).

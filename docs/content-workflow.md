@@ -117,6 +117,62 @@ initialized
 
 Prompt 只规定问题、边界和交付契约，不提供固定摘要算法。
 
+## 公众号文章交付协议
+
+公众号文章不是“套一个公众号模板”。它仍然先完成内容重建，再把稳定稿交给可选的排版
+Skill：
+
+```text
+Content map + Media plan
+-> article.md（文章语义稿）
+-> 可选公众号排版 Skill（只负责主题与 HTML）
+-> 干净正文 HTML + 浏览器预览
+-> 本地图片 + 可见插槽 + 导入清单
+-> HTML 合规校验 + 忠实度审计
+-> 可交付包
+```
+
+完整 Agent 契约见
+[`references/wechat-article.md`](../.agents/skills/video-to-content/references/wechat-article.md)。
+其中有四个不能互相替代的边界：
+
+1. **文章先于排版**：Agent 可以为了阅读合并、拆分和重排论证，但必须先稳定
+   `article.md`；主题组件不能反过来决定文章观点。
+2. **正文与来源说明分层**：单人内容的正文默认采用作者直接口吻。原封面、UP 主、原标题、
+   原始链接、转换方式和未核验边界位于正文前的独立来源说明中，不等于在正文里添加
+   “这个视频认为”的外部总结者。
+3. **本地图片是人工交接点**：不把相对路径、`file:`、`data:` 或 `blob:` 图片伪装成
+   可复制图片。正文保留写明文件名的可见插槽，图片与导入清单随包交付。
+4. **两层验证分别通过**：排版器的确定性检查只证明 HTML 能粘贴；本项目的 fidelity
+   audit 才检查观点、归因、语气、限定和不确定性。
+
+建议交付目录如下，文件名可以本地化，但角色不能含糊：
+
+```text
+wechat-article/
+├─ article.md                    可继续编辑的文章语义稿
+├─ article.html                  干净、可复制的正文片段
+├─ article-preview.html          带复制按钮的本地预览外壳
+├─ cover.jpg                     原视频封面或其他本地素材
+└─ image-import-checklist.md     按文章顺序列出插入位置
+```
+
+若预览页有复制按钮，按钮和成功提示必须明确说明“只复制排版正文，本地图片仍需手动导入”。
+浏览器预览外壳、复制脚本和图片二进制文件都不是 `save_video_content_deliverable` 保存的
+正文；应保存并审计干净的人类可见 HTML。
+
+[`isjiamu/gzh-design-skill`](https://github.com/isjiamu/gzh-design-skill) 已完成一次真实可选
+集成，可负责主题组件、微信公众号兼容标记、HTML 校验和预览包装，但不是本项目依赖。
+使用它时仍要服从媒介计划和用户偏好：主题自带的作者签名、二维码、关注提示或“点赞、
+在看、转发” CTA 不能自动进入非营销型改编。在 Windows PowerShell 运行其带 Unicode
+输出的脚本前，应设置 `$env:PYTHONIOENCODING="utf-8"`。Agent 可先用固定版本安装器执行
+`npx -y skills@1.5.22 add isjiamu/gzh-design-skill --list` 做只读发现；安装范围由调用方策略
+决定，不把第三方 Skill 复制进本仓库，也不写入核心 Python requirements。
+
+本地图片尚未人工导入、但插槽、文件和清单完整且已披露时，可以作为
+`pass_with_warnings` 的非阻断限制。缺少要求的来源说明、隐藏本地图片依赖、正文叙述口吻
+错误或宣称不完整产物“可直接粘贴”则必须失败并返修。
+
 ## CLI 示例
 
 ```powershell

@@ -46,6 +46,7 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 - 固定字幕 manifest 与各路证据哈希的内容工程项目；
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
 - 用户授权的载体决策，以及由 Agent 完成的重构策略、叙述口吻、版本化成品和逐项忠实度审计；
+- 公众号文章的“语义稿—可选排版器—干净 HTML—本地图片插槽与导入清单”交付协议；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
@@ -239,6 +240,10 @@ video-subtitle content-validate `
 [`BV1KHNC61ExM 内容转换实测`](docs/cases/BV1KHNC61ExM-content.md)。
 按载体重构、使用联合作者口吻并输出 SVG/PNG 一图流的结果见
 [`BV1v6Kf6rEYh 一图流实测`](docs/cases/BV1v6Kf6rEYh-one-page.md)。
+公众号文章的完整协议见
+[`公众号文章交付参考`](.agents/skills/video-to-content/references/wechat-article.md)；平台字幕与
+硬字幕互证、作者口吻重构、可选 `gzh-design-skill` 排版、本地封面插槽和双重验证的真实
+运行见 [`BV1W8GP6nECY 公众号文章实测`](docs/cases/BV1W8GP6nECY-wechat-article.md)。
 
 ## MCP
 

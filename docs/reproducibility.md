@@ -87,6 +87,11 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 `docs/cases/` 只证明某个日期、某台机器和某组上游输入曾真实跑通。远端视频可能删除或
 改版，仓库也不分发原视频、模型或登录凭证，因此这些文档不能冒充一键 replay fixture。
 
+可选渲染 Skill 也属于外部层，不是内容工程核心依赖。真实案例应记录渲染器仓库、当时的
+commit、主题、确定性校验结果和本地图片交接方式；新运行仍应重新检查当前 Skill。即使渲染器
+不可用，content map、media plan、文章语义稿和 fidelity audit 也必须能独立完成，不能让
+主题模板成为理解视频的前置条件。
+
 ## 升级纪律
 
 - 工具或模型升级必须更新 `requirements.json` 的 `verified_at` 与对应 version/revision；
@@ -100,5 +105,6 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 - 平台适配目前只有 Bilibili；YouTube 与抖音尚未实现；
 - MCP 注册由调用 Agent 完成，仓库只提供可移植的 stdio 参数与 CLI fallback；
 - 自动登录、发布公众号、写草稿箱和账号管理不属于项目职责；
+- 公众号排版器是可选下游 Skill，不由 `requirements.json` 安装或锁定；
 - 没有外部真值集时不报告 OCR/ASR 的虚构准确率；
 - 外部事实核验是独立工作，字幕多源一致不等于事实为真。

@@ -48,6 +48,14 @@ Carrier-specific guidance:
 - Brief: lead with the answer, then evidence, limits, and where to inspect more.
 - Script: write for speech while retaining attribution and logical transitions.
 
+For a WeChat Official Account article or an equivalent copy-oriented rich-text
+handoff, read
+[`../references/wechat-article.md`](../references/wechat-article.md) before
+drafting. Build and stabilize the article manuscript before styling it. An
+optional renderer can choose typography and markup, but its sample copy,
+signature, CTA, and author placeholders are not source content and must not be
+introduced without user authorization.
+
 ### Local image handoff for paste-oriented HTML
 
 When an article is meant to be copied into a rich-text editor and an image is
@@ -71,6 +79,10 @@ If the deliverable includes a browser preview with a copy button, its label and
 success message must say that only the formatted body was copied and that local
 images still need manual insertion. Never show an unqualified "ready to paste"
 message while local image slots remain.
+
+Save the clean body artifact as the deliverable. A browser preview wrapper,
+copy-button script, local image binary, and import checklist are package
+companions, not substitutes for the audited human-visible article.
 
 ## Output handoff
 
