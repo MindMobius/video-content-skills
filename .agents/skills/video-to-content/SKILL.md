@@ -120,11 +120,17 @@ carrier. Rendering may improve hierarchy and appearance; it must not decide
 what the source means.
 
 For paste-oriented HTML, local images are a handoff boundary rather than an
-embeddable publishing asset. Keep them in the local deliverable package, replace
-their rendered positions with visible insertion slots that name the matching
-files, and include a short import checklist. Do not claim that relative,
+embeddable publishing asset. Keep them in the local deliverable package and
+leave a visible marker at each rendered position. For WeChat-style copy handoff,
+the default is a minimal-edit marker: one human-visible line containing the
+relative asset path, vertical spacing from margins, and an optional
+`data-local-image-slot` attribute for machine validation. Do not add a border,
+background, icon, duplicated description, or deletion instructions unless the
+user explicitly requests a descriptive slot or the filename is genuinely
+ambiguous. Include a short ordered import checklist. Do not claim that relative,
 `file:`, `data:`, or `blob:` image references will transfer through rich-text
-copy and paste. Do not upload the files merely to make the HTML self-contained.
+copy and paste, and never expose an absolute machine path. Do not upload the
+files merely to make the HTML self-contained.
 
 Renderer defaults are subordinate to the media plan and the user's objective.
 Do not add a stock account signature, author identity, QR-code block, follow

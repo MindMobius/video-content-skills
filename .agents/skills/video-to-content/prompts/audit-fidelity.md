@@ -25,8 +25,13 @@ and relevant source ranges, not memory of the drafting process.
    inside a `source_author` body.
 9. For a rendered article, check that renderer defaults did not introduce a
    fictional author, unsupported stance, stock CTA, or promotional promise. If
-   local images remain, require named visible slots, matching local files, an
-   import checklist, and an explicit preview-copy warning.
+   local images remain, require visible relative-path markers, matching local
+   files, an ordered import checklist, and an explicit preview-copy warning. In
+   the default minimal-edit mode, each image marker must be one human-visible
+   path line, may carry machine metadata such as `data-local-image-slot`, and
+   must require deletion of at most one visible element. Flag boxed placeholder
+   cards, duplicated descriptions, repeated instructions, or absolute machine
+   paths unless the user explicitly authorized a descriptive slot.
 10. Record concrete repair actions for every error.
 
 ## Status rule
@@ -41,7 +46,9 @@ must be revised and saved as a new revision before another audit.
 
 A correctly disclosed manual image step can be a warning because the package is
 still truthful and usable. A missing required cover/disclosure, hidden local
-image dependency, or false “ready to paste” claim is a blocker.
+image dependency, false “ready to paste” claim, absolute machine path, or a
+renderer placeholder that violates the selected minimal-edit contract is a
+blocker.
 
 Return the JSON document required by
 [`../../../../schemas/fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json).

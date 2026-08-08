@@ -60,15 +60,33 @@ introduced without user authorization.
 
 When an article is meant to be copied into a rich-text editor and an image is
 only available as a local file, keep the image local and leave a human-visible
-insertion slot in the HTML. The slot must name the file and describe the image
-that belongs there. Place the local files beside the deliverable or in a clearly
-named assets directory, and provide a short import checklist in article order.
+marker at the exact article position. Place the local files beside the
+deliverable or in a clearly named assets directory, and provide a short import
+checklist in article order.
 
-Do not leave a relative path, `file:` URL, `data:` URL, or `blob:` URL in an
-`img` element and call the artifact directly pasteable. A local browser may
-render that reference, but copying rich HTML does not reliably transfer the
-image bytes into the target editor. Renderer documentation does not override
-this handoff rule.
+Default to a minimal-edit marker for WeChat-style handoff:
+
+- show only one human-visible line containing the relative package path, such as
+  `assets/01-mission.jpg`;
+- create vertical space with margins on that same element;
+- when the HTML format permits it, keep machine tracking in a
+  `data-local-image-slot` attribute rather than visible instructions;
+- do not add a border, background, icon, image label, repeated description, or
+  "insert then delete" instruction;
+- require the human editor to delete at most that one visible path line after
+  inserting the image.
+
+Use a descriptive slot only when the user explicitly asks for editor guidance
+or a filename is genuinely ambiguous. Put any necessary description in the
+checklist instead of duplicating it inside the article. The checklist should
+state the manual boundary once, then list relative paths in article order; do
+not repeat the same insertion and deletion instructions for every image.
+
+Do not expose an absolute machine path. Do not leave a relative path, `file:`
+URL, `data:` URL, or `blob:` URL in an `img` element and call the artifact
+directly pasteable. A local browser may render that reference, but copying rich
+HTML does not reliably transfer the image bytes into the target editor.
+Renderer documentation does not override this handoff rule.
 
 Uploading images, rewriting them to a platform CDN, or inserting them into a
 platform editor is a separate publishing integration and remains outside this

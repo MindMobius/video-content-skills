@@ -81,6 +81,9 @@ When using `gzh-design-skill`:
 - produce a clean `<section>...</section>` body fragment with inline styles,
   then run its `scripts/validate_gzh_html.py` until both errors and warnings are
   zero;
+- override a generic boxed material-placeholder component when local images use
+  the minimal-edit handoff below; renderer defaults do not authorize extra
+  cleanup work for the human editor;
 - create the browser preview with its `scripts/wrap_preview.py`, but do not save
   the preview shell as the content deliverable.
 
@@ -113,23 +116,36 @@ Names may be localized, but their roles must remain obvious. Optional desktop
 or mobile QA screenshots may be included as inspection evidence; they are not
 part of the article body.
 
-For every local image:
+For every local image, default to minimal-edit mode:
 
 1. keep the binary file in the package;
-2. put a visible insertion slot at the exact article position;
-3. show the matching filename and a short description in the slot;
-4. list the same file in article order in `image-import-checklist.md`;
-5. do not leave a relative, `file:`, `data:`, or `blob:` source in an `img`
-   element.
+2. put one human-visible line containing the relative asset path at the exact
+   article position, for example `assets/01-mission.jpg`;
+3. create any desired vertical space with margins on that same element;
+4. when the HTML format permits it, attach `data-local-image-slot` with the same
+   relative path for machine validation;
+5. list the same relative path in article order in
+   `image-import-checklist.md`;
+6. do not leave a relative, `file:`, `data:`, or `blob:` source in an `img`
+   element, and do not expose an absolute machine path.
 
-The checklist must say that copied rich text does not contain local image
-bytes, where each image belongs, and that the slot should be removed after
-manual insertion. Do not upload an image to invent a transferable URL.
+The human-visible marker should contain only the path. Do not add a border,
+background, icon, image title, repeated description, or a second deletion
+instruction. After manual insertion, the editor should delete at most one
+visible element: the path line itself. Machine-facing traceability belongs in
+attributes and validation, not in extra article UI.
+
+A descriptive slot is opt-in. Use it only when the user explicitly requests
+editor guidance or the filename is genuinely ambiguous. The checklist should
+state once that copied rich text does not contain local image bytes, then list
+relative paths in article order. Add a short description only where it resolves
+real ambiguity; do not repeat insertion and deletion instructions for every
+image. Do not upload an image to invent a transferable URL.
 
 If the preview has a copy button, use qualified wording such as “复制排版正文”.
 The success message must say that the formatted body was copied and local
-images still require manual insertion. The preview may render insertion slots;
-it must not claim that an incomplete package is “ready to paste”.
+images still require manual insertion. The preview may render the same minimal
+path lines; it must not claim that an incomplete package is “ready to paste”.
 
 ## Validate two independent layers
 
@@ -150,8 +166,10 @@ Before saving the final deliverable, validate both layers:
 - the clean HTML passes the chosen renderer's deterministic validator;
 - the clean HTML contains no document or preview shell when the renderer
   requires a body fragment;
-- local image slots, local files, and checklist entries match one-to-one and in
-  article order;
+- local image path markers, local files, and checklist entries match one-to-one
+  and in article order;
+- default markers use one visible relative-path line per image, expose no
+  absolute machine path, and require deletion of at most one visible element;
 - no local image is hidden behind an `img` reference that cannot survive copy
   and paste;
 - the preview copy message describes the manual image boundary;
@@ -174,5 +192,5 @@ delivery.
 
 Report the clean HTML, preview, manuscript, local assets, and import checklist
 as separate files. State the one remaining human action precisely: paste the
-formatted body, import each local image at its named slot, and remove the slot.
-Do not continue into the publishing platform.
+formatted body, import each local image at its path line, and delete that one
+line. Do not continue into the publishing platform.
