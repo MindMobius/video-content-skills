@@ -7,24 +7,28 @@ Skill、MCP Server 与 JSON CLI。
 检查、登录态、下载、识别、时间轴和产物；Agent 负责选择证据、理解语义、判断冲突
 并决定是否继续取证。
 
-仓库包含两个相互解耦的 Skill：`video-subtitle` 负责建立证据，`video-to-content` 负责
-把证据重建为可追溯的内容模型，再按用户指定的文章、一图流、卡片、Brief 或口播稿等
-载体生成成品。用户没有指定载体时，Agent 可以分析和推荐，但必须等待用户选择；只有用户
-明确委托时才能代选。语义判断始终由 Agent 完成，工具只做依赖、持久化、版本和确定性校验。
+仓库包含两个核心 Skill 和一个可选下游 Skill：`video-subtitle` 负责建立证据，
+`video-to-content` 负责把证据重建为可追溯的内容模型，再按用户指定的文章、一图流、卡片、
+Brief 或口播稿等载体生成成品；`wechat-draft-handoff` 只在用户明确要求时，把已经审计的
+公众号文章放入已登录编辑器并按授权保存草稿。用户没有指定载体时，Agent 可以分析和推荐，
+但必须等待用户选择；只有用户明确委托时才能代选。语义判断始终由 Agent 完成，工具只做
+依赖、持久化、版本和确定性校验。
 
-项目的终点是忠实、得体、恰当、优雅且通过审计的可交付成品。登录发布平台、上传文件、
-写入草稿箱、定时发布和账号管理均不属于本项目职责。
+Python/MCP 内容项目的终点仍是忠实、得体、恰当、优雅且通过审计的可交付成品。可选草稿
+交接不属于默认链路，不读取登录秘密，也不反向修改审计产物。定时发布、正式发布、群发、
+原创声明、变现和账号管理均不属于本项目职责。
 
 ## Agent 快速入口
 
-仓库内的两个 Skill 位于标准项目目录 [`.agents/skills`](.agents/skills)，支持该约定的
+仓库内的三个 Skill 位于标准项目目录 [`.agents/skills`](.agents/skills)，支持该约定的
 Agent 在进入仓库后可以直接发现。其他项目或个人环境可先检查再安装：
 
 ```powershell
 npx skills add MindMobius/video-subtitle-skill --list
 npx skills add MindMobius/video-subtitle-skill `
   --skill video-subtitle `
-  --skill video-to-content
+  --skill video-to-content `
+  --skill wechat-draft-handoff
 ```
 
 不支持 Agent Skills 自动发现的 Coding Agent 应从 [`AGENTS.md`](AGENTS.md) 开始；它会
@@ -47,6 +51,8 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
 - 用户授权的载体决策，以及由 Agent 完成的重构策略、叙述口吻、版本化成品和逐项忠实度审计；
 - 公众号文章的“语义稿—可选排版器—干净 HTML—单行相对图片路径与简短导入清单”交付协议；
+- 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
+  填写标题/摘要/封面并只保存草稿；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
@@ -246,6 +252,9 @@ video-subtitle content-validate `
 运行见 [`BV1W8GP6nECY 公众号文章实测`](docs/cases/BV1W8GP6nECY-wechat-article.md)。复杂图片
 占位组件如何在真实编辑反馈后收敛为“单行相对路径＋机器属性”，见
 [`BV1xK3h6fE7a 最小图片交接实测`](docs/cases/BV1xK3h6fE7a-wechat-minimal-image-handoff.md)。
+已审计文章如何在不污染正式 HTML 的前提下，通过一次性富文本剪贴板把 7 张本地图片交给
+微信、验证 CDN 接管并只保存草稿，见
+[`BV1hK3v6LELB 公众号草稿交接实测`](docs/cases/BV1hK3v6LELB-wechat-draft-handoff.md)。
 
 ## MCP
 
@@ -314,8 +323,9 @@ env = { VIDEO_SUBTITLE_CONFIG = "C:\\path\\to\\config.json" }
 ```text
 video-subtitle-skill/
 ├─ AGENTS.md                          通用 Agent 发现、路由与环境入口
-├─ .agents/skills/video-subtitle/     字幕证据决策与安全边界
-├─ .agents/skills/video-to-content/   内容重建、载体决策门、生成与审计 Prompt
+├─ .agents/skills/video-subtitle/       字幕证据决策与安全边界
+├─ .agents/skills/video-to-content/     内容重建、载体决策门、生成与审计 Prompt
+├─ .agents/skills/wechat-draft-handoff/ 已审计公众号文章的可选草稿交接
 ├─ src/video_subtitle/
 │  ├─ requirements.json               外部能力依赖契约
 │  ├─ config.py                       持久配置与优先级

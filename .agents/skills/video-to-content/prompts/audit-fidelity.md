@@ -32,7 +32,11 @@ and relevant source ranges, not memory of the drafting process.
    must require deletion of at most one visible element. Flag boxed placeholder
    cards, duplicated descriptions, repeated instructions, or absolute machine
    paths unless the user explicitly authorized a descriptive slot.
-10. Record concrete repair actions for every error.
+10. Audit the clean portable deliverable before any downstream platform
+    handoff. A successful clipboard paste or WeChat image upload cannot repair
+    a missing marker, unsupported statement, or stale audit, and must not be
+    used to change this audit status.
+11. Record concrete repair actions for every error.
 
 ## Status rule
 
@@ -48,7 +52,9 @@ A correctly disclosed manual image step can be a warning because the package is
 still truthful and usable. A missing required cover/disclosure, hidden local
 image dependency, false “ready to paste” claim, absolute machine path, or a
 renderer placeholder that violates the selected minimal-edit contract is a
-blocker.
+blocker. Keep this package-level status unchanged if an optional downstream
+Skill later imports the images into a signed-in editor; platform state is a
+separate receipt, not fidelity evidence.
 
 Return the JSON document required by
 [`../../../../schemas/fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json).

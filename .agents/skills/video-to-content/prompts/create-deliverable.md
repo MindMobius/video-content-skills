@@ -89,9 +89,11 @@ HTML does not reliably transfer the image bytes into the target editor.
 Renderer documentation does not override this handoff rule.
 
 Uploading images, rewriting them to a platform CDN, or inserting them into a
-platform editor is a separate publishing integration and remains outside this
-project. The deliverable should make the manual boundary obvious rather than
-hide it behind a successful copy message.
+platform editor is not part of this content artifact. The deliverable should
+make the manual boundary obvious rather than hide it behind a successful copy
+message. After the clean package has passed fidelity audit, a separate explicit
+user request may invoke the optional `wechat-draft-handoff` Skill. Its transient
+clipboard transport must not be written back into this deliverable.
 
 If the deliverable includes a browser preview with a copy button, its label and
 success message must say that only the formatted body was copied and that local
@@ -113,6 +115,8 @@ Alongside the artifact, prepare:
 Do not count a claim as represented merely because it appears in hidden metadata.
 The human-visible artifact must carry it.
 
-Stop after producing and auditing the artifact. Uploading, saving to a platform
-draft box, scheduling, publishing, and account management are outside this
-project's contract.
+Stop after producing and auditing the artifact. This Prompt never uploads or
+changes platform state. If the user separately requested signed-in WeChat draft
+handoff, report the audited artifact first and route to `wechat-draft-handoff`.
+Scheduling, publishing, and account management remain outside the repository's
+contract.

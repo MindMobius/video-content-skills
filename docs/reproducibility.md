@@ -24,7 +24,7 @@ JSON CLI 继续，按机器可读动作准备环境，只在真实人类边界�
 按以下顺序读取，不要维护第二套副本：
 
 1. 根目录 `AGENTS.md`：任务路由、人机边界和全新机器入口；
-2. `.agents/skills/*/SKILL.md`：字幕取证与内容转换决策；
+2. `.agents/skills/*/SKILL.md`：字幕取证、内容转换和可选公众号草稿交接决策；
 3. `src/video_subtitle/requirements.json`：能力依赖、已验证版本与模型 revision；
 4. `schemas/`：Bootstrap、setup、证据与内容产物的机器契约；
 5. `tests/`：确定性行为；
@@ -44,7 +44,8 @@ python scripts/bootstrap.py --apply --config .video-subtitle-local/config.json -
 
 - `schema_version` 为 `video-subtitle/bootstrap-v2`；
 - `installation.ready=true`；
-- `skills.available` 恰好包含 `video-subtitle` 与 `video-to-content`；
+- `skills.available` 恰好包含 `video-subtitle`、`video-to-content` 与
+  `wechat-draft-handoff`；
 - `cli.command` 携带同一绝对配置路径；
 - `mcp.transport=stdio`，且 `mcp.env.VIDEO_SUBTITLE_CONFIG` 指向同一配置；
 - 缺少 VideOCR 时返回 Agent 动作，而不是虚假的 ready 或无关的人类动作。
@@ -82,15 +83,19 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 2. 平台字幕、OCR、ASR 独立落盘；
 3. manifest、attempt、日志与 SHA-256 保留；
 4. 按时间范围读取并核对冲突；
-5. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit。
+5. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit；
+6. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
+   CDN 接管、元数据和草稿保存状态，并明确没有发布。
 
 `docs/cases/` 只证明某个日期、某台机器和某组上游输入曾真实跑通。远端视频可能删除或
 改版，仓库也不分发原视频、模型或登录凭证，因此这些文档不能冒充一键 replay fixture。
 
-可选渲染 Skill 也属于外部层，不是内容工程核心依赖。真实案例应记录渲染器仓库、当时的
-commit、主题、确定性校验结果和本地图片交接方式；新运行仍应重新检查当前 Skill。即使渲染器
-不可用，content map、media plan、文章语义稿和 fidelity audit 也必须能独立完成，不能让
-主题模板成为理解视频的前置条件。
+可选渲染 Skill 和 `wechat-draft-handoff` 都属于外部执行层，不是内容工程核心依赖。真实
+案例应记录渲染器仓库、当时的 commit、主题、确定性校验结果、本地图片交接方式，以及平台
+交接实际验证到的图片数量、CDN 接管和保存状态；新运行仍应重新检查当前 Skill 与页面。
+即使渲染器、富文本剪贴板或已登录浏览器不可用，content map、media plan、文章语义稿、
+干净 HTML、人工图片清单和 fidelity audit 也必须能独立完成，不能让主题或平台状态成为
+理解视频的前置条件。
 
 ## 升级纪律
 
@@ -104,7 +109,8 @@ commit、主题、确定性校验结果和本地图片交接方式；新运行�
 
 - 平台适配目前只有 Bilibili；YouTube 与抖音尚未实现；
 - MCP 注册由调用 Agent 完成，仓库只提供可移植的 stdio 参数与 CLI fallback；
-- 自动登录、发布公众号、写草稿箱和账号管理不属于项目职责；
+- 自动登录、正式发布、定时、群发、原创声明和账号管理不属于项目职责；可选
+  `wechat-draft-handoff` 只在用户明确要求时复用已经登录的可见浏览器并保存草稿；
 - 公众号排版器是可选下游 Skill，不由 `requirements.json` 安装或锁定；
 - 没有外部真值集时不报告 OCR/ASR 的虚构准确率；
 - 外部事实核验是独立工作，字幕多源一致不等于事实为真。

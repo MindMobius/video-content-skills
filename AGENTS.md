@@ -12,6 +12,11 @@ project. Read this file before choosing tools or changing the environment.
 - After verified subtitle evidence exists, use
   [`.agents/skills/video-to-content/SKILL.md`](.agents/skills/video-to-content/SKILL.md)
   only when the user requested a transformed deliverable.
+- After an audited WeChat article exists, use
+  [`.agents/skills/wechat-draft-handoff/SKILL.md`](.agents/skills/wechat-draft-handoff/SKILL.md)
+  only when the user explicitly asks to place it in an already signed-in
+  WeChat editor. Saving the draft must also be explicitly in scope. This Skill
+  never publishes.
 - If the user supplied only an input, finish the subtitle evidence first and
   ask whether they want only subtitles or a specific carrier. Do not choose a
   carrier unless the user explicitly delegates that decision.
@@ -57,8 +62,13 @@ work.
   for the requested capabilities and verify heavy runtimes with `doctor`.
 - Current URL support is Bilibili only. Do not claim YouTube or Douyin support
   until their adapters exist.
-- This project stops at an audited deliverable. Do not log in to publishing
-  platforms, upload, save drafts, schedule, publish, or manage channel accounts.
+- The Python/MCP content project stops at an audited deliverable. It does not
+  log in to publishing platforms, upload files, or change platform state.
+- The optional `wechat-draft-handoff` Skill may use an existing visible browser
+  login to place an audited article and save it as a draft only after explicit
+  user authorization. It must not read credentials or browser secrets.
+- Scheduling, publishing, mass sending, originality declarations, monetization,
+  and channel-account management remain outside every Skill in this repository.
 
 ## Verification
 

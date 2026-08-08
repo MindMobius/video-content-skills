@@ -15,11 +15,15 @@ means, add an editorial stance, or turn the article into marketing copy.
   narrative voice, public disclosure, deliberate omissions, and fidelity.
 - An optional renderer Skill owns theme selection, rich-text-safe markup,
   preview generation, and renderer-specific HTML validation.
-- The user owns the communication objective and any account signature, CTA, or
-  promotional framing.
-- The human handoff owns importing local images into the target editor.
-- Publishing-platform login, upload, draft creation, scheduling, and publishing
-  remain outside this project.
+- The optional `wechat-draft-handoff` Skill may place an already audited package
+  into an already signed-in editor after explicit user authorization. It owns
+  transient clipboard assembly, image-ingestion verification, and only the
+  specifically authorized draft save.
+- The user owns the communication objective and any account signature, CTA,
+  originality declaration, or promotional framing.
+- The portable package owns a complete manual fallback for local-image import.
+- The Python/MCP content project stops before platform state. Scheduling,
+  publishing, mass sending, monetization, and account management remain outside this project.
 
 Renderer defaults never override the media plan or user preferences. Omit a
 stock author signature, follow prompt, QR-code block, “点赞 / 在看 / 转发” CTA,
@@ -147,6 +151,27 @@ The success message must say that the formatted body was copied and local
 images still require manual insertion. The preview may render the same minimal
 path lines; it must not claim that an incomplete package is “ready to paste”.
 
+## Optional signed-in draft handoff
+
+The clean package above remains the canonical and portable boundary. Only after
+it has a current fidelity audit and `ready_for_delivery=true`, and only when the
+user explicitly asks for platform handoff, finish `video-to-content` and read
+[`../../wechat-draft-handoff/SKILL.md`](../../wechat-draft-handoff/SKILL.md).
+
+That downstream Skill may replace the path markers in a one-time clipboard
+payload with correctly typed Base64 `data:` images. The payload exists only in
+memory or the clipboard long enough to paste the whole article once. It must not
+be saved as `article.html`, committed, logged, or treated as a new deliverable.
+The signed-in WeChat editor can then upload the images and rewrite their sources
+to its own CDN.
+
+A successful handoff requires live verification that the intended image count
+is visible, all images have WeChat-hosted sources, no transient or local sources
+remain, metadata is correct, and the explicitly authorized draft save completed.
+If rich clipboard image transport is unavailable or verification fails, return
+to the path-marker package and report the exact manual insertion step. Platform
+success never changes the content fidelity audit.
+
 ## Validate two independent layers
 
 Before saving the final deliverable, validate both layers:
@@ -191,6 +216,11 @@ delivery.
 ## Final handoff
 
 Report the clean HTML, preview, manuscript, local assets, and import checklist
-as separate files. State the one remaining human action precisely: paste the
-formatted body, import each local image at its path line, and delete that one
-line. Do not continue into the publishing platform.
+as separate files. By default, state the one remaining human action precisely:
+paste the formatted body, import each local image at its path line, and delete
+that one line.
+
+If the user separately requested signed-in draft handoff, complete and report
+the audited content artifact first, then route to `wechat-draft-handoff`. Report
+its browser result as a separate live-state receipt. Do not continue from a
+saved draft into scheduling or publishing.

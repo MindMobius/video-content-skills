@@ -34,7 +34,8 @@ When a completed subtitle job already exists:
 
 The content layer adds no OCR, ASR, browser, model, or rendering dependency. It
 uses the evidence already collected by `video-subtitle`. A requested final
-format may require a separate renderer available to the calling Agent.
+format may require a separate renderer available to the calling Agent. Live
+publishing-platform state is not part of the content project.
 
 ## Mandatory workflow
 
@@ -110,6 +111,7 @@ copy-oriented rich-text handoff, also read
 [`references/wechat-article.md`](references/wechat-article.md). It defines the
 article manuscript, optional renderer, public source block, local-image package,
 preview, and validation boundaries without turning writing into a fixed script.
+The audited package must remain usable without any platform integration.
 
 Create the selected artifact using your own language and reasoning. Rebuild its
 information architecture for the selected carrier: claims may be merged,
@@ -131,6 +133,13 @@ ambiguous. Include a short ordered import checklist. Do not claim that relative,
 `file:`, `data:`, or `blob:` image references will transfer through rich-text
 copy and paste, and never expose an absolute machine path. Do not upload the
 files merely to make the HTML self-contained.
+
+After this package is audited and `ready_for_delivery=true`, a separate explicit
+request may be routed to
+[`../wechat-draft-handoff/SKILL.md`](../wechat-draft-handoff/SKILL.md). That
+optional Skill may build a clipboard-only image transport for a signed-in
+editor, but it must not rewrite or replace the clean deliverable. The path-marker
+package remains the portable and manual fallback.
 
 Renderer defaults are subordinate to the media plan and the user's objective.
 Do not add a stock account signature, author identity, QR-code block, follow
@@ -223,9 +232,11 @@ artifact versioning, and field semantics.
 - Never choose a visual carrier merely because it looks more shareable. Choose
   it only when the content remains understandable and accurate after visual
   compression.
-- Never log in to a publishing platform, upload an artifact, save it to a draft
-  box, schedule it, publish it, or manage a channel account. This project ends
-  at a faithful, appropriate, polished, audited deliverable.
+- Within this Skill, never log in to a publishing platform, upload an artifact,
+  save it to a draft box, schedule it, publish it, or manage a channel account.
+  This content project ends at a faithful, appropriate, polished, audited
+  deliverable. If the user separately authorizes WeChat draft handoff, finish
+  and report this artifact before routing to `wechat-draft-handoff`.
 - Never claim full-video coverage when only selected ranges were read.
 
 Final reporting must state the selected medium, analysis coverage, unresolved
