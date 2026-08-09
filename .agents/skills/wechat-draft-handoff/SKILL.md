@@ -14,6 +14,10 @@ The browser page is live external state. Read the current page, act from
 semantic controls and visible status, and verify the result. Do not turn a
 successful run into a fixed coordinate script.
 
+The page may contain hidden duplicate fields, inactive menu instances, and
+helper image nodes. Treat only visible, enabled controls and rendered content as
+live state. A matching DOM node by itself is not a completion receipt.
+
 ## Authorization gate
 
 Proceed only when all of the following are true:
@@ -109,8 +113,10 @@ uploading the images before editing metadata or saving.
 
 Verify the live editor state, not merely the clipboard call:
 
-- the visible body image count equals the intended local-image count;
-- each imported image now uses a WeChat-hosted source such as
+- the visible, non-empty, successfully loaded body-image count equals the
+  intended local-image count; ignore hidden, zero-size, empty-source, or helper
+  image nodes;
+- each visible imported image now uses a WeChat-hosted source such as
   `mmbiz.qpic.cn`, rather than `data:`, `file:`, or `assets/...`;
 - no visible relative-path marker remains unless the run intentionally fell
   back to manual insertion;
@@ -121,6 +127,10 @@ Verify the live editor state, not merely the clipboard call:
 
 If any image is missing or still transient, repair the handoff or stop with a
 precise manual fallback. Do not report success from a partially uploaded body.
+Do not count every `img` element indiscriminately or accept the first matching
+field in the DOM; verify current rendered state and resolved image sources.
+Visible body-image count equals the intended image count only after those
+visibility, loading, and source checks have excluded helper nodes.
 
 ### 5. Fill metadata without changing provenance
 
@@ -130,17 +140,27 @@ Fill only the fields authorized by the user:
 - derive a short summary from the audited article when no approved summary file
   exists, without adding new claims;
 - use the designated original cover through “从正文选择” when the package and
-  user instruction call for it;
+  user instruction call for it, then confirm the intended body image was chosen,
+  crop confirmation completed, a visible cover preview uses a WeChat-hosted
+  source, and the empty-cover placeholder is gone;
 - leave the platform author field blank unless the user explicitly supplies an
   account author identity;
 - do not claim platform originality or source exclusivity unless the user
   explicitly instructs it and owns that decision.
 
+Read title, cover, author, and originality state from the visible interactive
+controls. Hidden duplicate inputs or inactive menu copies do not establish the
+current value.
+
 ### 6. Save only the authorized draft
 
 When the user explicitly requested a saved draft, click the draft-save control
-and wait for an unambiguous saved state or a stable article identifier. Resolve
-validation errors before reporting completion.
+and wait for a durable receipt. Prefer a stable article identifier together with
+a persisted manual-save or version-history entry when both are available; a
+transient success toast alone is not sufficient. After saving, re-read the
+title, summary, body, imported images, and cover so the receipt also proves that
+the saved state remained complete. Resolve validation errors before reporting
+completion.
 
 Never click publish, mass send, schedule, original-content declaration, account
 management, or monetization controls. A request to publish is a separate,
@@ -151,9 +171,9 @@ high-impact task and is outside this Skill.
 Report the live result separately from the core content artifact:
 
 - title placed in the editor;
-- intended/imported body-image counts;
+- intended/imported visible, loadable body-image counts;
 - cover and summary state;
-- whether the draft was saved;
+- whether the draft was saved and which durable receipt established it;
 - any warnings or remaining manual action;
 - an explicit statement that nothing was published.
 

@@ -16,14 +16,19 @@ and relevant source ranges, not memory of the drafting process.
 6. Check the declared narrative voice. For `source_author`, flag external
    wrappers such as “这个视频认为”; for `preserve_speakers`, flag collapsed or
    ambiguous speaker identities.
-7. Check that the carrier has a coherent information architecture. A different
+7. Treat narrative voice as presentation, not factual authorization. In
+   `source_author` voice, every sentence a reader could take as fact must still
+   map to a claim, a caveat, or an explicitly registered Agent inference.
+   Plausible domain knowledge, engineering connective prose, and first-person
+   certainty are unsupported when that mapping is absent.
+8. Check that the carrier has a coherent information architecture. A different
    order from the source is not an error unless it changes causality, sequence,
    qualification, or meaning.
-8. For a public adaptation, check the source and transformation disclosure
+9. For a public adaptation, check the source and transformation disclosure
    separately from the body. A required disclosure must precede the argument;
    narrator language inside that disclosure does not excuse narrator wrappers
    inside a `source_author` body.
-9. For a rendered article, check that renderer defaults did not introduce a
+10. For a rendered article, check that renderer defaults did not introduce a
    fictional author, unsupported stance, stock CTA, or promotional promise. If
    local images remain, require visible relative-path markers, matching local
    files, an ordered import checklist, and an explicit preview-copy warning. In
@@ -32,11 +37,11 @@ and relevant source ranges, not memory of the drafting process.
    must require deletion of at most one visible element. Flag boxed placeholder
    cards, duplicated descriptions, repeated instructions, or absolute machine
    paths unless the user explicitly authorized a descriptive slot.
-10. Audit the clean portable deliverable before any downstream platform
+11. Audit the clean portable deliverable before any downstream platform
     handoff. A successful clipboard paste or WeChat image upload cannot repair
     a missing marker, unsupported statement, or stale audit, and must not be
     used to change this audit status.
-11. Record concrete repair actions for every error.
+12. Record concrete repair actions for every error.
 
 ## Status rule
 

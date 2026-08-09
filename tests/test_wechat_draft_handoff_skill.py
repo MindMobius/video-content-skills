@@ -46,6 +46,27 @@ def test_wechat_draft_handoff_keeps_image_transport_transient() -> None:
     )
 
 
+def test_wechat_draft_handoff_requires_visible_state_and_durable_receipts() -> None:
+    skill = (HANDOFF_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    checklist = (HANDOFF_ROOT / "references" / "wechat-editor-checklist.md").read_text(
+        encoding="utf-8"
+    )
+    normalized_contract = " ".join(f"{skill}\n{checklist}".split())
+
+    for contract in (
+        "hidden duplicate",
+        "successfully loaded body-image count",
+        "total number of `img` elements",
+        "crop confirmation completed",
+        "visible cover preview",
+        "empty-cover placeholder",
+        "stable article identifier",
+        "manual-save or version-history entry",
+        "title, summary, body, imported images, and cover",
+    ):
+        assert contract in normalized_contract
+
+
 def test_wechat_draft_handoff_never_expands_into_publishing() -> None:
     skill = (HANDOFF_ROOT / "SKILL.md").read_text(encoding="utf-8")
     checklist = (HANDOFF_ROOT / "references" / "wechat-editor-checklist.md").read_text(
@@ -77,6 +98,20 @@ def test_core_content_skill_routes_optional_handoff_after_audit() -> None:
         article_reference.split()
     )
     assert "platform state is a separate receipt" in " ".join(audit_prompt.split())
+
+
+def test_source_author_voice_does_not_expand_factual_authorization() -> None:
+    audit_prompt = (CONTENT_ROOT / "prompts" / "audit-fidelity.md").read_text(
+        encoding="utf-8"
+    )
+    normalized_prompt = " ".join(audit_prompt.split())
+
+    assert (
+        "narrative voice as presentation, not factual authorization"
+        in normalized_prompt
+    )
+    assert "explicitly registered Agent inference" in audit_prompt
+    assert "engineering connective prose" in normalized_prompt
 
 
 def test_public_docs_discover_the_optional_handoff_and_real_case() -> None:

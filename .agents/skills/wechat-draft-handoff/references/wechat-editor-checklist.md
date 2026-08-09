@@ -27,6 +27,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] Login is active; no credential or cookie extraction is needed.
 - [ ] Existing body content is blank or explicitly in scope for replacement.
 - [ ] No unsaved unrelated draft will be destroyed.
+- [ ] State is read from visible, enabled controls; hidden duplicate fields,
+      inactive menus, and helper nodes are not treated as the current value.
 
 ## D. Clipboard transport and paste
 
@@ -38,26 +40,36 @@ and layout may change; the observable preconditions and postconditions do not.
 
 ## E. Ingestion verification
 
-- [ ] Visible body-image count equals the intended image count.
-- [ ] Imported image sources are WeChat-hosted, typically `mmbiz.qpic.cn`.
+- [ ] Visible, non-empty, successfully loaded body-image count equals the
+      intended image count; hidden, zero-size, empty-source, and helper image
+      nodes are excluded.
+- [ ] Every counted image resolves to a WeChat-hosted source, typically
+      `mmbiz.qpic.cn`.
 - [ ] `data:`, `file:`, `blob:`, and `assets/...` image sources are absent from
       the live editor after upload.
 - [ ] No local path markers remain unless manual fallback is intentional.
 - [ ] Text, disclosure, hierarchy, and restrained styling survived the paste.
+- [ ] Image and field checks use the current rendered state rather than the
+      first matching DOM node or the total number of `img` elements.
 
 ## F. Metadata and save
 
 - [ ] Title matches the authorized audited title or user revision.
 - [ ] Summary contains no claim absent from the audited article.
-- [ ] The requested cover is visible; “从正文选择” uses the designated body
-      image rather than an arbitrary upload.
-- [ ] Author and originality fields were not inferred.
-- [ ] Draft save produced an unambiguous saved state or stable article ID.
+- [ ] “从正文选择” used the designated body image; crop confirmation completed,
+      the visible cover preview is WeChat-hosted, and the empty-cover placeholder
+      is gone.
+- [ ] Visible author and originality controls were read directly and were not
+      inferred from hidden duplicates.
+- [ ] Draft save produced a durable receipt: preferably a stable article ID and
+      a persisted manual-save or version-history entry when both are available.
+- [ ] After saving, title, summary, body, imported images, and cover were read
+      back and remained complete.
 - [ ] No publish, schedule, mass-send, originality, or account control was used.
 
 ## G. Receipt
 
-Report title, intended/imported image counts, cover, summary, saved state,
-warnings, and the explicit fact that nothing was published. If any checkbox in
-sections E or F is unresolved, report a partial handoff and the exact manual
-action instead of declaring completion.
+Report title, intended/imported visible image counts, cover, summary, the durable
+save receipt, warnings, and the explicit fact that nothing was published. If any
+checkbox in sections E or F is unresolved, report a partial handoff and the
+exact manual action instead of declaring completion.
