@@ -202,6 +202,19 @@ Before saving the final deliverable, validate both layers:
   mobile width for overflow, illegible text, broken hierarchy, and accidental
   empty space.
 
+When this repository is available, run the dependency-free package validator
+from the repository root before the final fidelity audit:
+
+```powershell
+python scripts/validate_wechat_package.py <wechat-article-directory>
+```
+
+Its `valid=true` result confirms the deterministic handoff contract: marker,
+checklist, and local-file order; clean versus preview HTML boundaries; absence of
+persisted Base64, local URI schemes, absolute paths, underline emphasis, and
+stock renderer shells; and qualified preview copy wording. It does not decide
+whether the article's claims, voice, or caveats are faithful.
+
 Save the clean human-visible article HTML with
 `save_video_content_deliverable`; do not save the preview wrapper. Perform a
 fresh fidelity audit against that saved revision, then call

@@ -50,7 +50,8 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 - 固定字幕 manifest 与各路证据哈希的内容工程项目；
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
 - 用户授权的载体决策，以及由 Agent 完成的重构策略、叙述口吻、版本化成品和逐项忠实度审计；
-- 公众号文章的“语义稿—可选排版器—干净 HTML—单行相对图片路径与简短导入清单”交付协议；
+- 公众号文章的“语义稿—可选排版器—干净 HTML—单行相对图片路径与简短导入清单”交付协议，
+  以及依赖无关的交付包 JSON 校验器；
 - 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
   填写标题/摘要/封面并只保存草稿；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
@@ -255,6 +256,12 @@ video-subtitle content-validate `
 已审计文章如何在不污染正式 HTML 的前提下，通过一次性富文本剪贴板把 7 张本地图片交给
 微信、验证 CDN 接管并只保存草稿，见
 [`BV1hK3v6LELB 公众号草稿交接实测`](docs/cases/BV1hK3v6LELB-wechat-draft-handoff.md)。
+正文 DOM 含辅助图片节点时如何只统计可见、已加载的微信图片，作者口吻如何避免扩大事实授权，
+以及封面和草稿保存怎样形成可靠收据，见
+[`BV1jxREBSEUv 公众号草稿交接实测`](docs/cases/BV1jxREBSEUv-wechat-draft-handoff.md)。
+生成公众号文章包后，可从仓库根目录运行
+`python scripts/validate_wechat_package.py <wechat-article-directory>`，先检查图片标记、文件、清单、
+正式 HTML 和预览文案的确定性边界，再执行语义审计或可选平台交接。
 
 ## MCP
 

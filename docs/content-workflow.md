@@ -185,6 +185,17 @@ wechat-article/
 路径、违反已选最小编辑模式、正文叙述口吻错误或宣称不完整产物“可直接粘贴”则必须失败
 并返修。
 
+仓库提供一个不依赖第三方库的确定性交付包检查：
+
+```powershell
+python scripts/validate_wechat_package.py <wechat-article-directory>
+```
+
+它输出 `video-content/wechat-package-validation-v1` JSON，检查正文标记、清单和本地文件顺序，
+区分干净 HTML 与预览外壳，并拒绝落盘 Base64、本地 URI、绝对路径、下划线、通用签名/互动
+组件及“可直接粘贴”等误导文案。这个结果只证明交付包机械完整，不能代替 Agent 对事实、
+归因、限定和作者口吻的 fidelity audit。
+
 ## 可选公众号草稿交接
 
 当用户明确要求把已经审计的文章放入公众号后台时，使用独立的
@@ -205,7 +216,8 @@ Base64 只是一次性运输层，不能写回正式 HTML、落盘、提交或�
 
 这条 Skill 只处理用户明确授权的编辑器写入和草稿保存；不读取 Cookie、Token、密码或
 浏览器存储，不使用固定坐标脚本，不继续点击发布、定时、群发、原创或账号管理。真实运行见
-[`BV1hK3v6LELB 公众号草稿交接实测`](cases/BV1hK3v6LELB-wechat-draft-handoff.md)。
+[`BV1hK3v6LELB 公众号草稿交接实测`](cases/BV1hK3v6LELB-wechat-draft-handoff.md)和
+[`BV1jxREBSEUv 可见状态与可靠保存收据实测`](cases/BV1jxREBSEUv-wechat-draft-handoff.md)。
 
 ## CLI 示例
 

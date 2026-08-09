@@ -80,6 +80,17 @@ Read the current deliverable, audit, and WeChat package. Confirm that:
   an operational local-image warning stays recorded in the content audit and is
   verified separately in platform state.
 
+When this repository is available, run its deterministic package preflight from
+the repository root:
+
+```powershell
+python scripts/validate_wechat_package.py <wechat-article-directory>
+```
+
+Require `valid=true` before building the clipboard payload. This validator checks
+portable files, paths, markers, preview wording, and stock rendering artifacts;
+it does not replace the Agent's semantic fidelity audit.
+
 Do not modify the saved clean HTML merely to make the platform handoff easier.
 
 ### 2. Build a clipboard-only transport
