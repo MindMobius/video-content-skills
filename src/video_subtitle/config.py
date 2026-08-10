@@ -20,6 +20,10 @@ CONFIG_ENVIRONMENT = {
     "qwen_aligner_model": "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
     "home": "VIDEO_SUBTITLE_HOME",
     "media_execution": "VIDEO_SUBTITLE_MEDIA_EXECUTION",
+    "opencli_browser_timeout": "VIDEO_SUBTITLE_OPENCLI_BROWSER_TIMEOUT",
+    "download_retries": "VIDEO_SUBTITLE_DOWNLOAD_RETRIES",
+    "download_retry_backoff": "VIDEO_SUBTITLE_DOWNLOAD_RETRY_BACKOFF",
+    "download_cache": "VIDEO_SUBTITLE_DOWNLOAD_CACHE",
 }
 
 

@@ -5,8 +5,10 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +25,9 @@ class OpenCliSettings:
     profile: str | None = None
     ytdlp_path: str | None = None
     ffmpeg_path: str | None = None
+    browser_command_timeout_seconds: int = 180
+    download_retries: int = 2
+    download_retry_backoff_seconds: float = 2.0
 
     @classmethod
     def discover(
@@ -32,6 +37,9 @@ class OpenCliSettings:
         profile: str | None = None,
         ytdlp: str | None = None,
         ffmpeg: str | None = None,
+        browser_command_timeout_seconds: int | None = None,
+        download_retries: int | None = None,
+        download_retry_backoff_seconds: float | None = None,
         allow_missing: bool = False,
     ) -> OpenCliSettings:
         opencli_value = (
@@ -64,11 +72,32 @@ class OpenCliSettings:
             or os.getenv("SUBTITLE_AGENT_FFMPEG")
             or None
         )
+        selected_browser_timeout = _positive_int_setting(
+            browser_command_timeout_seconds,
+            os.getenv("VIDEO_SUBTITLE_OPENCLI_BROWSER_TIMEOUT"),
+            default=180,
+            label="OpenCLI browser command timeout",
+        )
+        selected_download_retries = _nonnegative_int_setting(
+            download_retries,
+            os.getenv("VIDEO_SUBTITLE_DOWNLOAD_RETRIES"),
+            default=2,
+            label="download retries",
+        )
+        selected_retry_backoff = _nonnegative_float_setting(
+            download_retry_backoff_seconds,
+            os.getenv("VIDEO_SUBTITLE_DOWNLOAD_RETRY_BACKOFF"),
+            default=2.0,
+            label="download retry backoff",
+        )
         return cls(
             command=tuple(command),
             profile=selected_profile,
             ytdlp_path=selected_ytdlp,
             ffmpeg_path=selected_ffmpeg,
+            browser_command_timeout_seconds=selected_browser_timeout,
+            download_retries=selected_download_retries,
+            download_retry_backoff_seconds=selected_retry_backoff,
         )
 
     @classmethod
@@ -83,6 +112,21 @@ class OpenCliSettings:
             profile=value.get("profile") or None,
             ytdlp_path=value.get("ytdlp_path") or None,
             ffmpeg_path=value.get("ffmpeg_path") or None,
+            browser_command_timeout_seconds=_positive_int_setting(
+                value.get("browser_command_timeout_seconds"),
+                default=180,
+                label="OpenCLI browser command timeout",
+            ),
+            download_retries=_nonnegative_int_setting(
+                value.get("download_retries"),
+                default=2,
+                label="download retries",
+            ),
+            download_retry_backoff_seconds=_nonnegative_float_setting(
+                value.get("download_retry_backoff_seconds"),
+                default=2.0,
+                label="download retry backoff",
+            ),
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -91,6 +135,9 @@ class OpenCliSettings:
             "profile": self.profile,
             "ytdlp_path": self.ytdlp_path,
             "ffmpeg_path": self.ffmpeg_path,
+            "browser_command_timeout_seconds": self.browser_command_timeout_seconds,
+            "download_retries": self.download_retries,
+            "download_retry_backoff_seconds": self.download_retry_backoff_seconds,
         }
 
     @property
@@ -225,47 +272,108 @@ class OpenCliClient:
         *,
         quality: str = "1080p",
         page: int | None = None,
+        cache_dir: Path | None = None,
+        cache_key: str | None = None,
     ) -> tuple[Path, Any]:
         output_dir = output_dir.resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
-        before = _media_snapshot(output_dir)
-
-        args = [
-            "bilibili",
-            "download",
+        resolved_cache_key = _download_cache_key(
             url,
-            "--output",
-            str(output_dir),
-            "--quality",
-            quality,
-        ]
-        if page is not None:
-            args += ["--page", str(page)]
-        payload = self._call(args, timeout=None)
-
-        if isinstance(payload, list) and payload:
-            status = str(payload[0].get("status", "")).lower()
-            if status in {"failed", "error"}:
-                raise OpenCliError(
-                    "DOWNLOAD_FAILED",
-                    str(payload[0].get("size") or "OpenCLI reported a failed download"),
+            quality=quality,
+            page=page,
+            identity=cache_key,
+        )
+        target_dir = output_dir
+        cache_entry: Path | None = None
+        if cache_dir is not None:
+            cache_entry = (
+                cache_dir.expanduser().resolve() / self.platform / resolved_cache_key
+            )
+            cache_entry.mkdir(parents=True, exist_ok=True)
+            target_dir = cache_entry
+            cached = _read_download_cache(cache_entry, resolved_cache_key)
+            if cached is not None:
+                return cached, _download_result(
+                    cached,
+                    raw_result=None,
+                    cache_key=resolved_cache_key,
+                    cache_hit=True,
+                    cache_state="complete",
+                    retry_index=0,
+                    attempt_count=0,
                 )
 
-        after = _media_snapshot(output_dir)
-        changed = [
-            path
-            for path, signature in after.items()
-            if path not in before or before[path] != signature
-        ]
-        candidates = changed or list(after)
-        if not candidates:
-            raise OpenCliError(
-                "DOWNLOAD_ARTIFACT_NOT_FOUND",
-                "OpenCLI completed but no downloaded video file was found",
-                help_text=f"Inspect the output directory: {output_dir}",
+        before = _media_snapshot(target_dir)
+        last_error: OpenCliError | None = None
+        for retry_index in range(self.settings.download_retries + 1):
+            if retry_index:
+                recovered = _latest_media(target_dir)
+                if recovered is not None:
+                    if cache_entry is not None:
+                        _write_download_cache(
+                            cache_entry,
+                            resolved_cache_key,
+                            recovered,
+                        )
+                    return recovered, _download_result(
+                        recovered,
+                        raw_result=None,
+                        cache_key=resolved_cache_key,
+                        cache_hit=True,
+                        cache_state="recovered_after_error",
+                        retry_index=retry_index,
+                        attempt_count=retry_index,
+                    )
+                backoff = self.settings.download_retry_backoff_seconds * retry_index
+                if backoff:
+                    time.sleep(backoff)
+
+            args = [
+                "bilibili",
+                "download",
+                url,
+                "--output",
+                str(target_dir),
+                "--quality",
+                quality,
+            ]
+            if page is not None:
+                args += ["--page", str(page)]
+            try:
+                payload = self._call(args, timeout=None)
+                _raise_for_download_status(payload)
+            except OpenCliError as error:
+                last_error = error
+                if not _is_retryable_download_error(error):
+                    raise
+                continue
+
+            candidate = _latest_media(target_dir, before=before)
+            if candidate is None:
+                last_error = OpenCliError(
+                    "DOWNLOAD_ARTIFACT_NOT_FOUND",
+                    "OpenCLI completed but no downloaded video file was found",
+                    help_text=f"Inspect the output directory: {target_dir}",
+                )
+                continue
+            if cache_entry is not None:
+                _write_download_cache(
+                    cache_entry,
+                    resolved_cache_key,
+                    candidate,
+                )
+            return candidate, _download_result(
+                candidate,
+                raw_result=payload,
+                cache_key=resolved_cache_key,
+                cache_hit=False,
+                cache_state="written" if cache_entry is not None else "disabled",
+                retry_index=retry_index,
+                attempt_count=retry_index + 1,
             )
-        candidates.sort(key=lambda item: after[item][0], reverse=True)
-        return candidates[0], payload
+
+        assert last_error is not None
+        raise last_error
 
     def _call(
         self,
@@ -280,6 +388,10 @@ class OpenCliClient:
         command += ["-f", "json"]
 
         environment = os.environ.copy()
+        environment.setdefault(
+            "OPENCLI_BROWSER_COMMAND_TIMEOUT",
+            str(self.settings.browser_command_timeout_seconds),
+        )
         tool_directories: list[str] = []
         for tool_path in (
             self.settings.ytdlp_path,
@@ -508,3 +620,211 @@ def _media_snapshot(directory: Path) -> dict[Path, tuple[int, int]]:
         stat = path.stat()
         result[path.resolve()] = (stat.st_mtime_ns, stat.st_size)
     return result
+
+
+_DOWNLOAD_CACHE_FILENAME = "download-cache.json"
+
+
+def _download_cache_key(
+    url: str,
+    *,
+    quality: str,
+    page: int | None,
+    identity: str | None,
+) -> str:
+    source_identity = (identity or "").strip()
+    if not source_identity:
+        match = re.search(r"(?i)\b(BV[0-9A-Za-z]+)\b", url)
+        source_identity = match.group(1) if match else url
+    normalized_page = page or 1
+    digest_source = f"bilibili|{source_identity}|p{normalized_page}|{quality}"
+    digest = sha256(digest_source.encode("utf-8")).hexdigest()[:12]
+    identity_label = re.sub(r"[^0-9A-Za-z._-]+", "-", source_identity).strip("-._")
+    quality_label = re.sub(r"[^0-9A-Za-z._-]+", "-", quality).strip("-._")
+    identity_label = (identity_label or "video")[:48]
+    quality_label = (quality_label or "quality")[:24]
+    return f"{identity_label}-p{normalized_page}-{quality_label}-{digest}"
+
+
+def _read_download_cache(cache_entry: Path, cache_key: str) -> Path | None:
+    marker_path = cache_entry / _DOWNLOAD_CACHE_FILENAME
+    if not marker_path.is_file():
+        return None
+    try:
+        payload = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("cache_key") != cache_key:
+        return None
+    raw_name = payload.get("media_file")
+    if not isinstance(raw_name, str) or not raw_name:
+        return None
+    media_path = (cache_entry / raw_name).resolve()
+    try:
+        media_path.relative_to(cache_entry.resolve())
+    except ValueError:
+        return None
+    if not media_path.is_file():
+        return None
+    expected_bytes = _optional_int(payload.get("actual_bytes"))
+    actual_bytes = media_path.stat().st_size
+    if actual_bytes <= 0 or (
+        expected_bytes is not None and expected_bytes != actual_bytes
+    ):
+        return None
+    return media_path
+
+
+def _write_download_cache(cache_entry: Path, cache_key: str, media_path: Path) -> None:
+    media_path = media_path.resolve()
+    stat = media_path.stat()
+    payload = {
+        "schema_version": "video-subtitle/download-cache-v1",
+        "cache_key": cache_key,
+        "media_file": media_path.name,
+        "actual_bytes": stat.st_size,
+        "actual_mib": round(stat.st_size / (1024 * 1024), 3),
+    }
+    marker_path = cache_entry / _DOWNLOAD_CACHE_FILENAME
+    temporary_path = marker_path.with_suffix(".tmp")
+    temporary_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(temporary_path, marker_path)
+
+
+def _latest_media(
+    directory: Path,
+    *,
+    before: dict[Path, tuple[int, int]] | None = None,
+) -> Path | None:
+    after = _media_snapshot(directory)
+    if before is None:
+        candidates = list(after)
+    else:
+        changed = [
+            path
+            for path, signature in after.items()
+            if path not in before or before[path] != signature
+        ]
+        candidates = changed or list(after)
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: after[item][0], reverse=True)
+    return candidates[0]
+
+
+def _download_result(
+    media_path: Path,
+    *,
+    raw_result: Any,
+    cache_key: str,
+    cache_hit: bool,
+    cache_state: str,
+    retry_index: int,
+    attempt_count: int,
+) -> dict[str, Any]:
+    stat = media_path.stat()
+    return {
+        "schema_version": "video-subtitle/download-result-v1",
+        "provider": "opencli",
+        "cache_key": cache_key,
+        "cache_hit": cache_hit,
+        "cache_state": cache_state,
+        "retry_index": retry_index,
+        "attempt_count": attempt_count,
+        "actual_path": str(media_path.resolve()),
+        "actual_bytes": stat.st_size,
+        "actual_mib": round(stat.st_size / (1024 * 1024), 3),
+        "raw_result": raw_result,
+    }
+
+
+def _raise_for_download_status(payload: Any) -> None:
+    if not isinstance(payload, list) or not payload:
+        return
+    first = payload[0]
+    if not isinstance(first, dict):
+        return
+    status = str(first.get("status", "")).lower()
+    if status in {"failed", "error"}:
+        raise OpenCliError(
+            "DOWNLOAD_FAILED",
+            str(first.get("size") or "OpenCLI reported a failed download"),
+        )
+
+
+def _is_retryable_download_error(error: OpenCliError) -> bool:
+    code = error.code.strip().upper()
+    if code in {
+        "OPENCLI_TIMEOUT",
+        "TIMEOUT",
+        "COMMAND_RESULT_UNKNOWN",
+        "DOWNLOAD_ARTIFACT_NOT_FOUND",
+        "NETWORK_ERROR",
+        "CONNECTION_ERROR",
+    }:
+        return True
+    message = f"{error.message} {error.help_text}".lower()
+    return any(
+        token in message
+        for token in (
+            "timed out",
+            "timeout",
+            "temporarily unavailable",
+            "connection reset",
+            "command result unknown",
+        )
+    )
+
+
+def _positive_int_setting(
+    *values: Any,
+    default: int,
+    label: str,
+) -> int:
+    selected = next(
+        (value for value in values if value is not None and value != ""), default
+    )
+    try:
+        parsed = int(selected)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be an integer") from error
+    if parsed < 1:
+        raise ValueError(f"{label} must be positive")
+    return parsed
+
+
+def _nonnegative_int_setting(
+    *values: Any,
+    default: int,
+    label: str,
+) -> int:
+    selected = next(
+        (value for value in values if value is not None and value != ""), default
+    )
+    try:
+        parsed = int(selected)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be an integer") from error
+    if parsed < 0:
+        raise ValueError(f"{label} cannot be negative")
+    return parsed
+
+
+def _nonnegative_float_setting(
+    *values: Any,
+    default: float,
+    label: str,
+) -> float:
+    selected = next(
+        (value for value in values if value is not None and value != ""), default
+    )
+    try:
+        parsed = float(selected)
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"{label} must be numeric") from error
+    if parsed < 0:
+        raise ValueError(f"{label} cannot be negative")
+    return parsed

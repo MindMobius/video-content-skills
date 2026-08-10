@@ -45,6 +45,7 @@ def test_video_rows_become_metadata(mock_run) -> None:
     command = mock_run.call_args.args[0]
     assert command[:3] == ["opencli", "--profile", "bridge-profile"]
     assert command[-2:] == ["-f", "json"]
+    assert mock_run.call_args.kwargs["env"]["OPENCLI_BROWSER_COMMAND_TIMEOUT"] == "180"
 
 
 @patch("video_subtitle.platforms.bilibili.subprocess.run")
@@ -125,3 +126,139 @@ def test_auth_ready_requires_a_logged_in_bilibili_row() -> None:
     assert not bilibili_auth_ready(
         [{"site": "bilibili", "status": "logged_out", "logged_in": False}]
     )
+
+
+@patch("video_subtitle.platforms.bilibili.subprocess.run")
+def test_download_uses_persistent_cache_and_reports_actual_file_size(
+    mock_run,
+    tmp_path: Path,
+) -> None:
+    def download_once(command, **kwargs):
+        output_dir = Path(command[command.index("--output") + 1])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "video.mp4").write_bytes(b"x" * 4096)
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout='[{"status":"success","size":"238.0 KB"}]',
+            stderr="",
+        )
+
+    mock_run.side_effect = download_once
+    client = _client()
+    cache_dir = tmp_path / "cache"
+
+    first_path, first = client.download(
+        "https://www.bilibili.com/video/BV1abc",
+        tmp_path / "job-one",
+        quality="1080p",
+        page=1,
+        cache_dir=cache_dir,
+        cache_key="BV1abc",
+    )
+    second_path, second = client.download(
+        "https://www.bilibili.com/video/BV1abc",
+        tmp_path / "job-two",
+        quality="1080p",
+        page=1,
+        cache_dir=cache_dir,
+        cache_key="BV1abc",
+    )
+
+    assert mock_run.call_count == 1
+    assert first_path == second_path
+    assert first["cache_hit"] is False
+    assert second["cache_hit"] is True
+    assert second["attempt_count"] == 0
+    assert first["actual_bytes"] == 4096
+    assert first["actual_mib"] == round(4096 / (1024 * 1024), 3)
+
+
+@patch("video_subtitle.platforms.bilibili.time.sleep")
+@patch("video_subtitle.platforms.bilibili.subprocess.run")
+def test_download_retries_transient_timeout(
+    mock_run,
+    mock_sleep,
+    tmp_path: Path,
+) -> None:
+    def run(command, **kwargs):
+        if mock_run.call_count == 1:
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=1,
+                stdout="",
+                stderr=(
+                    '{"ok":false,"error":{"code":"TIMEOUT",'
+                    '"message":"Browser command timed out"}}'
+                ),
+            )
+        output_dir = Path(command[command.index("--output") + 1])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "video.mp4").write_bytes(b"video")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=0,
+            stdout='[{"status":"success"}]',
+            stderr="",
+        )
+
+    mock_run.side_effect = run
+    client = OpenCliClient(
+        OpenCliSettings(
+            command=("opencli",),
+            download_retries=2,
+            download_retry_backoff_seconds=0.5,
+        )
+    )
+
+    _, result = client.download("BV1abc", tmp_path / "video")
+
+    assert mock_run.call_count == 2
+    mock_sleep.assert_called_once_with(0.5)
+    assert result["retry_index"] == 1
+    assert result["attempt_count"] == 2
+
+
+@patch("video_subtitle.platforms.bilibili.time.sleep")
+@patch("video_subtitle.platforms.bilibili.subprocess.run")
+def test_download_reuses_media_that_completed_after_unknown_result(
+    mock_run,
+    mock_sleep,
+    tmp_path: Path,
+) -> None:
+    def timed_out_after_write(command, **kwargs):
+        output_dir = Path(command[command.index("--output") + 1])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "video.mp4").write_bytes(b"completed")
+        return subprocess.CompletedProcess(
+            args=command,
+            returncode=1,
+            stdout="",
+            stderr=(
+                '{"ok":false,"error":{"code":"command_result_unknown",'
+                '"message":"Browser command result unknown"}}'
+            ),
+        )
+
+    mock_run.side_effect = timed_out_after_write
+    client = OpenCliClient(
+        OpenCliSettings(
+            command=("opencli",),
+            download_retries=2,
+            download_retry_backoff_seconds=0,
+        )
+    )
+
+    path, result = client.download(
+        "BV1abc",
+        tmp_path / "job",
+        cache_dir=tmp_path / "cache",
+        cache_key="BV1abc",
+    )
+
+    assert path.read_bytes() == b"completed"
+    assert mock_run.call_count == 1
+    mock_sleep.assert_not_called()
+    assert result["cache_hit"] is True
+    assert result["cache_state"] == "recovered_after_error"
+    assert result["retry_index"] == 1

@@ -48,6 +48,7 @@ class ExtractionRequest:
     video_path: Path | None = None
     download_if_needed: bool = True
     download_quality: str = "1080p"
+    download_cache_dir: Path | None = None
     collect_all_sources: bool = False
     asr_backend: str = "none"
     media_execution: str = "auto"
@@ -64,6 +65,11 @@ class ExtractionRequest:
             "video_path": str(self.video_path.resolve()) if self.video_path else None,
             "download_if_needed": self.download_if_needed,
             "download_quality": self.download_quality,
+            "download_cache_dir": (
+                str(self.download_cache_dir.resolve())
+                if self.download_cache_dir
+                else None
+            ),
             "collect_all_sources": self.collect_all_sources,
             "asr_backend": self.asr_backend,
             "media_execution": self.media_execution,
@@ -74,6 +80,7 @@ class ExtractionRequest:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> ExtractionRequest:
         video_path = value.get("video_path")
+        download_cache_dir = value.get("download_cache_dir")
         return cls(
             url=str(value["url"]),
             output_dir=Path(str(value["output_dir"])),
@@ -83,6 +90,9 @@ class ExtractionRequest:
             video_path=Path(str(video_path)) if video_path else None,
             download_if_needed=bool(value.get("download_if_needed", True)),
             download_quality=str(value.get("download_quality") or "1080p"),
+            download_cache_dir=(
+                Path(str(download_cache_dir)) if download_cache_dir else None
+            ),
             collect_all_sources=bool(value.get("collect_all_sources", False)),
             asr_backend=str(value.get("asr_backend") or "none"),
             media_execution=str(value.get("media_execution") or "auto"),
@@ -397,19 +407,27 @@ class ExtractionPipeline:
                     output_dir / "video",
                     quality=request.download_quality,
                     page=effective_page,
+                    cache_dir=request.download_cache_dir,
+                    cache_key=str(
+                        (manifest.get("video") or {}).get("bvid") or request.url
+                    ),
+                )
+                download_observation = _download_observation(
+                    video_path,
+                    download_result,
                 )
                 _finish_attempt(
                     download_attempt,
                     "succeeded",
                     result=download_result,
-                    path=str(video_path),
+                    **download_observation,
                 )
                 manifest["artifacts"].append(
                     _artifact(
                         "source_video",
                         video_path,
                         source=f"{platform}_download",
-                        owned=True,
+                        owned=request.download_cache_dir is None,
                     )
                 )
             except PlatformError as error:
@@ -1064,10 +1082,36 @@ def _artifact(
         "source": source,
         "owned_by_job": owned,
         "bytes": path.stat().st_size if path.exists() else None,
+        "mib": (
+            round(path.stat().st_size / (1024 * 1024), 3) if path.exists() else None
+        ),
     }
     if cue_count is not None:
         result["cue_count"] = cue_count
     return result
+
+
+def _download_observation(video_path: Path, result: Any) -> dict[str, Any]:
+    stat = video_path.stat()
+    observation: dict[str, Any] = {
+        "path": str(video_path.resolve()),
+        "actual_bytes": stat.st_size,
+        "actual_mib": round(stat.st_size / (1024 * 1024), 3),
+        "cache_hit": False,
+        "retry_index": 0,
+    }
+    if not isinstance(result, dict):
+        return observation
+    for field_name in (
+        "cache_key",
+        "cache_hit",
+        "cache_state",
+        "retry_index",
+        "attempt_count",
+    ):
+        if field_name in result:
+            observation[field_name] = result[field_name]
+    return observation
 
 
 def _finish_completed(

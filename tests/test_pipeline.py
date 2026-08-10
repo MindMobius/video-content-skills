@@ -113,6 +113,26 @@ class MultipartFakeClient(FakeClient):
         return super().subtitles(url, lang=lang, page=page)
 
 
+class DownloadingFakeClient(FakeClient):
+    def __init__(self) -> None:
+        super().__init__(OpenCliError("EMPTY_RESULT", "no subtitle"))
+        self.download_kwargs = None
+
+    def download(self, url: str, output_dir: Path, **kwargs):
+        self.download_kwargs = kwargs
+        output_dir.mkdir(parents=True, exist_ok=True)
+        path = output_dir / "source.mp4"
+        path.write_bytes(b"x" * 8192)
+        return path, {
+            "cache_key": "BV1fake-p1-1080p-test",
+            "cache_hit": True,
+            "cache_state": "complete",
+            "retry_index": 1,
+            "attempt_count": 1,
+            "actual_bytes": 238,
+        }
+
+
 def test_platform_subtitle_completes_without_ocr(tmp_path: Path) -> None:
     client = FakeClient(
         [{"index": 1, "from": "1.00s", "to": "2.50s", "content": "平台字幕"}]
@@ -394,3 +414,39 @@ def test_multipart_request_defaults_explicitly_to_page_one(tmp_path: Path) -> No
     assert manifest["video"]["title"] == "第一分P"
     assert manifest["video"]["page"] == "1"
     assert manifest["warnings"][0]["code"] == "MULTIPART_DEFAULTED_TO_PAGE_1"
+
+
+def test_download_attempt_uses_real_file_statistics_and_cache_metadata(
+    tmp_path: Path,
+) -> None:
+    client = DownloadingFakeClient()
+    cache_dir = tmp_path / "media-cache"
+    manifest = ExtractionPipeline(
+        client,
+        ocr_resolver=lambda name, options: FakeOcrBackend(),
+    ).run(
+        ExtractionRequest(
+            url="BV1fake",
+            output_dir=tmp_path / "job",
+            download_cache_dir=cache_dir,
+        )
+    )
+
+    attempt = next(
+        item
+        for item in manifest["attempts"]
+        if item["source"] == "bilibili_video_download"
+    )
+    source_video = next(
+        item for item in manifest["artifacts"] if item["kind"] == "source_video"
+    )
+
+    assert manifest["status"] == "completed"
+    assert client.download_kwargs["cache_dir"] == cache_dir
+    assert client.download_kwargs["cache_key"] == "BV1fake"
+    assert attempt["actual_bytes"] == 8192
+    assert attempt["actual_mib"] == round(8192 / (1024 * 1024), 3)
+    assert attempt["cache_hit"] is True
+    assert attempt["retry_index"] == 1
+    assert source_video["bytes"] == 8192
+    assert source_video["owned_by_job"] is False

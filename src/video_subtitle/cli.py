@@ -59,6 +59,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ytdlp", help="Absolute path to yt-dlp executable")
     parser.add_argument("--ffmpeg", help="Absolute path to ffmpeg executable")
     parser.add_argument(
+        "--opencli-browser-timeout",
+        type=_positive_int,
+        help="OpenCLI browser command timeout in seconds (default: 180)",
+    )
+    parser.add_argument(
+        "--download-retries",
+        type=_nonnegative_int,
+        help="Retries after transient OpenCLI download failures (default: 2)",
+    )
+    parser.add_argument(
+        "--download-retry-backoff",
+        type=_nonnegative_float,
+        help="Linear retry backoff in seconds (default: 2)",
+    )
+    parser.add_argument(
         "--asr-python",
         help="Python executable containing torch, qwen-asr, and CUDA support",
     )
@@ -113,6 +128,26 @@ def build_parser() -> argparse.ArgumentParser:
         "--qwen-aligner-model", dest="config_qwen_aligner_model"
     )
     configure_parser.add_argument("--home", dest="config_home")
+    configure_parser.add_argument(
+        "--opencli-browser-timeout",
+        dest="config_opencli_browser_timeout",
+        type=_positive_int,
+    )
+    configure_parser.add_argument(
+        "--download-retries",
+        dest="config_download_retries",
+        type=_nonnegative_int,
+    )
+    configure_parser.add_argument(
+        "--download-retry-backoff",
+        dest="config_download_retry_backoff",
+        type=_nonnegative_float,
+    )
+    configure_parser.add_argument(
+        "--download-cache",
+        dest="config_download_cache",
+        type=Path,
+    )
     configure_parser.add_argument(
         "--media-execution",
         dest="config_media_execution",
@@ -361,6 +396,14 @@ def _add_extraction_arguments(parser: argparse.ArgumentParser) -> None:
         default="1080p",
     )
     parser.add_argument(
+        "--download-cache",
+        type=Path,
+        help=(
+            "Persistent media cache. Background jobs default to "
+            "<VIDEO_SUBTITLE_HOME>/cache/media."
+        ),
+    )
+    parser.add_argument(
         "--video", type=Path, help="Existing local video; skips download"
     )
     parser.add_argument(
@@ -548,6 +591,9 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         profile=args.profile,
         ytdlp=args.ytdlp,
         ffmpeg=args.ffmpeg,
+        browser_command_timeout_seconds=args.opencli_browser_timeout,
+        download_retries=args.download_retries,
+        download_retry_backoff_seconds=args.download_retry_backoff,
         allow_missing=args.command in {"doctor", "setup"},
     )
     client = OpenCliClient(settings)
@@ -665,6 +711,14 @@ def _request_from_args(args: argparse.Namespace, output_dir: Path) -> Extraction
         video_path=args.video,
         download_if_needed=args.download,
         download_quality=args.quality,
+        download_cache_dir=(
+            args.download_cache
+            or (
+                Path(os.environ["VIDEO_SUBTITLE_DOWNLOAD_CACHE"])
+                if os.getenv("VIDEO_SUBTITLE_DOWNLOAD_CACHE")
+                else None
+            )
+        ),
         collect_all_sources=args.collect_all_sources,
         asr_backend=args.asr_backend,
         media_execution=(
@@ -679,7 +733,7 @@ def _request_from_args(args: argparse.Namespace, output_dir: Path) -> Extraction
 
 def _configuration_values_from_args(
     args: argparse.Namespace,
-) -> dict[str, str | None]:
+) -> dict[str, Any]:
     return {
         "opencli": args.config_opencli,
         "opencli_profile": args.config_opencli_profile,
@@ -691,6 +745,10 @@ def _configuration_values_from_args(
         "qwen_aligner_model": args.config_qwen_aligner_model,
         "home": args.config_home,
         "media_execution": args.config_media_execution,
+        "opencli_browser_timeout": args.config_opencli_browser_timeout,
+        "download_retries": args.config_download_retries,
+        "download_retry_backoff": args.config_download_retry_backoff,
+        "download_cache": args.config_download_cache,
     }
 
 
@@ -711,6 +769,20 @@ def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+
+def _nonnegative_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("cannot be negative")
+    return parsed
+
+
+def _nonnegative_float(value: str) -> float:
+    parsed = float(value)
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("cannot be negative")
     return parsed
 
 

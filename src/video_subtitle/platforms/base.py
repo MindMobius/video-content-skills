@@ -54,4 +54,6 @@ class VideoPlatformClient(Protocol):
         *,
         quality: str = "1080p",
         page: int | None = None,
+        cache_dir: Path | None = None,
+        cache_key: str | None = None,
     ) -> tuple[Path, Any]: ...

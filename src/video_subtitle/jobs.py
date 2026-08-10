@@ -41,7 +41,13 @@ class JobStore:
         job_id = local_job_id()
         job_dir = self.jobs_dir / job_id
         job_dir.mkdir(parents=True, exist_ok=False)
-        job_request = replace(request, output_dir=job_dir)
+        job_request = replace(
+            request,
+            output_dir=job_dir,
+            download_cache_dir=(
+                request.download_cache_dir or self.root / "cache" / "media"
+            ),
+        )
         request_path = job_dir / "request.json"
         document = {
             "schema_version": "video-subtitle/request-v1",
