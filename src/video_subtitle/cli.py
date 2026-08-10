@@ -30,6 +30,7 @@ from .core.review import (
     get_review_window,
     prepare_review_for_manifest,
 )
+from .core.scout import plan_hard_subtitle_scout
 from .core.util import json_for_stdout, read_json, utc_now
 from .diagnostics import doctor
 from .environment import normalize_capabilities
@@ -200,6 +201,19 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_read_parser.add_argument("--start-ms", type=int, default=0)
     evidence_read_parser.add_argument("--end-ms", type=int)
     evidence_read_parser.add_argument("--max-cues", type=int, default=120)
+
+    ocr_scout_parser = commands.add_parser(
+        "ocr-scout-plan",
+        help="Plan sparse hard-subtitle OCR windows before a full-video pass",
+    )
+    ocr_scout_parser.add_argument("--duration-seconds", type=float, required=True)
+    ocr_scout_parser.add_argument("--window-seconds", type=float, default=20.0)
+    ocr_scout_parser.add_argument(
+        "--anchor",
+        type=float,
+        action="append",
+        help="Normalized position from 0 to 1; may be repeated",
+    )
 
     review_prepare_parser = commands.add_parser(
         "review-prepare",
@@ -525,6 +539,16 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 start_ms=args.start_ms,
                 end_ms=args.end_ms,
                 max_cues=args.max_cues,
+            ),
+            0,
+        )
+
+    if args.command == "ocr-scout-plan":
+        return (
+            plan_hard_subtitle_scout(
+                args.duration_seconds,
+                window_seconds=args.window_seconds,
+                anchors=args.anchor,
             ),
             0,
         )

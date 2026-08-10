@@ -33,6 +33,7 @@ from .core.review import (
     prepare_review_for_manifest,
     submit_review_window,
 )
+from .core.scout import plan_hard_subtitle_scout as build_ocr_scout_plan
 from .diagnostics import doctor as run_doctor
 from .environment import normalize_capabilities
 from .jobs import JobStore
@@ -298,6 +299,19 @@ def read_subtitle_evidence(
     )
 
 
+def plan_hard_subtitle_scout(
+    duration_seconds: float,
+    window_seconds: float = 20.0,
+    anchors: list[float] | None = None,
+) -> dict[str, Any]:
+    """Plan sparse OCR windows; the calling Agent decides whether full OCR is useful."""
+    return build_ocr_scout_plan(
+        duration_seconds,
+        window_seconds=window_seconds,
+        anchors=anchors,
+    )
+
+
 def prepare_subtitle_review(
     job_id: str,
     window_seconds: int = 30,
@@ -556,6 +570,7 @@ if McpServer is not None:
     mcp.tool(name="get_subtitle_job")(get_subtitle_job)
     mcp.tool(name="list_subtitle_evidence")(list_subtitle_evidence)
     mcp.tool(name="read_subtitle_evidence")(read_subtitle_evidence)
+    mcp.tool(name="plan_hard_subtitle_scout")(plan_hard_subtitle_scout)
     mcp.tool(name="prepare_subtitle_review")(prepare_subtitle_review)
     mcp.tool(name="get_subtitle_review_window")(get_subtitle_review_window)
     mcp.tool(name="submit_subtitle_review_window")(submit_subtitle_review_window)
