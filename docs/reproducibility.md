@@ -26,8 +26,8 @@ JSON CLI 继续，按机器可读动作准备环境，只在真实人类边界�
 1. 根目录 `AGENTS.md`：任务路由、人机边界和全新机器入口；
 2. `.agents/skills/*/SKILL.md`：字幕取证、内容转换和可选公众号草稿交接决策；
 3. `src/video_subtitle/requirements.json`：能力依赖、已验证版本与模型 revision；
-4. `schemas/`：Bootstrap、setup、证据与内容产物的机器契约；
-5. `tests/`：确定性行为；
+4. `schemas/`：Bootstrap、setup、OCR 侦察、证据、内容产物和微信草稿回执的机器契约；
+5. `tests/`：确定性行为与入口可发现性；
 6. `docs/cases/`：观察性真实运行记录，不是可离线重放的测试 fixture。
 
 ## 干净 clone 验收
@@ -55,6 +55,7 @@ python scripts/bootstrap.py --apply --config .video-subtitle-local/config.json -
 ```text
 <bootstrap 返回的 cli.command> setup --capability <capability>
 <bootstrap 返回的 cli.command> doctor --capability <capability> --deep
+<bootstrap 返回的 cli.command> ocr-scout-plan --duration-seconds 3600 --window-seconds 20
 ```
 
 `setup` 未 ready 时是正常状态。Agent 应完成普通安装和路径持久化；浏览器登录、真实硬件
@@ -80,17 +81,24 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 它们需要用户会话、硬件、网络成本和内容授权。真实验收应选择用户有权处理的样本，完成：
 
 1. setup/deep doctor；
-2. 平台字幕、OCR、ASR 独立落盘；
-3. manifest、attempt、日志与 SHA-256 保留；
-4. 按时间范围读取并核对冲突；
-5. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit；
-6. 公众号文章包先运行 `scripts/validate_wechat_package.py`，确认图片标记、清单、本地文件、
+2. 解析元数据和平台字幕；连续硬字幕不确定时先生成并执行稀疏 OCR 侦察窗口；
+3. 平台字幕、OCR、ASR 独立落盘；
+4. manifest、attempt、日志与 SHA-256 保留；下载 attempt 的缓存、重试和 `actual_bytes` 与
+   实际文件一致；
+5. 按时间范围读取并核对冲突；
+6. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit，并用显式阶段计时
+   记录 Agent、工具、人类等待和外部交接耗时；
+7. 公众号文章包先运行 `scripts/validate_wechat_package.py`，确认图片标记、清单、本地文件、
    正式 HTML 和预览文案满足确定性交付契约；
-7. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
-   CDN 接管、元数据和草稿保存状态，并明确没有发布。
+8. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
+   CDN 接管、元数据和草稿保存状态；生成 `video-content/wechat-draft-receipt-v1`，使用
+   `scripts/validate_wechat_draft_receipt.py --project <project.json>` 验证，并明确没有发布。
 
 `docs/cases/` 只证明某个日期、某台机器和某组上游输入曾真实跑通。远端视频可能删除或
 改版，仓库也不分发原视频、模型或登录凭证，因此这些文档不能冒充一键 replay fixture。
+多视频验收也不能把队列汇总当成单个可复现产物：每条视频必须有独立 manifest、content
+project、当前审计和可选草稿回执。下载缓存可以共享，但缓存命中必须由缓存键、文件存在和真实
+大小共同证明。
 
 可选渲染 Skill 和 `wechat-draft-handoff` 都属于外部执行层，不是内容工程核心依赖。真实
 案例应记录渲染器仓库、当时的 commit、主题、确定性校验结果、本地图片交接方式，以及平台
@@ -105,11 +113,14 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 - 不把“latest”静默混入声称可复现的任务；
 - 模型目录必须对应记录的 revision，大下载仍需事前确认；
 - 升级后先跑 schema、单元测试、MCP smoke 和干净 clone，再用代表性真实样本验证；
+- 新增向后兼容能力时同步更新 `pyproject.toml` 与 `video_subtitle.__version__`，并通过测试防止漂移；
 - 新机器或驱动变化后恢复 `media_execution=auto`，不得继承旧机器的并行结论。
 
 ## 当前明确限制
 
 - 平台适配目前只有 Bilibili；YouTube 与抖音尚未实现；
+- 多视频任务由 Agent 维护多个独立任务；仓库没有把多条视频合并为单一 manifest 或内容项目的
+  批次格式；
 - MCP 注册由调用 Agent 完成，仓库只提供可移植的 stdio 参数与 CLI fallback；
 - 自动登录、正式发布、定时、群发、原创声明和账号管理不属于项目职责；可选
   `wechat-draft-handoff` 只在用户明确要求时复用已经登录的可见浏览器并保存草稿；

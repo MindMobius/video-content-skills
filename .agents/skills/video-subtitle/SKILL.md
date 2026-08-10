@@ -98,6 +98,9 @@ Evidence:
 - `list_subtitle_evidence`: discover immutable, time-addressable sources.
 - `read_subtitle_evidence`: read only the selected source and time range.
 - `read_subtitle_artifact`: read bounded non-timeline reports or text artifacts.
+- `plan_hard_subtitle_scout`: calculate opening, quarter, middle,
+  three-quarter, and ending OCR windows from a duration. It merges overlaps and
+  reports coverage; it never decides whether hard subtitles exist.
 
 Optional full-subtitle review:
 
@@ -155,10 +158,42 @@ For quick, low-risk work, use the default behavior. For high-value material,
 consider `collect_all_sources=true` and `asr_backend=qwen3`. Do not run full-video
 ASR, double-scale OCR, or full review solely because the capability exists.
 
+When platform subtitles are absent and continuous hard subtitles are uncertain,
+call `plan_hard_subtitle_scout` before committing to a full-video OCR pass. Run
+the returned windows with `time_start` and `time_end`, then inspect their frames,
+cue density, text role, and continuity. A few title cards are not continuous
+subtitles, while one sparse or failed OCR window is not proof that subtitles are
+absent. The calling Agent owns this semantic decision. Skip the scout when the
+source is already known to contain continuous hard subtitles or when the plan's
+coverage approaches the full duration and therefore saves no work.
+
 For a known conflict, prefer `time_start` / `time_end` for OCR and
 `asr_time_start` / `asr_time_end` for ASR. Use `asr_context` only for verified
 spelling candidates such as names, organizations, acronyms, and technical terms;
 it is not a source of truth.
+
+## Download reliability and cache
+
+Background jobs default to a persistent media cache under
+`<VIDEO_SUBTITLE_HOME>/cache/media`. Cache identity includes platform, BVID,
+selected part, and requested quality. Reuse a completed cache entry across OCR
+and ASR jobs instead of downloading the same media again.
+
+OpenCLI browser commands default to a 180-second timeout in this project and
+transient download failures receive two bounded retries with linear backoff.
+Persist host-specific values only after observing the actual environment:
+
+- `opencli_browser_timeout` / `VIDEO_SUBTITLE_OPENCLI_BROWSER_TIMEOUT`;
+- `download_retries` / `VIDEO_SUBTITLE_DOWNLOAD_RETRIES`;
+- `download_retry_backoff` / `VIDEO_SUBTITLE_DOWNLOAD_RETRY_BACKOFF`;
+- `download_cache` / `VIDEO_SUBTITLE_DOWNLOAD_CACHE`.
+
+Do not trust OpenCLI's display-oriented `size` field as file evidence. Read
+`actual_bytes`, `actual_mib`, `cache_key`, `cache_hit`, `cache_state`,
+`retry_index`, `attempt_count`, and the artifact path from the manifest; those
+values are derived from the file that actually landed.
+If OpenCLI reports an unknown command result but a completed media file exists,
+the adapter records that recovery rather than downloading it again.
 
 ## OCR and ASR scheduling
 
@@ -203,8 +238,13 @@ The JSON CLI exposes the same contract when MCP is unavailable:
 
 ```powershell
 video-subtitle setup --capability platform_subtitle --capability hard_ocr_url
-video-subtitle configure --profile browser-bridge-profile --videocr C:\path\videocr-cli.exe
+video-subtitle configure --profile browser-bridge-profile `
+  --videocr C:\path\videocr-cli.exe `
+  --opencli-browser-timeout 180 --download-retries 2 `
+  --download-retry-backoff 2 --download-cache C:\path\media-cache
 video-subtitle doctor --capability platform_subtitle --capability hard_ocr_url
+
+video-subtitle ocr-scout-plan --duration-seconds 3600 --window-seconds 20
 
 video-subtitle --home .\.video-subtitle start "<bilibili-url>" `
   --collect-all-sources --asr-backend qwen3 --media-execution auto

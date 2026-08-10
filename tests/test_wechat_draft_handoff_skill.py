@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -129,3 +130,41 @@ def test_public_docs_discover_the_optional_handoff_and_real_case() -> None:
     assert "mmbiz.qpic.cn" in workflow
     assert "7 张正文图片" in case
     assert "没有发表" in case
+
+
+def test_saved_draft_requires_a_versioned_validated_receipt() -> None:
+    skill = (HANDOFF_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    checklist = (HANDOFF_ROOT / "references" / "wechat-editor-checklist.md").read_text(
+        encoding="utf-8"
+    )
+    article_reference = (CONTENT_ROOT / "references" / "wechat-article.md").read_text(
+        encoding="utf-8"
+    )
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    workflow = (ROOT / "docs" / "content-workflow.md").read_text(encoding="utf-8")
+    reproducibility = (ROOT / "docs" / "reproducibility.md").read_text(encoding="utf-8")
+    contract = " ".join(
+        f"{skill}\n{checklist}\n{article_reference}\n{readme}\n{workflow}\n"
+        f"{reproducibility}".split()
+    )
+
+    for token in (
+        "video-content/wechat-draft-receipt-v1",
+        "wechat-draft-receipt.json",
+        "scripts/validate_wechat_draft_receipt.py",
+        "published=false",
+        "publish_actions_performed",
+        "appmsgid",
+        "wechat_handoff",
+    ):
+        assert token in contract
+
+    schema_path = ROOT / "schemas" / "wechat-draft-receipt.schema.json"
+    validator_path = ROOT / "scripts" / "validate_wechat_draft_receipt.py"
+    assert schema_path.is_file()
+    assert validator_path.is_file()
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    assert (
+        schema["properties"]["schema_version"]["const"]
+        == "video-content/wechat-draft-receipt-v1"
+    )

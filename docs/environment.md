@@ -110,6 +110,10 @@ Agent 动作并重跑 setup。CUDA 只有在 FFmpeg、独立 ASR Python、ASR �
 - `qwen_asr_model`
 - `qwen_aligner_model`
 - `home`
+- `opencli_browser_timeout`
+- `download_retries`
+- `download_retry_backoff`
+- `download_cache`
 - `media_execution`
 
 配置不包含 cookie、密码或 token。Browser Bridge profile 只是连接别名，真实登录态
@@ -129,6 +133,32 @@ CLI 参数 > 环境变量 > 配置文件 > PATH
 
 环境变量覆盖配置文件，适合 CI、临时测试和多实例 MCP；配置文件适合个人工作站的
 稳定迁移。
+
+## 下载可靠性与缓存
+
+下载策略属于可持久化执行配置，不是新的 capability。默认值为：
+
+- OpenCLI 浏览器命令超时：180 秒；
+- 瞬时下载失败重试：2 次；
+- 线性退避基数：2 秒；
+- 后台 job 缓存：`<VIDEO_SUBTITLE_HOME>/cache/media`。
+
+可通过 CLI、环境变量或配置文件覆盖：
+
+| 配置字段 | 环境变量 | 作用 |
+| --- | --- | --- |
+| `opencli_browser_timeout` | `VIDEO_SUBTITLE_OPENCLI_BROWSER_TIMEOUT` | 单次 OpenCLI 浏览器命令超时秒数 |
+| `download_retries` | `VIDEO_SUBTITLE_DOWNLOAD_RETRIES` | 瞬时或结果不确定错误后的额外尝试次数 |
+| `download_retry_backoff` | `VIDEO_SUBTITLE_DOWNLOAD_RETRY_BACKOFF` | 第 N 次重试前等待 `基数 × N` 秒 |
+| `download_cache` | `VIDEO_SUBTITLE_DOWNLOAD_CACHE` | 同步任务和跨任务共享的媒体缓存根目录 |
+
+后台 job 在未显式指定缓存时自动使用 home 下的缓存；同步 `extract` 不擅自选择跨目录缓存，
+必须通过 `--download-cache` 或持久配置启用。缓存键包含平台、BVID、分 P 和清晰度，避免把
+不同媒体误当成同一文件。缓存标记同时保存真实文件大小；文件缺失、为空或大小与标记不一致
+时自动失效。缓存只保存媒体和非秘密元数据，不保存 Cookie、Token 或浏览器存储。
+
+下载成功的 manifest attempt 记录缓存命中、重试次数、真实绝对路径和落盘字节数。诊断与
+性能分析必须使用 `actual_bytes` / `actual_mib`，不能相信 OpenCLI 的展示型大小字段。
 
 ## quick 与 deep doctor
 
@@ -171,8 +201,10 @@ deep doctor 会进入独立 ASR Python 环境，验证：
 4. 不在未确认时下载大模型。
 5. 不因 ASR 未配置而阻塞只需要平台字幕或 OCR 的任务。
 6. 每次配置后重跑 setup，避免把“写入路径”误当作“能力已就绪”。
-7. 只有 requested capabilities 全部 ready 才进入提取。
-8. 失败时保留 setup、doctor、manifest 和日志作为下一轮诊断证据。
+7. URL 媒体任务复用持久缓存；同步任务没有配置缓存时应显式决定是否需要跨任务复用。
+8. 下载验收读取 manifest 的真实文件大小、缓存和重试字段，不读取展示型 `size` 作为事实。
+9. 只有 requested capabilities 全部 ready 才进入提取。
+10. 失败时保留 setup、doctor、manifest 和日志作为下一轮诊断证据。
 
 ## 扩展契约
 

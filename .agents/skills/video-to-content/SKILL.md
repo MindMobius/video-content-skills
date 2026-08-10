@@ -37,6 +37,23 @@ uses the evidence already collected by `video-subtitle`. A requested final
 format may require a separate renderer available to the calling Agent. Live
 publishing-platform state is not part of the content project.
 
+## Explicit phase timing
+
+For long or repeated transformations, measure meaningful wall-clock phases with
+`start_video_content_phase` and `finish_video_content_phase`. The Agent must name
+the work; the tools only record time. Recommended stable names include
+`content_map`, `medium_decision`, `article_draft`, `visual_render`,
+`fidelity_audit`, and the optional external `wechat_handoff`.
+
+Use category `agent` for semantic reading and writing, `tool` for deterministic
+rendering or validation, `human` for an actual user wait, and `external` for an
+authorized downstream platform handoff. Finish every started phase as
+`completed`, `failed`, or `cancelled`; do not leave abandoned phases running.
+Do not create a separate phase for trivial calls, and do not infer phase names
+from which artifact happened to be saved. `get_video_content_project` returns a
+timing summary grouped by phase name and category so performance conclusions can
+be based on recorded runs rather than memory.
+
 ## Mandatory workflow
 
 ### 1. Reconstruct the content before choosing a medium
@@ -182,6 +199,8 @@ Content project:
 
 - `initialize_video_content`: pin the subtitle manifest and evidence hashes.
 - `get_video_content_project`: inspect lifecycle, artifact IDs, and integrity.
+- `start_video_content_phase`: begin an Agent-declared measured phase.
+- `finish_video_content_phase`: close it with a durable status and elapsed time.
 - `validate_video_content_project`: detect changed sources, changed artifacts,
   missing audits, and stale audits.
 
@@ -200,8 +219,12 @@ The JSON CLI exposes the same lifecycle:
 
 ```powershell
 video-subtitle content-init --manifest .\result\manifest.json
+video-subtitle content-phase-start `
+  --project .\content\<project-id>\project.json --name content_map --category agent
 video-subtitle content-save --project .\content\<project-id>\project.json `
   --kind content_map --document .\content-map.json
+video-subtitle content-phase-finish `
+  --project .\content\<project-id>\project.json --phase-id phase-0001
 video-subtitle content-save --project .\content\<project-id>\project.json `
   --kind media_plan --document .\media-plan.json
 video-subtitle content-deliverable `

@@ -65,6 +65,13 @@ Do not claim that images were imported when only path markers were pasted.
 Read [`references/wechat-editor-checklist.md`](references/wechat-editor-checklist.md)
 before making platform changes.
 
+When content timing tools are available, start one explicit
+`wechat_handoff` phase with category `external` immediately before the first
+editor mutation. Finish it as `completed` only after the saved draft has been
+read back and its receipt validates; otherwise finish it as `failed` or
+`cancelled`. Timing is operational metadata and must not change the fidelity
+audit or imply that platform state is part of the content artifact.
+
 ### 1. Preflight the audited package
 
 Read the current deliverable, audit, and WeChat package. Confirm that:
@@ -177,6 +184,36 @@ Never click publish, mass send, schedule, original-content declaration, account
 management, or monetization controls. A request to publish is a separate,
 high-impact task and is outside this Skill.
 
+### 7. Persist and validate the draft receipt
+
+For a saved draft, write `wechat-draft-receipt.json` beside the WeChat article
+package using `video-content/wechat-draft-receipt-v1` and
+[`../../../schemas/wechat-draft-receipt.schema.json`](../../../schemas/wechat-draft-receipt.schema.json).
+This receipt is an observation of live platform state, not a new content
+deliverable and not a replacement fidelity audit.
+
+Record the current project, deliverable, and fidelity-audit IDs; ISO timestamps
+for the first editor mutation and durable save; title and stable `appmsgid`;
+intended, visible-loaded, WeChat-hosted, non-WeChat, and remaining-path-marker
+image counts; cover, summary, author, originality, and content-check state; the
+persisted manual-save history entry and saved-page read-back; `published=false`;
+and an empty `publish_actions_performed` array. Do not copy the platform URL
+token, cookies, clipboard Base64, or hidden browser state into the receipt.
+
+Validate it from the repository root:
+
+```powershell
+python scripts/validate_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-draft-receipt.json `
+  --project <content-project>\project.json
+```
+
+Require `valid=true`. A success toast, assigned `appmsgid`, image upload, or
+history entry alone is insufficient; the validator requires the complete,
+current combination and checks that the receipt still targets the current
+audited deliverable. If the user requested editor population without saving,
+do not fabricate this saved-draft receipt.
+
 ## Completion report
 
 Report the live result separately from the core content artifact:
@@ -185,6 +222,8 @@ Report the live result separately from the core content artifact:
 - intended/imported visible, loadable body-image counts;
 - cover and summary state;
 - whether the draft was saved and which durable receipt established it;
+- the validated receipt path, IDs, and measured `wechat_handoff` duration when
+  timing was enabled;
 - any warnings or remaining manual action;
 - an explicit statement that nothing was published.
 

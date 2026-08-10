@@ -39,6 +39,10 @@ async def smoke() -> None:
         doctor_result = await session.call_tool(
             "video_subtitle_doctor", {"deep": False}
         )
+        scout_result = await session.call_tool(
+            "plan_hard_subtitle_scout",
+            {"duration_seconds": 3600, "window_seconds": 20},
+        )
         artifact_job_id = os.getenv("VIDEO_SUBTITLE_SMOKE_JOB_ID")
         artifact_result = None
         if artifact_job_id:
@@ -86,11 +90,17 @@ async def smoke() -> None:
                             "read_subtitle_evidence",
                         )
                     ),
+                    "ocr_scout_tool_exposed": (
+                        "plan_hard_subtitle_scout" in tool_names
+                    ),
+                    "ocr_scout_is_error": scout_result.is_error,
                     "content_engineering_tools_exposed": all(
                         name in tool_names
                         for name in (
                             "initialize_video_content",
                             "get_video_content_project",
+                            "start_video_content_phase",
+                            "finish_video_content_phase",
                             "save_video_content_document",
                             "save_video_content_deliverable",
                             "read_video_content_artifact",

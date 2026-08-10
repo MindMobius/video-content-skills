@@ -17,8 +17,8 @@ means, add an editorial stance, or turn the article into marketing copy.
   preview generation, and renderer-specific HTML validation.
 - The optional `wechat-draft-handoff` Skill may place an already audited package
   into an already signed-in editor after explicit user authorization. It owns
-  transient clipboard assembly, image-ingestion verification, and only the
-  specifically authorized draft save.
+  transient clipboard assembly, image-ingestion verification, only the
+  specifically authorized draft save, and a validated live-state receipt.
 - The user owns the communication objective and any account signature, CTA,
   originality declaration, or promotional framing.
 - The portable package owns a complete manual fallback for local-image import.
@@ -172,6 +172,26 @@ If rich clipboard image transport is unavailable or verification fails, return
 to the path-marker package and report the exact manual insertion step. Platform
 success never changes the content fidelity audit.
 
+Start an external `wechat_handoff` content phase before the first editor
+mutation, and finish it only after save plus saved-page read-back. For a saved
+draft, persist `wechat-draft-receipt.json` beside the article package using
+`video-content/wechat-draft-receipt-v1`, then validate it against the current
+content project:
+
+```powershell
+python scripts/validate_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-draft-receipt.json `
+  --project <content-project>\project.json
+```
+
+The receipt is an observation of platform state, not a new deliverable. It must
+bind the current project, deliverable, and fidelity audit; record stable
+`appmsgid`, image and metadata read-back, durable manual-save history, and the
+measured handoff timestamps; and state `published=false` with an empty
+`publish_actions_performed` array. Do not persist URL tokens, credentials,
+clipboard Base64, or hidden browser state. Require validator `valid=true` before
+reporting a saved-draft success.
+
 ## Validate two independent layers
 
 Before saving the final deliverable, validate both layers:
@@ -201,6 +221,9 @@ Before saving the final deliverable, validate both layers:
 - when browser inspection is available, check both a desktop width and a narrow
   mobile width for overflow, illegible text, broken hierarchy, and accidental
   empty space.
+- when signed-in draft handoff was explicitly requested, validate the separate
+  `wechat-draft-receipt.json` against the current project after live save and
+  read-back; do not fold platform state into the fidelity audit.
 
 When this repository is available, run the dependency-free package validator
 from the repository root before the final fidelity audit:
@@ -235,5 +258,7 @@ that one line.
 
 If the user separately requested signed-in draft handoff, complete and report
 the audited content artifact first, then route to `wechat-draft-handoff`. Report
-its browser result as a separate live-state receipt. Do not continue from a
-saved draft into scheduling or publishing.
+the validated receipt path, project/deliverable/audit IDs, visible loaded and
+WeChat-hosted image counts, stable `appmsgid`, durable save evidence, measured
+`wechat_handoff` duration, warnings, and the explicit fact that nothing was
+published. Do not continue from a saved draft into scheduling or publishing.

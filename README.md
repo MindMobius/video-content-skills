@@ -41,19 +41,22 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 
 - Bilibili 普通链接、短链接和分 P；
 - OpenCLI Browser Bridge 登录态与平台字幕；
+- URL 媒体下载的 180 秒默认超时、有限重试、持久缓存和真实落盘大小统计；
 - 本地视频或下载视频的 VideOCR 硬字幕时间轴；
+- 连续硬字幕不确定时的稀疏 OCR 侦察窗口计划；
 - Qwen3-ASR 与 Forced Aligner 音频时间轴；
 - OCR 与 ASR 独立执行、按机器资源安全调度；
 - 按来源、按任意时间范围读取字幕证据；
 - 可选的固定窗口精校与不可变原始产物；
-- 面向 Agent 的依赖检查、配置持久化和修复动作。
+- 面向 Agent 的依赖检查、配置持久化和修复动作；
 - 固定字幕 manifest 与各路证据哈希的内容工程项目；
 - 与媒介无关的 content map，以及 claim—evidence—timestamp 引用；
 - 用户授权的载体决策，以及由 Agent 完成的重构策略、叙述口吻、版本化成品和逐项忠实度审计；
+- Agent 显式命名的内容阶段计时，以及按阶段名称、类别汇总的真实耗时；
 - 公众号文章的“语义稿—可选排版器—干净 HTML—单行相对图片路径与简短导入清单”交付协议，
   以及依赖无关的交付包 JSON 校验器；
 - 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
-  填写标题/摘要/封面并只保存草稿；
+  填写标题/摘要/封面、只保存草稿并生成与当前审计绑定的可校验回执；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
@@ -109,7 +112,12 @@ video-subtitle --config .\.video-subtitle-local\config.json configure `
   --profile browser-bridge-profile `
   --ytdlp C:\path\to\yt-dlp.exe `
   --ffmpeg C:\path\to\ffmpeg.exe `
-  --videocr C:\path\to\videocr-cli.exe
+  --videocr C:\path\to\videocr-cli.exe `
+  --home C:\path\to\video-subtitle-home `
+  --download-cache C:\path\to\shared-media-cache `
+  --opencli-browser-timeout 180 `
+  --download-retries 2 `
+  --download-retry-backoff 2
 
 # setup ready 后做真实运行时检查；ASR 会验证 CUDA 与显存
 video-subtitle --config .\.video-subtitle-local\config.json doctor --capability hard_ocr_url
@@ -133,11 +141,14 @@ Bootstrap、依赖清单、持久配置和 setup 响应分别由
 [`requirements.schema.json`](schemas/requirements.schema.json)、
 [`config.schema.json`](schemas/config.schema.json) 和
 [`setup.schema.json`](schemas/setup.schema.json) 校验，避免文档、工具输出和测试各自漂移。
-内容工程的项目、内容地图、媒介计划和忠实度审计分别由
+硬字幕抽样计划由
+[`ocr-scout-plan.schema.json`](schemas/ocr-scout-plan.schema.json) 定义。内容工程的项目、
+内容地图、媒介计划和忠实度审计分别由
 [`content-project.schema.json`](schemas/content-project.schema.json)、
 [`content-map.schema.json`](schemas/content-map.schema.json)、
 [`media-plan.schema.json`](schemas/media-plan.schema.json) 和
-[`fidelity-audit.schema.json`](schemas/fidelity-audit.schema.json) 定义。
+[`fidelity-audit.schema.json`](schemas/fidelity-audit.schema.json) 定义；已保存的公众号草稿回执由
+[`wechat-draft-receipt.schema.json`](schemas/wechat-draft-receipt.schema.json) 定义。
 
 ## 使用流程
 
@@ -155,6 +166,11 @@ platform subtitle > hard OCR > audio ASR
 4. 高价值、外语或术语密集内容可同时保留 OCR 与 ASR，交给 Agent 按时间和语义
    核验；
 5. 已知冲突优先局部重跑，不因一个词重新处理全片。
+
+当平台字幕缺失、但不能确认全片存在连续硬字幕时，先用
+`plan_hard_subtitle_scout` / `ocr-scout-plan` 计算开头、四分之一、中点、四分之三和结尾的
+稀疏窗口，再让 Agent 根据画面、文字角色、cue 密度和连续性决定是否运行全片 OCR。少量 cue
+不能证明没有硬字幕；已知连续硬字幕或抽样覆盖率已经接近全片时，则直接进入全片 OCR。
 
 多来源任务以 `fusion_status=independent_evidence` 完成。这表示证据已齐，不表示
 工具替 Agent 做完了语义裁决。
@@ -187,6 +203,26 @@ video-subtitle extract $url `
 470 秒，串行时为 35 秒。并行结论也不能跨 OCR 分辨率、共识轮次和视频形态外推；详见
 [`BV1v6Kf6rEYh 一图流实测`](docs/cases/BV1v6Kf6rEYh-one-page.md)。
 
+## 多视频任务编排与耗时优化
+
+多视频任务由 Agent 编排多个独立的单视频任务，不创建无法追溯的“大批次合并稿”。每个输入
+都保留自己的 `manifest.json`、content project、deliverable、fidelity audit，以及用户明确要求
+保存草稿时才产生的 WeChat receipt。建议按用户给定顺序推进：
+
+1. 先为每个链接解析元数据和平台字幕，尽早暴露失效链接、分 P 与登录问题；
+2. 只有需要画面或音频证据时才下载媒体，并让后续 OCR/ASR 复用同一缓存；
+3. 连续硬字幕不确定时先跑稀疏侦察，确认值得后再跑全片 OCR；
+4. GPU OCR 与 GPU ASR 默认保持 `auto` 或 `serial`，不能因为任务多就盲目并行；
+5. 内容项目用 `content_map`、`medium_decision`、`article_draft`、`visual_render`、
+   `fidelity_audit` 和 `wechat_handoff` 等显式阶段记录真实墙钟时间；
+6. 用 `get_video_content_project` / `content-status` 的按名称和类别汇总寻找瓶颈，不能用聊天
+   时间戳或主观体感代替计时。
+
+后台 job 默认复用 `<VIDEO_SUBTITLE_HOME>/cache/media`；同步任务应持久化 `download_cache`
+或显式传入 `--download-cache`。下载 attempt 中的 `actual_bytes`、`actual_mib`、`cache_hit`、
+`cache_state`、`retry_index` 和 `attempt_count` 是运行回执。OpenCLI 自己展示的文件大小不是
+验收依据。重跑同一平台、BVID、分 P 和清晰度时应命中缓存；改变这些身份字段会得到独立缓存键。
+
 ## CLI
 
 所有命令只向 stdout 输出 JSON。
@@ -211,6 +247,9 @@ video-subtitle evidence-read `
   --evidence-id ev-0002 `
   --start-ms 360000 `
   --end-ms 390000
+
+# 全片硬字幕是否连续还不确定时，先计算稀疏 OCR 窗口
+video-subtitle ocr-scout-plan --duration-seconds 3600 --window-seconds 20
 ```
 
 需要交付完整精校 SRT 时再启用可选审阅助手：
@@ -226,19 +265,27 @@ video-subtitle review-apply `
 将已完成的字幕证据继续转换为其他内容媒介：
 
 ```powershell
-video-subtitle content-init --manifest .\result\manifest.json
-video-subtitle content-save --project .\result\content\<project-id>\project.json `
+$init = video-subtitle content-init --manifest .\result\manifest.json | ConvertFrom-Json
+$project = $init.project_path
+
+video-subtitle content-save --project $project `
   --kind content_map --document .\content-map.json
-video-subtitle content-save --project .\result\content\<project-id>\project.json `
+video-subtitle content-save --project $project `
   --kind media_plan --document .\media-plan.json
+
+$draftPhase = video-subtitle content-phase-start `
+  --project $project --name article_draft --category agent | ConvertFrom-Json
 video-subtitle content-deliverable `
-  --project .\result\content\<project-id>\project.json `
+  --project $project `
   --medium article --format markdown --content-file .\article.md `
   --title "文章标题" --used-claim-id claim-0001
-video-subtitle content-save --project .\result\content\<project-id>\project.json `
+video-subtitle content-phase-finish `
+  --project $project --phase-id $draftPhase.phase.phase_id --status completed
+
+video-subtitle content-save --project $project `
   --kind fidelity_audit --document .\fidelity-audit.json
-video-subtitle content-validate `
-  --project .\result\content\<project-id>\project.json
+video-subtitle content-validate --project $project
+video-subtitle content-status --project $project
 ```
 
 完整工作流、状态失效规则和 dbskill 复用边界见
@@ -262,10 +309,22 @@ video-subtitle content-validate `
 生成公众号文章包后，可从仓库根目录运行
 `python scripts/validate_wechat_package.py <wechat-article-directory>`，先检查图片标记、文件、清单、
 正式 HTML 和预览文案的确定性边界，再执行语义审计或可选平台交接。
+如果用户还明确要求保存公众号草稿，保存并回读页面后必须在文章包旁生成
+`wechat-draft-receipt.json`，再运行：
+
+```powershell
+python scripts/validate_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-draft-receipt.json `
+  --project <content-project>\project.json
+```
+
+只有返回 `valid=true`，才能宣布草稿保存完成；回执必须绑定当前 deliverable 与 fidelity audit，
+记录稳定 `appmsgid`、图片和元数据回读、持久化手动保存记录，并明确
+`published=false`、`publish_actions_performed=[]`。
 
 ## MCP
 
-MCP Server 使用 stdio，共暴露 18 个工具：
+MCP Server 使用 stdio，共暴露 21 个工具：
 
 环境：
 
@@ -285,6 +344,10 @@ MCP Server 使用 stdio，共暴露 18 个工具：
 - `read_subtitle_evidence`
 - `read_subtitle_artifact`
 
+硬字幕侦察：
+
+- `plan_hard_subtitle_scout`
+
 可选精校：
 
 - `prepare_subtitle_review`
@@ -295,6 +358,8 @@ MCP Server 使用 stdio，共暴露 18 个工具：
 
 - `initialize_video_content`
 - `get_video_content_project`
+- `start_video_content_phase`
+- `finish_video_content_phase`
 - `save_video_content_document`
 - `save_video_content_deliverable`
 - `read_video_content_artifact`

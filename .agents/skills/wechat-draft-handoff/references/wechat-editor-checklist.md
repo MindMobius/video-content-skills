@@ -11,6 +11,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] `ready_for_delivery=true` and the current fidelity audit was read.
 - [ ] Title, summary source, cover instruction, author field, and originality
       setting are known or intentionally unchanged.
+- [ ] An external `wechat_handoff` timing phase was started when timing tools are
+      available; its phase ID is retained for completion or failure.
 
 ## B. Package preflight
 
@@ -69,7 +71,21 @@ and layout may change; the observable preconditions and postconditions do not.
 
 ## G. Receipt
 
-Report title, intended/imported visible image counts, cover, summary, the durable
-save receipt, warnings, and the explicit fact that nothing was published. If any
-checkbox in sections E or F is unresolved, report a partial handoff and the
-exact manual action instead of declaring completion.
+- [ ] `wechat-draft-receipt.json` uses
+      `video-content/wechat-draft-receipt-v1`.
+- [ ] Project, deliverable, and fidelity-audit IDs match the current project.
+- [ ] `started_at` and `saved_at` are timezone-aware ISO timestamps.
+- [ ] Body-image counts, cover, summary, author, originality, and content checks
+      reflect the saved page read-back.
+- [ ] Stable `appmsgid`, persisted manual-save history, and saved-page read-back
+      are all recorded.
+- [ ] `published=false` and `publish_actions_performed=[]`.
+- [ ] `python scripts/validate_wechat_draft_receipt.py ...` returned
+      `valid=true`.
+- [ ] The `wechat_handoff` timing phase was finished with the actual outcome.
+
+Report title, intended/imported visible image counts, cover, summary, validated
+receipt IDs, elapsed handoff time when measured, warnings, and the explicit fact
+that nothing was published. If any checkbox in sections E, F, or G is unresolved,
+report a partial handoff and the exact manual action instead of declaring
+completion.

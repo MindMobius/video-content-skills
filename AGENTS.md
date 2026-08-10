@@ -48,6 +48,12 @@ MCP launch contract, and the nested capability setup result:
    `confirmation_required=true`.
 6. Run a deep doctor check before ASR or explicit shared-GPU parallelism.
 
+For URL-backed OCR or ASR, preserve the download cache across retries and
+related jobs. Background jobs default to `<VIDEO_SUBTITLE_HOME>/cache/media`;
+synchronous runs should use the persisted `download_cache` setting or an
+explicit `--download-cache`. Treat the downloaded file's `actual_bytes` and
+`actual_mib` in the manifest as authoritative, not a provider's display string.
+
 Never request cookies, passwords, or tokens. Browser login, hardware absence,
 OS privilege prompts, and confirmed large downloads are legitimate human
 boundaries; ordinary dependency installation and path discovery are Agent
@@ -62,11 +68,22 @@ work.
   for the requested capabilities and verify heavy runtimes with `doctor`.
 - Current URL support is Bilibili only. Do not claim YouTube or Douyin support
   until their adapters exist.
+- When continuous hard subtitles are uncertain, use
+  `plan_hard_subtitle_scout` before a full-video OCR pass. Sparse OCR cues do not
+  prove that hard subtitles are absent; the Agent must inspect sampled frames,
+  text role, density, and continuity.
 - The Python/MCP content project stops at an audited deliverable. It does not
   log in to publishing platforms, upload files, or change platform state.
+- Measure substantial content work with explicit Agent-named phases through
+  `start_video_content_phase` and `finish_video_content_phase`. Timing is
+  operational metadata, not a semantic workflow or an authorization signal.
 - The optional `wechat-draft-handoff` Skill may use an existing visible browser
   login to place an audited article and save it as a draft only after explicit
   user authorization. It must not read credentials or browser secrets.
+- A saved WeChat draft is complete only after a
+  `video-content/wechat-draft-receipt-v1` receipt is validated against the
+  current project with `scripts/validate_wechat_draft_receipt.py`. The receipt
+  must state `published=false` and contain no publish actions.
 - Scheduling, publishing, mass sending, originality declarations, monetization,
   and channel-account management remain outside every Skill in this repository.
 

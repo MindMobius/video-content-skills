@@ -110,3 +110,20 @@ def test_public_docs_describe_minimal_edit_image_handoff() -> None:
     assert "机器校验信息放在" in workflow
     assert "机器验证信息与人类编辑界面必须分离" in case
     assert "dlv-001 -> dlv-002" in case
+
+
+def test_wechat_article_reference_routes_saved_drafts_to_validated_receipts() -> None:
+    reference = (SKILL_ROOT / "references" / "wechat-article.md").read_text(
+        encoding="utf-8"
+    )
+    normalized_reference = " ".join(reference.split())
+
+    for contract in (
+        "external `wechat_handoff` content phase",
+        "video-content/wechat-draft-receipt-v1",
+        "scripts/validate_wechat_draft_receipt.py",
+        "published=false",
+        "publish_actions_performed",
+        "Require validator `valid=true`",
+    ):
+        assert contract in normalized_reference

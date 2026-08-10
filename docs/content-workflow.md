@@ -33,7 +33,7 @@ flowchart LR
 
 | 层 | 负责 | 不负责 |
 | --- | --- | --- |
-| 工具 | 固定证据哈希、保存版本、校验 ID/引用、检测过期产物、持久化成品 | 理解观点、判断语义、替用户决定载体、写作、设计 |
+| 工具 | 固定证据哈希、保存版本、校验 ID/引用、检测过期产物、持久化成品、显式阶段计时、校验平台回执 | 理解观点、判断语义、替用户决定载体、写作、设计 |
 | Agent | 分段读取证据、重建语义、分析和推荐载体、按用户授权决定取舍、生成成品、逐句审计 | 修改原始证据、把自我推断伪装成原作者观点、未经授权替用户选择载体 |
 | Skill | 决策步骤、Prompt、证据边界、载体决策门与审计规范；显式授权时把已审计公众号文章交给已登录编辑器 | 强制所有视频走同一模板、以传播效果覆盖准确性、推断平台写入权限、执行发布或账号管理 |
 
@@ -48,7 +48,8 @@ flowchart LR
 - 字幕 manifest 的 SHA-256；
 - 每份可读字幕证据的 ID、路径、类型与 SHA-256；
 - 目标、受众和输出语言；
-- 所有派生产物的版本与当前指针。
+- 所有派生产物的版本与当前指针；
+- Agent 显式启动和完成的工作阶段及墙钟时间。
 
 原始字幕不会被复制、改写或覆盖。源 manifest 或任何证据变化后，旧项目会变为无效，应从
 新证据重新创建项目。
@@ -111,6 +112,31 @@ initialized
 - 新媒介计划会让当前成品和审计失效；
 - 新成品会让当前审计失效；
 - 每次保存产生 `cmap-001`、`mplan-001`、`dlv-001`、`audit-001` 一类独立版本。
+
+## 显式阶段计时
+
+内容转换的主要耗时来自 Agent 阅读与重构、渲染工具、人类等待和外部平台交接，不能只看字幕
+manifest 的 attempt。`start_video_content_phase` 和 `finish_video_content_phase` 让 Agent 对实际
+工作边界显式命名；工具只记录开始、结束、状态和墙钟时间，不推断“现在正在写文章”。
+
+推荐阶段名：
+
+- `content_map`：分段阅读证据并建立内容模型；
+- `medium_decision`：分析载体并等待或记录用户决定；
+- `article_draft`：生成和返修文章语义稿；
+- `visual_render`：调用可选渲染器并完成视觉检查；
+- `fidelity_audit`：逐项审计当前成品；
+- `wechat_handoff`：用户授权后的外部编辑器写入、保存和回读。
+
+类别用于区分 `agent`、`tool`、`human`、`external` 和 `custom`。完成状态只能是
+`completed`、`failed` 或 `cancelled`；失败和取消也必须结束阶段，不能把项目永久留在
+`running`。`get_video_content_project` / `content-status` 返回按阶段名和类别汇总的
+`timing_summary`。这些数字用于寻找瓶颈，不改变 content map、media plan、fidelity audit，
+也不构成平台写入授权。
+
+多视频任务中，每个字幕 manifest 单独初始化 content project 并单独计时。Agent 可以比较多条
+视频的阶段汇总，但不能把多条视频的内容地图、成品或审计合并成一个项目来换取表面上的批处理
+便利。媒体下载缓存属于字幕采集层，可跨项目复用；内容版本和平台回执必须保持一对一。
 
 ## Prompt 组成
 
@@ -214,6 +240,22 @@ Base64 只是一次性运输层，不能写回正式 HTML、落盘、提交或�
 若浏览器工具不能写入带图片字节的富文本剪贴板，或微信没有完整接管图片，就回退到原有
 单行路径人工插图流程，不能声称自动导入成功。
 
+首次修改编辑器前，应启动类别为 `external` 的 `wechat_handoff` 阶段；保存并回读后，以实际
+结果结束该阶段。成功保存还必须在文章包旁写入 `wechat-draft-receipt.json`，使用
+`video-content/wechat-draft-receipt-v1`，并运行：
+
+```powershell
+python scripts/validate_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-draft-receipt.json `
+  --project <content-project>\project.json
+```
+
+回执记录当前 project、deliverable 和 fidelity-audit ID，开始与保存时间，稳定 `appmsgid`，
+正文图片的预期/可见加载/微信托管/残留本地源数量，封面、摘要、作者、原创状态，持久化的
+手动保存记录和保存后页面回读。它必须明确 `published=false` 且
+`publish_actions_performed=[]`。只有验证器返回 `valid=true` 才能报告草稿保存成功；成功 toast、
+图片上传或 URL 中出现 ID 都不能单独替代完整回执。
+
 这条 Skill 只处理用户明确授权的编辑器写入和草稿保存；不读取 Cookie、Token、密码或
 浏览器存储，不使用固定坐标脚本，不继续点击发布、定时、群发、原创或账号管理。真实运行见
 [`BV1hK3v6LELB 公众号草稿交接实测`](cases/BV1hK3v6LELB-wechat-draft-handoff.md)和
@@ -230,18 +272,30 @@ $init = video-subtitle content-init `
 
 $project = $init.project_path
 
+$mapPhase = video-subtitle content-phase-start `
+  --project $project --name content_map --category agent | ConvertFrom-Json
 video-subtitle content-save --project $project `
   --kind content_map --document .\content-map.json
+video-subtitle content-phase-finish `
+  --project $project --phase-id $mapPhase.phase.phase_id --status completed
+
 video-subtitle content-save --project $project `
   --kind media_plan --document .\media-plan.json
+
+$draftPhase = video-subtitle content-phase-start `
+  --project $project --name article_draft --category agent | ConvertFrom-Json
 video-subtitle content-deliverable --project $project `
   --medium article --format markdown --content-file .\article.md `
   --title "文章标题" `
   --used-claim-id claim-0001 `
   --used-caveat-id caveat-0001
+video-subtitle content-phase-finish `
+  --project $project --phase-id $draftPhase.phase.phase_id --status completed
+
 video-subtitle content-save --project $project `
   --kind fidelity_audit --document .\fidelity-audit.json
 video-subtitle content-validate --project $project
+video-subtitle content-status --project $project
 ```
 
 ## 对 dbskill 的复用边界
@@ -261,6 +315,7 @@ video-subtitle content-validate --project $project
 ## 当前限制
 
 - 内容工程入口目前只接受本项目完成的字幕 manifest；
+- 多视频任务由 Agent 编排多个独立项目，仓库不提供把多条视频合并为单一内容项目的批次产物；
 - 一图流的 SVG/HTML、文章 Markdown 等内容由 Agent 或独立渲染 Skill 生成，本项目只保存
   和校验，不内置模板化设计器；
 - Python/MCP 内容项目不提供平台登录或写入；可选 `wechat-draft-handoff` 只复用调用方已有
