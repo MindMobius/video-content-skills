@@ -7,10 +7,13 @@ import jsonschema
 import pytest
 
 from video_subtitle.core.content import (
+    finish_content_phase,
+    get_content_project,
     initialize_content_project,
     read_content_artifact,
     save_content_deliverable,
     save_content_document,
+    start_content_phase,
     validate_content_project,
 )
 from video_subtitle.core.srt import Cue, write_srt
@@ -356,6 +359,54 @@ def test_content_project_is_idempotent_for_the_same_intent(tmp_path: Path) -> No
     assert second["project_id"] == first["project_id"]
     assert second["reused_existing_project"] is True
     assert different["project_id"] != first["project_id"]
+
+
+def test_content_phases_record_explicit_wall_clock_distribution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = initialize_content_project(_manifest(tmp_path))
+    project_path = Path(project["project_path"])
+    timestamps = iter(
+        (
+            "2026-08-10T00:00:00+00:00",
+            "2026-08-10T00:00:00+00:00",
+            "2026-08-10T00:00:05.250000+00:00",
+            "2026-08-10T00:00:05.250000+00:00",
+        )
+    )
+    monkeypatch.setattr(
+        "video_subtitle.core.content.utc_now",
+        lambda: next(timestamps),
+    )
+
+    started = start_content_phase(
+        project_path,
+        name="content_map",
+        category="agent",
+        note="Read evidence and build the semantic map",
+    )
+    finished = finish_content_phase(
+        project_path,
+        phase_id=started["phase"]["phase_id"],
+    )
+    state = get_content_project(project_path)
+
+    assert finished["phase"]["elapsed_seconds"] == 5.25
+    assert state["timing_summary"]["recorded_elapsed_seconds"] == 5.25
+    assert state["timing_summary"]["by_name_seconds"] == {"content_map": 5.25}
+    assert state["timing_summary"]["by_category_seconds"] == {"agent": 5.25}
+    assert state["timing_summary"]["running_phase_ids"] == []
+    jsonschema.validate(read_json(project_path), _schema("content-project.schema.json"))
+
+
+def test_content_phase_rejects_duplicate_running_name(tmp_path: Path) -> None:
+    project = initialize_content_project(_manifest(tmp_path))
+    project_path = Path(project["project_path"])
+    start_content_phase(project_path, name="article_draft")
+
+    with pytest.raises(ValueError, match="already running"):
+        start_content_phase(project_path, name="article_draft")
 
 
 def test_content_map_rejects_unknown_evidence_reference(tmp_path: Path) -> None:

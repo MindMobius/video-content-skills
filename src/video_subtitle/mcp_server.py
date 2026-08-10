@@ -9,14 +9,16 @@ from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import apply_configuration, update_configuration
 from .core.content import (
-    get_content_project as get_content_project_state,
-)
-from .core.content import (
+    finish_content_phase,
     initialize_content_project,
     safe_content_project_id,
     save_content_deliverable,
     save_content_document,
+    start_content_phase,
     validate_content_project,
+)
+from .core.content import (
+    get_content_project as get_content_project_state,
 )
 from .core.content import (
     read_content_artifact as read_content_project_artifact,
@@ -427,6 +429,38 @@ def get_video_content_project(job_id: str, project_id: str) -> dict[str, Any]:
     return get_content_project_state(_content_project_path(job_id, project_id))
 
 
+def start_video_content_phase(
+    job_id: str,
+    project_id: str,
+    name: str,
+    category: Literal["agent", "tool", "human", "external", "custom"] = "agent",
+    note: str = "",
+) -> dict[str, Any]:
+    """Start one Agent-declared phase so later runs expose real time distribution."""
+    return start_content_phase(
+        _content_project_path(job_id, project_id),
+        name=name,
+        category=category,
+        note=note,
+    )
+
+
+def finish_video_content_phase(
+    job_id: str,
+    project_id: str,
+    phase_id: str,
+    status: Literal["completed", "failed", "cancelled"] = "completed",
+    note: str = "",
+) -> dict[str, Any]:
+    """Finish one measured phase without inferring what semantic work occurred."""
+    return finish_content_phase(
+        _content_project_path(job_id, project_id),
+        phase_id=phase_id,
+        status=status,
+        note=note,
+    )
+
+
 def save_video_content_document(
     job_id: str,
     project_id: str,
@@ -528,6 +562,8 @@ if McpServer is not None:
     mcp.tool(name="read_subtitle_artifact")(read_subtitle_artifact)
     mcp.tool(name="initialize_video_content")(initialize_video_content)
     mcp.tool(name="get_video_content_project")(get_video_content_project)
+    mcp.tool(name="start_video_content_phase")(start_video_content_phase)
+    mcp.tool(name="finish_video_content_phase")(finish_video_content_phase)
     mcp.tool(name="save_video_content_document")(save_video_content_document)
     mcp.tool(name="save_video_content_deliverable")(save_video_content_deliverable)
     mcp.tool(name="read_video_content_artifact")(read_video_content_artifact)

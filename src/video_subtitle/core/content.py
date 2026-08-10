@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -19,6 +20,8 @@ ContentMedium = Literal[
     "custom",
 ]
 ContentFormat = Literal["markdown", "html", "svg", "json", "text"]
+ContentPhaseCategory = Literal["agent", "tool", "human", "external", "custom"]
+ContentPhaseFinalStatus = Literal["completed", "failed", "cancelled"]
 
 _DOCUMENT_VERSIONS = {
     "content_map": "video-content/content-map-v1",
@@ -154,6 +157,7 @@ def initialize_content_project(
             "deliverable_id": None,
             "fidelity_audit_id": None,
         },
+        "timeline": {"phases": []},
         "next_action": {
             "code": "BUILD_CONTENT_MAP",
             "message": (
@@ -179,6 +183,129 @@ def get_content_project(project_path: Path) -> dict[str, Any]:
         **project,
         "project_path": str(project_path),
         "integrity": validate_content_project(project_path),
+        "timing_summary": summarize_content_timing(project),
+    }
+
+
+def start_content_phase(
+    project_path: Path,
+    *,
+    name: str,
+    category: ContentPhaseCategory = "agent",
+    note: str = "",
+) -> dict[str, Any]:
+    """Start an explicit measured phase without inferring semantic work."""
+    project_path = _require_project_path(project_path)
+    project = read_json(project_path)
+    _validate_project_identity(project, project_path)
+    selected_name = _validate_phase_name(name)
+    if category not in {"agent", "tool", "human", "external", "custom"}:
+        raise ValueError("Unsupported content phase category")
+    timeline = _ensure_timeline(project)
+    active = next(
+        (
+            phase
+            for phase in timeline["phases"]
+            if phase.get("name") == selected_name and phase.get("status") == "running"
+        ),
+        None,
+    )
+    if active is not None:
+        raise ValueError(
+            f"Content phase {selected_name!r} is already running as {active['phase_id']}"
+        )
+    phase = {
+        "phase_id": _next_phase_id(timeline["phases"]),
+        "name": selected_name,
+        "category": category,
+        "status": "running",
+        "started_at": utc_now(),
+        "finished_at": None,
+        "elapsed_seconds": None,
+        "note": note.strip(),
+    }
+    timeline["phases"].append(phase)
+    project["updated_at"] = utc_now()
+    write_json_atomic(project_path, project)
+    return {
+        "schema_version": "video-content/phase-result-v1",
+        "project_id": project["project_id"],
+        "phase": phase,
+        "timing_summary": summarize_content_timing(project),
+    }
+
+
+def finish_content_phase(
+    project_path: Path,
+    *,
+    phase_id: str,
+    status: ContentPhaseFinalStatus = "completed",
+    note: str = "",
+) -> dict[str, Any]:
+    """Finish one explicitly started phase and persist its wall-clock duration."""
+    project_path = _require_project_path(project_path)
+    project = read_json(project_path)
+    _validate_project_identity(project, project_path)
+    if not re.fullmatch(r"phase-[0-9]{4,}", phase_id):
+        raise ValueError("Invalid content phase id")
+    if status not in {"completed", "failed", "cancelled"}:
+        raise ValueError("Unsupported final content phase status")
+    timeline = _ensure_timeline(project)
+    phase = next(
+        (item for item in timeline["phases"] if item.get("phase_id") == phase_id),
+        None,
+    )
+    if phase is None:
+        raise ValueError(f"Content phase not found: {phase_id}")
+    if phase.get("status") != "running":
+        raise ValueError(f"Content phase {phase_id} is already finished")
+    finished_at = utc_now()
+    phase["status"] = status
+    phase["finished_at"] = finished_at
+    phase["elapsed_seconds"] = _elapsed_seconds(phase["started_at"], finished_at)
+    if note.strip():
+        phase["completion_note"] = note.strip()
+    project["updated_at"] = utc_now()
+    write_json_atomic(project_path, project)
+    return {
+        "schema_version": "video-content/phase-result-v1",
+        "project_id": project["project_id"],
+        "phase": phase,
+        "timing_summary": summarize_content_timing(project),
+    }
+
+
+def summarize_content_timing(project: dict[str, Any]) -> dict[str, Any]:
+    timeline = project.get("timeline")
+    phases = timeline.get("phases", []) if isinstance(timeline, dict) else []
+    completed = [
+        phase
+        for phase in phases
+        if isinstance(phase, dict)
+        and isinstance(phase.get("elapsed_seconds"), (int, float))
+    ]
+    by_name: dict[str, float] = {}
+    by_category: dict[str, float] = {}
+    for phase in completed:
+        elapsed = float(phase["elapsed_seconds"])
+        name = str(phase.get("name") or "unknown")
+        category = str(phase.get("category") or "custom")
+        by_name[name] = round(by_name.get(name, 0.0) + elapsed, 3)
+        by_category[category] = round(by_category.get(category, 0.0) + elapsed, 3)
+    return {
+        "phase_count": len(phases),
+        "finished_phase_count": len(completed),
+        "running_phase_ids": [
+            str(phase.get("phase_id"))
+            for phase in phases
+            if isinstance(phase, dict) and phase.get("status") == "running"
+        ],
+        "recorded_elapsed_seconds": round(
+            sum(float(phase["elapsed_seconds"]) for phase in completed),
+            3,
+        ),
+        "by_name_seconds": by_name,
+        "by_category_seconds": by_category,
     }
 
 
@@ -565,6 +692,99 @@ def _validate_project_identity(project: Any, project_path: Path) -> None:
         ("content_map_id", "media_plan_id", "deliverable_id", "fidelity_audit_id"),
         "Content project current",
     )
+    if "timeline" in project:
+        _validate_timeline(project["timeline"])
+
+
+def _ensure_timeline(project: dict[str, Any]) -> dict[str, Any]:
+    timeline = project.setdefault("timeline", {"phases": []})
+    _validate_timeline(timeline)
+    return timeline
+
+
+def _next_phase_id(phases: list[dict[str, Any]]) -> str:
+    indexes = [
+        int(match.group(1))
+        for phase in phases
+        if (match := re.fullmatch(r"phase-([0-9]{4,})", str(phase.get("phase_id"))))
+    ]
+    return f"phase-{max(indexes, default=0) + 1:04d}"
+
+
+def _validate_timeline(value: Any) -> None:
+    if not isinstance(value, dict):
+        raise TypeError("Content project timeline must be an object")
+    phases = value.get("phases")
+    if not isinstance(phases, list):
+        raise TypeError("Content project timeline.phases must be a list")
+    seen: set[str] = set()
+    for phase in phases:
+        if not isinstance(phase, dict):
+            raise TypeError("Content timeline phases must be objects")
+        _require_fields(
+            phase,
+            (
+                "phase_id",
+                "name",
+                "category",
+                "status",
+                "started_at",
+                "finished_at",
+                "elapsed_seconds",
+                "note",
+            ),
+            "Content timeline phase",
+        )
+        phase_id = str(phase["phase_id"])
+        if not re.fullmatch(r"phase-[0-9]{4,}", phase_id):
+            raise ValueError(f"Invalid content phase id: {phase_id}")
+        if phase_id in seen:
+            raise ValueError(f"Duplicate content phase id: {phase_id}")
+        seen.add(phase_id)
+        _validate_phase_name(str(phase["name"]))
+        if phase["category"] not in {"agent", "tool", "human", "external", "custom"}:
+            raise ValueError(f"Invalid content phase category: {phase['category']}")
+        status = phase["status"]
+        if status not in {"running", "completed", "failed", "cancelled"}:
+            raise ValueError(f"Invalid content phase status: {status}")
+        _parse_timestamp(str(phase["started_at"]))
+        if status == "running":
+            if phase["finished_at"] is not None or phase["elapsed_seconds"] is not None:
+                raise ValueError("Running content phases cannot have finish timing")
+        else:
+            if not isinstance(phase["finished_at"], str):
+                raise ValueError("Finished content phases require finished_at")
+            _parse_timestamp(phase["finished_at"])
+            if not isinstance(phase["elapsed_seconds"], (int, float)):
+                raise ValueError("Finished content phases require elapsed_seconds")
+            if phase["elapsed_seconds"] < 0:
+                raise ValueError("Content phase elapsed_seconds cannot be negative")
+
+
+def _validate_phase_name(value: str) -> str:
+    selected = value.strip()
+    if not re.fullmatch(r"[a-z][a-z0-9_.-]{1,63}", selected):
+        raise ValueError(
+            "Content phase name must use 2-64 lowercase letters, digits, ., _, or -"
+        )
+    return selected
+
+
+def _elapsed_seconds(started_at: str, finished_at: str) -> float:
+    return round(
+        (_parse_timestamp(finished_at) - _parse_timestamp(started_at)).total_seconds(),
+        3,
+    )
+
+
+def _parse_timestamp(value: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(f"Invalid ISO timestamp: {value!r}") from error
+    if parsed.tzinfo is None:
+        raise ValueError("Content phase timestamps must include a timezone")
+    return parsed
 
 
 def _validate_content_document(

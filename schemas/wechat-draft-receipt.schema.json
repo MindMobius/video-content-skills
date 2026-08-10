@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/wechat-draft-receipt-v1.json",
+  "title": "WeChat Draft Receipt v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "deliverable_id",
+    "fidelity_audit_id",
+    "platform",
+    "status",
+    "started_at",
+    "saved_at",
+    "title",
+    "appmsgid",
+    "body_images",
+    "cover",
+    "summary",
+    "author",
+    "originality",
+    "content_checks",
+    "save",
+    "published",
+    "publish_actions_performed"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "video-content/wechat-draft-receipt-v1"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^content_[a-f0-9]{16}$"
+    },
+    "deliverable_id": { "type": "string", "minLength": 1 },
+    "fidelity_audit_id": { "type": "string", "minLength": 1 },
+    "platform": { "const": "wechat_official_account" },
+    "status": { "const": "saved_as_draft" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "saved_at": { "type": "string", "format": "date-time" },
+    "title": { "type": "string", "minLength": 1 },
+    "appmsgid": { "type": "string", "minLength": 1 },
+    "body_images": {
+      "type": "object",
+      "required": [
+        "intended",
+        "visible_loaded",
+        "wechat_hosted",
+        "non_wechat_hosted",
+        "local_path_markers_remaining"
+      ],
+      "properties": {
+        "intended": { "type": "integer", "minimum": 0 },
+        "visible_loaded": { "type": "integer", "minimum": 0 },
+        "wechat_hosted": { "type": "integer", "minimum": 0 },
+        "non_wechat_hosted": { "const": 0 },
+        "local_path_markers_remaining": { "const": 0 }
+      },
+      "additionalProperties": false
+    },
+    "cover": {
+      "type": "object",
+      "required": [
+        "source",
+        "asset",
+        "selected",
+        "crop_confirmed",
+        "wechat_hosted_preview"
+      ],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "asset": { "type": "string", "minLength": 1 },
+        "selected": { "const": true },
+        "crop_confirmed": { "const": true },
+        "wechat_hosted_preview": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "required": ["filled", "text"],
+      "properties": {
+        "filled": { "const": true },
+        "text": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "author": {
+      "type": "object",
+      "required": ["value", "left_blank"],
+      "properties": {
+        "value": { "type": "string" },
+        "left_blank": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "originality": {
+      "type": "object",
+      "required": ["declared", "visible_state"],
+      "properties": {
+        "declared": { "const": false },
+        "visible_state": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "content_checks": {
+      "type": "object",
+      "required": [
+        "source_disclosure_present",
+        "ending_present",
+        "underline_count",
+        "stock_cta_present",
+        "speaker_identity_preserved"
+      ],
+      "properties": {
+        "source_disclosure_present": { "const": true },
+        "ending_present": { "const": true },
+        "underline_count": { "type": "integer", "minimum": 0 },
+        "stock_cta_present": { "const": false },
+        "speaker_identity_preserved": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "save": {
+      "type": "object",
+      "required": [
+        "saved",
+        "channel",
+        "mode",
+        "history_record",
+        "history_record_persisted",
+        "saved_page_read_back"
+      ],
+      "properties": {
+        "saved": { "const": true },
+        "channel": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "minLength": 1 },
+        "history_record": { "type": "string", "minLength": 1 },
+        "history_record_persisted": { "const": true },
+        "saved_page_read_back": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "published": { "const": false },
+    "publish_actions_performed": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "additionalProperties": false
+}

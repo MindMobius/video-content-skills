@@ -11,11 +11,13 @@ from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
 from .core.content import (
+    finish_content_phase,
     get_content_project,
     initialize_content_project,
     read_content_artifact,
     save_content_deliverable,
     save_content_document,
+    start_content_phase,
     validate_content_project,
 )
 from .core.evidence import (
@@ -236,6 +238,32 @@ def build_parser() -> argparse.ArgumentParser:
         "content-status", help="Read a content project and its integrity status"
     )
     content_status_parser.add_argument("--project", type=Path, required=True)
+
+    content_phase_start_parser = commands.add_parser(
+        "content-phase-start",
+        help="Start an explicit measured content-work phase",
+    )
+    content_phase_start_parser.add_argument("--project", type=Path, required=True)
+    content_phase_start_parser.add_argument("--name", required=True)
+    content_phase_start_parser.add_argument(
+        "--category",
+        choices=("agent", "tool", "human", "external", "custom"),
+        default="agent",
+    )
+    content_phase_start_parser.add_argument("--note", default="")
+
+    content_phase_finish_parser = commands.add_parser(
+        "content-phase-finish",
+        help="Finish a measured content-work phase",
+    )
+    content_phase_finish_parser.add_argument("--project", type=Path, required=True)
+    content_phase_finish_parser.add_argument("--phase-id", required=True)
+    content_phase_finish_parser.add_argument(
+        "--status",
+        choices=("completed", "failed", "cancelled"),
+        default="completed",
+    )
+    content_phase_finish_parser.add_argument("--note", default="")
 
     content_save_parser = commands.add_parser(
         "content-save",
@@ -533,6 +561,28 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
 
     if args.command == "content-status":
         return get_content_project(args.project), 0
+
+    if args.command == "content-phase-start":
+        return (
+            start_content_phase(
+                args.project,
+                name=args.name,
+                category=args.category,
+                note=args.note,
+            ),
+            0,
+        )
+
+    if args.command == "content-phase-finish":
+        return (
+            finish_content_phase(
+                args.project,
+                phase_id=args.phase_id,
+                status=args.status,
+                note=args.note,
+            ),
+            0,
+        )
 
     if args.command == "content-save":
         document = read_json(args.document.resolve())

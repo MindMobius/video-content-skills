@@ -111,6 +111,17 @@
       },
       "additionalProperties": false
     },
+    "timeline": {
+      "type": "object",
+      "required": ["phases"],
+      "properties": {
+        "phases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/phase" }
+        }
+      },
+      "additionalProperties": false
+    },
     "next_action": {
       "type": "object",
       "required": ["code", "message"],
@@ -163,6 +174,38 @@
         "created_at": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": true
+    },
+    "phase": {
+      "type": "object",
+      "required": [
+        "phase_id",
+        "name",
+        "category",
+        "status",
+        "started_at",
+        "finished_at",
+        "elapsed_seconds",
+        "note"
+      ],
+      "properties": {
+        "phase_id": { "type": "string", "pattern": "^phase-[0-9]{4,}$" },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]{1,63}$"
+        },
+        "category": {
+          "enum": ["agent", "tool", "human", "external", "custom"]
+        },
+        "status": {
+          "enum": ["running", "completed", "failed", "cancelled"]
+        },
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": ["string", "null"], "format": "date-time" },
+        "elapsed_seconds": { "type": ["number", "null"], "minimum": 0 },
+        "note": { "type": "string" },
+        "completion_note": { "type": "string" }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false
