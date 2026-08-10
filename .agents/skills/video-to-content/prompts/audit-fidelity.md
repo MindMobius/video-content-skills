@@ -28,7 +28,15 @@ and relevant source ranges, not memory of the drafting process.
    separately from the body. A required disclosure must precede the argument;
    narrator language inside that disclosure does not excuse narrator wrappers
    inside a `source_author` body.
-10. For a rendered article, check that renderer defaults did not introduce a
+10. Check visual provenance. For a video-derived article, the original cover
+    and source-video frames are the default supporting images. Require each
+    extracted frame to have a traceable timestamp or bounded source range.
+    Generated diagrams, AI illustrations, stock images, and synthetic visual
+    summaries require an explicit user request or separately recorded approval;
+    selecting `article` is not approval. Unauthorized generated visuals are a
+    fidelity failure, even when their wording is accurate. Missing useful source
+    visuals is not a reason to invent filler; fewer images are valid.
+11. For a rendered article, check that renderer defaults did not introduce a
    fictional author, unsupported stance, stock CTA, or promotional promise. If
    local images remain, require visible relative-path markers, matching local
    files, an ordered import checklist, and an explicit preview-copy warning. In
@@ -37,11 +45,11 @@ and relevant source ranges, not memory of the drafting process.
    must require deletion of at most one visible element. Flag boxed placeholder
    cards, duplicated descriptions, repeated instructions, or absolute machine
    paths unless the user explicitly authorized a descriptive slot.
-11. Audit the clean portable deliverable before any downstream platform
+12. Audit the clean portable deliverable before any downstream platform
     handoff. A successful clipboard paste or WeChat image upload cannot repair
     a missing marker, unsupported statement, or stale audit, and must not be
     used to change this audit status.
-12. Record concrete repair actions for every error.
+13. Record concrete repair actions for every error.
 
 ## Status rule
 
@@ -57,9 +65,11 @@ A correctly disclosed manual image step can be a warning because the package is
 still truthful and usable. A missing required cover/disclosure, hidden local
 image dependency, false “ready to paste” claim, absolute machine path, or a
 renderer placeholder that violates the selected minimal-edit contract is a
-blocker. Keep this package-level status unchanged if an optional downstream
-Skill later imports the images into a signed-in editor; platform state is a
-separate receipt, not fidelity evidence.
+blocker. An unauthorized generated article image is also a blocker; it cannot be
+downgraded to a warning merely because it is visually clear. Keep this
+package-level status unchanged if an optional downstream Skill later imports
+the images into a signed-in editor; platform state is a separate receipt, not
+fidelity evidence.
 
 Return the JSON document required by
 [`../../../../schemas/fidelity-audit.schema.json`](../../../../schemas/fidelity-audit.schema.json).

@@ -23,6 +23,7 @@ def test_wechat_article_reference_preserves_agent_and_renderer_boundaries() -> N
         "## Responsibility split",
         "## Build the manuscript first",
         "## Use a renderer as an optional downstream Skill",
+        "## Source article images from the video by default",
         "## Package local images explicitly",
         "## Validate two independent layers",
         "## Final handoff",
@@ -110,6 +111,51 @@ def test_public_docs_describe_minimal_edit_image_handoff() -> None:
     assert "机器校验信息放在" in workflow
     assert "机器验证信息与人类编辑界面必须分离" in case
     assert "dlv-001 -> dlv-002" in case
+
+
+def test_video_derived_articles_default_to_traceable_source_frames() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    select_prompt = (SKILL_ROOT / "prompts" / "select-medium.md").read_text(
+        encoding="utf-8"
+    )
+    create_prompt = (SKILL_ROOT / "prompts" / "create-deliverable.md").read_text(
+        encoding="utf-8"
+    )
+    audit = (SKILL_ROOT / "prompts" / "audit-fidelity.md").read_text(encoding="utf-8")
+    reference = (SKILL_ROOT / "references" / "wechat-article.md").read_text(
+        encoding="utf-8"
+    )
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    workflow = (ROOT / "docs" / "content-workflow.md").read_text(encoding="utf-8")
+
+    normalized = {
+        "skill": " ".join(skill.split()),
+        "select": " ".join(select_prompt.split()),
+        "create": " ".join(create_prompt.split()),
+        "audit": " ".join(audit.split()),
+        "reference": " ".join(reference.split()),
+        "agents": " ".join(agents.split()),
+    }
+
+    assert "default supporting-image policy is `source_video`" in normalized["skill"]
+    assert (
+        "Selecting `article` does not authorize generated diagrams"
+        in normalized["select"]
+    )
+    assert "frames actually extracted from the source video" in normalized["create"]
+    assert (
+        "Unauthorized generated visuals are a fidelity failure" in normalized["audit"]
+    )
+    assert "use fewer images rather than filler" in normalized["reference"]
+    assert "timestamped frames from the source video" in normalized["agents"]
+    assert (
+        "\u516c\u4f17\u53f7\u6587\u7ae0\u914d\u56fe\u9ed8\u8ba4\u4f7f\u7528\u539f\u89c6\u9891\u5c01\u9762\u548c\u5e26\u65f6\u95f4\u70b9\u7684\u53ef\u8ffd\u6eaf\u622a\u5e27"
+        in readme
+    )
+    assert (
+        "\u6587\u7ae0\u914d\u56fe\u9ed8\u8ba4\u6765\u81ea\u539f\u89c6\u9891" in workflow
+    )
 
 
 def test_wechat_article_reference_routes_saved_drafts_to_validated_receipts() -> None:

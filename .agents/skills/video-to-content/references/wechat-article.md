@@ -103,6 +103,30 @@ python <gzh-skill-root>\scripts\wrap_preview.py <clean-html>
 Renderer validation proves markup compatibility, not semantic fidelity. A
 beautiful page with unsupported claims still fails the content audit.
 
+## Source article images from the video by default
+
+Visual sourcing is a semantic decision made before packaging. For an article
+derived from a video, default to the original video cover followed by frames
+actually extracted from that video. Choose frames after the manuscript is stable
+and place them beside the claim, example, speaker, object, chart, or
+demonstration they genuinely illustrate. Prefer frames whose timestamps overlap
+the relevant subtitle evidence.
+
+Record the source timestamp or bounded range in package metadata or the ordered
+image checklist. A practical filename such as `assets/02-frame-00m12s.jpg`
+helps human review but does not replace explicit provenance. Cropping for layout
+is allowed. Do not composite, redraw, or edit a frame in a way that implies
+content absent from the source.
+
+Generated diagrams, infographics, AI illustrations, stock images, and synthetic
+visual summaries are opt-in. A request for a WeChat article does not authorize
+them. Use one only after the user explicitly requests it or separately approves
+the proposed visual plan. Choosing `one_page` or another inherently designed
+visual carrier authorizes that carrier's composition, not synthetic supporting
+images in a separate article. When the source has no useful frame, use fewer
+images rather than filler. A renderer may style and place approved assets; it
+may not replace source frames with newly authored visuals.
+
 ## Package local images explicitly
 
 A reusable handoff package should contain the smallest useful set of artifacts:
@@ -112,7 +136,8 @@ wechat-article/
 ├─ article.md
 ├─ article.html
 ├─ article-preview.html
-├─ cover.jpg                    # or assets/<descriptive-name>.<ext>
+├─ cover.jpg                    # original video cover
+├─ assets/02-frame-00m12s.jpg   # source-video frame with timestamp provenance
 └─ image-import-checklist.md
 ```
 
@@ -201,6 +226,9 @@ Before saving the final deliverable, validate both layers:
 - all required claim and caveat IDs are visibly represented;
 - the body follows the declared narrative voice;
 - the cover slot and disclosure precede the body when required;
+- article illustrations use the original cover and traceable source-video
+  frames by default; every generated or synthetic visual has explicit recorded
+  user authorization;
 - the disclosure states the real transformation and verification boundary;
 - renderer defaults did not add a new author identity, stance, CTA, or
   promotional promise;

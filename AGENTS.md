@@ -71,6 +71,11 @@ work.
 - Treat platform subtitle availability and visual hard-subtitle presence as
   independent facts. A platform track may be machine-generated and never proves
   that full-video hard-subtitle OCR can be skipped.
+- For video-derived articles, use the original cover and timestamped frames from
+  the source video as the default supporting images. Do not generate diagrams,
+  AI illustrations, stock images, or synthetic visual summaries unless the user
+  explicitly requested or separately approved them; use fewer images instead of
+  filler when the source has no useful frame.
 - When continuous hard subtitles are uncertain, use
   `plan_hard_subtitle_scout` before a full-video OCR pass, whether or not platform
   subtitles exist. Sparse OCR cues do not prove that hard subtitles are absent;

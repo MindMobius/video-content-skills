@@ -133,10 +133,27 @@ The audited package must remain usable without any platform integration.
 Create the selected artifact using your own language and reasoning. Rebuild its
 information architecture for the selected carrier: claims may be merged,
 split, reordered, foregrounded, or moved into supporting context. Source order
-is evidence metadata, not a layout template. Use an
-available rendering or image skill only when it materially improves the chosen
-carrier. Rendering may improve hierarchy and appearance; it must not decide
-what the source means.
+is evidence metadata, not a layout template. Use an available rendering or
+image skill only when it materially improves the chosen carrier and the visual
+source policy below permits it. Rendering may improve hierarchy and appearance;
+it must not decide what the source means or silently replace source visuals.
+
+For a deliverable derived from a video, visual provenance is part of fidelity.
+For an `article`, the default supporting-image policy is `source_video`: use the
+original cover and frames actually extracted from the source video. Prefer a
+frame whose timestamp overlaps the claim or section it illustrates, and record
+that timestamp or bounded range in the media plan or package checklist. Cropping
+for layout is allowed; compositing or alteration that implies content absent
+from the source is not.
+
+Generated diagrams, infographics, AI illustrations, stock images, and synthetic
+visual summaries are opt-in for an article. Use them only when the user
+explicitly requested them or separately approved the visual plan after its
+tradeoff was explained. A request for an article is not that authorization. A
+user-selected `one_page` or another inherently designed visual carrier
+authorizes composition of that carrier, not synthetic supporting images in a
+separate article. If the source video has no useful frame, use fewer images
+rather than inventing filler.
 
 For paste-oriented HTML, local images are a handoff boundary rather than an
 embeddable publishing asset. Keep them in the local deliverable package and
@@ -255,6 +272,10 @@ artifact versioning, and field semantics.
 - Never choose a visual carrier merely because it looks more shareable. Choose
   it only when the content remains understandable and accurate after visual
   compression.
+- Never replace source-video frames with generated diagrams, AI images, stock
+  images, or synthetic visual summaries in an article unless the user explicitly
+  requested or separately approved them. Use fewer images when source visuals
+  are insufficient.
 - Within this Skill, never log in to a publishing platform, upload an artifact,
   save it to a draft box, schedule it, publish it, or manage a channel account.
   This content project ends at a faithful, appropriate, polished, audited

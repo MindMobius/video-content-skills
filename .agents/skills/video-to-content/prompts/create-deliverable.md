@@ -56,6 +56,25 @@ optional renderer can choose typography and markup, but its sample copy,
 signature, CTA, and author placeholders are not source content and must not be
 introduced without user authorization.
 
+### Source visual policy for video-derived articles
+
+Use the original cover and frames actually extracted from the source video as
+the default article illustrations. Select frames after the manuscript is stable
+so each image has a real semantic job. Prefer a frame whose timestamp overlaps
+the claim, example, person, object, chart, or demonstration beside it. Record
+the source timestamp or bounded range in the package metadata or ordered image
+checklist, and use descriptive filenames such as
+`assets/02-frame-00m12s.jpg` where practical.
+
+Do not create a diagram, infographic, AI illustration, stock image, or synthetic
+visual summary merely because it would explain the rewritten structure more
+cleanly. These visuals are opt-in: require an explicit user request or separate
+approval of the visual plan. A request for an article alone is not approval.
+When the video offers no useful frame, use fewer images rather than inventing
+filler. A renderer may crop, size, and place a source frame, but may not replace
+it with a newly authored visual or alter it to imply content absent from the
+source.
+
 ### Local image handoff for paste-oriented HTML
 
 When an article is meant to be copied into a rich-text editor and an image is

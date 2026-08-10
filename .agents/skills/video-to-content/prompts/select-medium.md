@@ -58,6 +58,15 @@ reframe material so the result works as that carrier. Use
 `preserve_source_order` only when the original sequence is itself meaningful,
 such as a procedure, chronology, or narrative reveal.
 
+For a video-derived `article`, visual directions default to the original cover
+and timestamped frames from the source video. Record useful source moments in
+`structure[].visual_direction` instead of inventing a diagram from the article's
+conceptual structure. Selecting `article` does not authorize generated diagrams,
+AI illustrations, stock images, or synthetic visual summaries. Put such a
+visual in the plan only when the user explicitly requested it or separately
+approved that visual choice. If no source frame materially helps a section,
+plan fewer images rather than filler.
+
 Declare `narrative_voice` separately from factual attribution:
 
 - single-author or joint-author monologue: default to `source_author` and bind
