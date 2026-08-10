@@ -68,10 +68,15 @@ work.
   for the requested capabilities and verify heavy runtimes with `doctor`.
 - Current URL support is Bilibili only. Do not claim YouTube or Douyin support
   until their adapters exist.
+- Treat platform subtitle availability and visual hard-subtitle presence as
+  independent facts. A platform track may be machine-generated and never proves
+  that full-video hard-subtitle OCR can be skipped.
 - When continuous hard subtitles are uncertain, use
-  `plan_hard_subtitle_scout` before a full-video OCR pass. Sparse OCR cues do not
-  prove that hard subtitles are absent; the Agent must inspect sampled frames,
-  text role, density, and continuity.
+  `plan_hard_subtitle_scout` before a full-video OCR pass, whether or not platform
+  subtitles exist. Sparse OCR cues do not prove that hard subtitles are absent;
+  the Agent must inspect sampled frames, text role, density, and continuity. If
+  continuous hard subtitles exist, full-video OCR is required; skip it only after
+  the independent visual decision establishes that they do not.
 - The Python/MCP content project stops at an audited deliverable. It does not
   log in to publishing platforms, upload files, or change platform state.
 - Measure substantial content work with explicit Agent-named phases through

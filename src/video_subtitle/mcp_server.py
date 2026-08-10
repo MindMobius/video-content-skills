@@ -194,7 +194,7 @@ def start_subtitle_extraction(
     ocr_consensus_image_max_width: int | None = None,
     min_subtitle_duration: float = 0.2,
 ) -> dict[str, Any]:
-    """Start a durable job; auto avoids concurrent OCR/ASR on a shared GPU."""
+    """Start a durable job; platform tracks never cancel explicit OCR/ASR requests."""
     parsed_crop: tuple[int, int, int, int] | None = None
     if crop is not None:
         if len(crop) != 4:

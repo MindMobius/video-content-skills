@@ -81,16 +81,18 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
 它们需要用户会话、硬件、网络成本和内容授权。真实验收应选择用户有权处理的样本，完成：
 
 1. setup/deep doctor；
-2. 解析元数据和平台字幕；连续硬字幕不确定时先生成并执行稀疏 OCR 侦察窗口；
-3. 平台字幕、OCR、ASR 独立落盘；
-4. manifest、attempt、日志与 SHA-256 保留；下载 attempt 的缓存、重试和 `actual_bytes` 与
+2. 解析元数据和平台字幕；不论平台字幕是否存在，都独立判断连续硬字幕，必要时先生成并执行
+   稀疏 OCR 侦察窗口；
+3. 侦察确认存在连续硬字幕时执行全片 OCR；只有确认不存在时才跳过；
+4. 平台字幕、OCR、ASR 独立落盘；
+5. manifest、attempt、日志与 SHA-256 保留；下载 attempt 的缓存、重试和 `actual_bytes` 与
    实际文件一致；
-5. 按时间范围读取并核对冲突；
-6. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit，并用显式阶段计时
+6. 按时间范围读取并核对冲突；
+7. 用户指定载体后再建立 content map、media plan、成品和 fidelity audit，并用显式阶段计时
    记录 Agent、工具、人类等待和外部交接耗时；
-7. 公众号文章包先运行 `scripts/validate_wechat_package.py`，确认图片标记、清单、本地文件、
+8. 公众号文章包先运行 `scripts/validate_wechat_package.py`，确认图片标记、清单、本地文件、
    正式 HTML 和预览文案满足确定性交付契约；
-8. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
+9. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
    CDN 接管、元数据和草稿保存状态；生成 `video-content/wechat-draft-receipt-v1`，使用
    `scripts/validate_wechat_draft_receipt.py --project <project.json>` 验证，并明确没有发布。
 

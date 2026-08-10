@@ -381,7 +381,10 @@ def _add_extraction_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--collect-all-sources",
         action="store_true",
-        help="Continue after platform subtitles and preserve all configured evidence",
+        help=(
+            "Mark the job as multi-source; explicitly requested OCR/ASR is always "
+            "honored even when platform subtitles exist"
+        ),
     )
     parser.add_argument(
         "--media-execution",

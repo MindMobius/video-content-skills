@@ -102,6 +102,20 @@ def test_public_entrypoints_discover_reliability_and_timing_contracts() -> None:
         assert token in content_contract
 
 
+def test_hard_subtitle_decision_is_independent_of_platform_tracks() -> None:
+    skill = (SKILLS_ROOT / "video-subtitle" / "SKILL.md").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    workflow = (ROOT / "docs" / "workflow.md").read_text(encoding="utf-8")
+
+    assert re.search(r"two\s+independent observations", skill)
+    assert "A usable platform track does not permit skipping this decision" in skill
+    assert re.search(r"whether or not platform\s+subtitles exist", agents)
+    assert "平台字幕是否存在与连续硬字幕是否存在是两个独立问题" in workflow
+    assert (
+        "When platform subtitles are absent and continuous hard subtitles" not in skill
+    )
+
+
 def test_package_versions_are_synchronized_semver() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     package = (ROOT / "src" / "video_subtitle" / "__init__.py").read_text(

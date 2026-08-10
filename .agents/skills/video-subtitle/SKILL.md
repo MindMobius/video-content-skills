@@ -142,30 +142,39 @@ Use the smallest useful loop:
 5. Stop when the user's requested confidence is reached; otherwise obtain one
    more independent source or a narrower rerun.
 
-Default extraction prefers:
+Platform subtitle availability and burned-in hard-subtitle presence are two
+independent observations. Never use one as a proxy for the other:
 
-```text
-platform subtitle > hard OCR > audio ASR
-```
+1. Query platform subtitles first because lookup is cheap. Preserve the track as
+   independent evidence and keep its human-versus-ASR provenance unresolved unless
+   the platform actually proves it.
+2. Independently determine whether the picture contains continuous editorial hard
+   subtitles. A usable platform track does not permit skipping this decision.
+3. If continuous hard subtitles exist, run full-video OCR even when platform
+   subtitles are available. For edited explainers, interviews, translated videos,
+   and terminology-heavy material, OCR is normally the primary evidence for what
+   the publisher chose to display; platform subtitles and ASR are checkers.
+4. Skip full-video OCR only after visual scouting establishes that continuous hard
+   subtitles are absent, or when direct source knowledge already establishes that
+   fact. Do not infer absence from sparse OCR cues alone.
+5. Use ASR as the fallback when no usable text track exists and as an independent
+   semantic checker when risk, language, names, numbers, or terminology justify it.
 
-This is only a convenience order, not a truth ranking. Platform lookup should
-come first because it is cheap. When it is absent, hard-subtitle OCR is the main
-source for videos whose editorial text is burned into the picture. ASR is a
-fallback for videos without visible subtitles and an independent checker for
-important or terminology-heavy material.
+When continuous hard subtitles are uncertain, call
+`plan_hard_subtitle_scout` regardless of whether platform subtitles exist. Run the
+returned windows with `time_start` and `time_end`, then inspect their frames, cue
+density, text role, and continuity. A few title cards are not continuous subtitles,
+while one sparse or failed OCR window is not proof that subtitles are absent. The
+calling Agent owns this semantic decision. Skip the scout when the source is
+already known to contain or not contain continuous hard subtitles, or when the
+plan's coverage approaches the full duration and therefore saves no work.
 
-For quick, low-risk work, use the default behavior. For high-value material,
-consider `collect_all_sources=true` and `asr_backend=qwen3`. Do not run full-video
-ASR, double-scale OCR, or full review solely because the capability exists.
-
-When platform subtitles are absent and continuous hard subtitles are uncertain,
-call `plan_hard_subtitle_scout` before committing to a full-video OCR pass. Run
-the returned windows with `time_start` and `time_end`, then inspect their frames,
-cue density, text role, and continuity. A few title cards are not continuous
-subtitles, while one sparse or failed OCR window is not proof that subtitles are
-absent. The calling Agent owns this semantic decision. Skip the scout when the
-source is already known to contain continuous hard subtitles or when the plan's
-coverage approaches the full duration and therefore saves no work.
+Use `ocr_backend=none` and `asr_backend=none` only for an intentional platform-only
+probe. Once OCR or ASR is explicitly requested, the extraction job must not let a
+platform subtitle track short-circuit that request. Use
+`collect_all_sources=true` when the manifest should make the multi-source intent
+explicit. Do not run full-video ASR, double-scale OCR, or full review solely because
+the capability exists.
 
 For a known conflict, prefer `time_start` / `time_end` for OCR and
 `asr_time_start` / `asr_time_end` for ASR. Use `asr_context` only for verified

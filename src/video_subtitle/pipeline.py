@@ -153,6 +153,8 @@ class ExtractionPipeline:
 
         platform = str(self.client.platform)
         platform_artifact_source = f"platform_subtitle:{platform}"
+        ocr_requested = request.ocr_backend.lower() != "none"
+        asr_requested = request.asr_backend.lower() != "none"
         effective_page = request.page
         metadata_attempt = _start_attempt(manifest, f"{platform}_metadata")
         save()
@@ -241,7 +243,11 @@ class ExtractionPipeline:
                 "succeeded",
                 cue_count=len(cues),
             )
-            if not request.collect_all_sources:
+            if (
+                not request.collect_all_sources
+                and not ocr_requested
+                and not asr_requested
+            ):
                 _finalize_evidence_bundle(manifest, output_dir)
                 return _finish_completed(
                     manifest,
@@ -285,8 +291,6 @@ class ExtractionPipeline:
         asr_backend: AsrBackend | None = None
         asr_attempt: dict[str, Any] | None = None
         asr_backend_description: dict[str, Any] | None = None
-        ocr_requested = request.ocr_backend.lower() != "none"
-        asr_requested = request.asr_backend.lower() != "none"
         legacy_disabled_ocr_path = (
             not platform_available and not ocr_requested and not asr_requested
         )

@@ -148,6 +148,7 @@ def test_platform_subtitle_completes_without_ocr(tmp_path: Path) -> None:
         ExtractionRequest(
             url="https://www.bilibili.com/video/BV1fake",
             output_dir=tmp_path,
+            ocr_backend="none",
         )
     )
     assert manifest["status"] == "completed"
@@ -155,6 +156,38 @@ def test_platform_subtitle_completes_without_ocr(tmp_path: Path) -> None:
     assert manifest["selected_source"]["platform"] == "bilibili"
     assert (tmp_path / "subtitle.platform.srt").exists()
     assert (tmp_path / "subtitle.platform.md").exists()
+
+
+def test_platform_subtitle_does_not_short_circuit_requested_ocr(
+    tmp_path: Path,
+) -> None:
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"fake")
+    output = tmp_path / "result"
+    client = FakeClient(
+        [{"index": 1, "from": "1.00s", "to": "2.50s", "content": "平台字幕"}]
+    )
+
+    manifest = ExtractionPipeline(
+        client,
+        ocr_resolver=lambda *_: FakeOcrBackend(),  # type: ignore[arg-type]
+    ).run(
+        ExtractionRequest(
+            url="https://www.bilibili.com/video/BV1fake",
+            output_dir=output,
+            video_path=video,
+            ocr_backend="videocr",
+        )
+    )
+
+    assert manifest["status"] == "completed"
+    assert [source["kind"] for source in manifest["sources"]] == [
+        "platform_subtitle",
+        "hard_ocr",
+    ]
+    assert manifest["selected_source"]["kind"] == "evidence_bundle"
+    assert (output / "subtitle.platform.srt").exists()
+    assert (output / "subtitle.ocr.srt").exists()
 
 
 def test_missing_platform_and_backend_returns_needs_ocr(tmp_path: Path) -> None:
