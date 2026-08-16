@@ -10,8 +10,8 @@
     "content": {
       "medium": "wechat_article",
       "objective": "faithful_information_transfer",
-      "audience": "????????????????",
-      "output_language": "zh-CN",
+      "audience": "newsletter readers who want a concise faithful article",
+      "output_language": "en-US",
       "style": "restrained-editorial",
       "image_policy": "source_video_only"
     },
@@ -40,7 +40,7 @@
       {
         "bvid": "BV1fixtureusable",
         "page": 1,
-        "title": "???????????",
+        "title": "Turning long videos into faithful articles",
         "url": "https://www.bilibili.com/video/BV1fixtureusable/",
         "position": 1,
         "addedAt": "2026-08-16T00:00:00Z"
@@ -50,7 +50,7 @@
       {
         "bvid": "BV1fixtureusable",
         "page": 1,
-        "title": "???????????",
+        "title": "Turning long videos into faithful articles",
         "url": "https://www.bilibili.com/video/BV1fixtureusable/",
         "position": 9,
         "addedAt": "2026-08-16T00:00:00Z"
@@ -64,30 +64,30 @@
       {
         "start_ms": 0,
         "end_ms": 4000,
-        "text": "????????????????????"
+        "text": "Long videos are hard to receive, not short on information."
       },
       {
         "start_ms": 4000,
         "end_ms": 9000,
-        "text": "???????????????????"
+        "text": "A medium change must preserve claims, evidence, and caveats."
       }
     ],
     "canonical_decisions": [
       {
-        "issue": "???????? OCR ????/???????",
-        "decision": "????????????OCR ???????????",
+        "issue": "The platform track and OCR disagree on claims versus ideas.",
+        "decision": "Keep claims from the platform track and use OCR as corroboration.",
         "confidence": "high"
       }
     ],
-    "article_title": "??????????????????",
-    "article_body": "# ???????????\n\n?????????????????????????????????????????\n\n???????????????????????????",
+    "article_title": "Faithful video conversion is more than compression",
+    "article_body": "# Faithful video conversion\n\nLong videos are hard to receive, not short on information. A medium change must preserve claims, evidence, and caveats.\n\nSubtitle evidence shows what the video said; it does not independently prove the claims true.",
     "appmsgid": "100000901"
   },
   "unusable": {
     "source": {
       "bvid": "BV1fixturebad",
       "page": 1,
-      "title": "???????????",
+      "title": "Media without a reliable transcript",
       "url": "https://www.bilibili.com/video/BV1fixturebad/",
       "position": 1,
       "addedAt": "2026-08-16T01:00:00Z"

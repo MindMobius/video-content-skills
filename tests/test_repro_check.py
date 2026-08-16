@@ -35,9 +35,7 @@ def test_repro_check_core_tier_passes() -> None:
 
 def test_repro_check_agent_tier_includes_watch_later_contract() -> None:
     report = run_repro_check(required_tiers=["agent"])
-    checks = {
-        item["name"]: item for item in report["tiers"]["agent"]["checks"]
-    }
+    checks = {item["name"]: item for item in report["tiers"]["agent"]["checks"]}
 
     automation = checks["watch_later_to_draft_contract"]
     assert automation["status"] == "passed"
