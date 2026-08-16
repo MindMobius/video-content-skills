@@ -41,6 +41,7 @@ def test_public_docs_explain_the_one_shot_operator_contract() -> None:
         "--confirm-draft-only-authorization",
         "automation-scan",
         "--baseline-if-empty",
+        "BILIBILI_RISK_CONTROL",
         "--store",
         "unprocessable",
         "paused_auth",

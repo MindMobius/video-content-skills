@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+import video_subtitle.core.automation_scan as automation_scan_module
+from video_subtitle.core.automation_job import list_automation_jobs
 from video_subtitle.core.automation_profile import save_automation_profile
 from video_subtitle.core.automation_scan import scan_watch_later
 
@@ -151,6 +153,53 @@ def test_scan_adds_one_new_identity_and_does_not_cancel_removed_item(
     assert result["new_entry_count"] == 1
     assert len(result["created_jobs"]) == 1
     assert result["job_count"] == 2
+
+
+def test_scan_advances_latest_snapshot_only_after_jobs_are_durable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile_path = tmp_path / "profile.json"
+    profile = save_automation_profile(profile_path, _profile())
+    latest_path = (
+        tmp_path
+        / "automation"
+        / profile["profile_id"]
+        / "watch-later-latest.json"
+    )
+    real_transition = automation_scan_module.transition_automation_job
+
+    def fail_queue(*args, **kwargs):
+        raise RuntimeError("simulated queue failure")
+
+    monkeypatch.setattr(
+        automation_scan_module, "transition_automation_job", fail_queue
+    )
+    with pytest.raises(RuntimeError, match="queue failure"):
+        scan_watch_later(
+            profile_path=profile_path,
+            source=FakeWatchLaterSource(_rows()),
+            store=tmp_path,
+        )
+
+    assert latest_path.exists() is False
+    interrupted_jobs = list_automation_jobs(tmp_path)["jobs"]
+    assert len(interrupted_jobs) == 1
+    assert interrupted_jobs[0]["status"] == "discovered"
+
+    monkeypatch.setattr(
+        automation_scan_module, "transition_automation_job", real_transition
+    )
+    result = scan_watch_later(
+        profile_path=profile_path,
+        source=FakeWatchLaterSource(_rows()),
+        store=tmp_path,
+    )
+
+    assert latest_path.is_file()
+    assert result["created_jobs"] == []
+    assert result["existing_jobs"] == [interrupted_jobs[0]["job_id"]]
+    recovered_jobs = list_automation_jobs(tmp_path)["jobs"]
+    assert recovered_jobs[0]["status"] == "queued"
 
 
 def test_malformed_scan_creates_no_partial_jobs(tmp_path: Path) -> None:

@@ -34,11 +34,30 @@ test('normalizes a Watch Later provider payload to stable fields', () => {
   assert.equal(JSON.stringify(rows).includes('owner'), false)
 })
 
-test('rejects login failures and malformed rows', () => {
+test('classifies login, risk control, and malformed responses', () => {
   assert.throws(
     () => normalizeWatchLaterPayload({ code: -101, message: 'not logged in' }),
-    /login/i,
+    (error) => {
+      assert.equal(error.code, 'BILIBILI_AUTH_REQUIRED')
+      assert.equal(error.authRequired, true)
+      return /login/i.test(error.message)
+    },
   )
+  for (const payload of [
+    { code: -352, message: 'risk control', data: {} },
+    { code: 0, data: { v_voucher: 'challenge', list: [] } },
+    { code: 0, __http: 412, data: { list: [] } },
+    { code: 0, __http: 403, data: { list: [] } },
+  ]) {
+    assert.throws(
+      () => normalizeWatchLaterPayload(payload),
+      (error) => {
+        assert.equal(error.code, 'BILIBILI_RISK_CONTROL')
+        assert.equal(error.retryable, true)
+        return /risk control/i.test(error.message)
+      },
+    )
+  }
   assert.throws(
     () => normalizeWatchLaterPayload({ code: 0, data: { list: [{}] } }),
     /malformed/i,
