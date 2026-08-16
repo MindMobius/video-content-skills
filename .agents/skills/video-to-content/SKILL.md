@@ -1,6 +1,6 @@
 ---
 name: video-to-content
-description: Transform verified video subtitle evidence into a traceable content map and a user-authorized deliverable such as an article, one-page visual, card series, brief, or script. Use when the user wants to understand, condense, adapt, or share a video's information without losing claims, evidence, caveats, attribution, or uncertainty.
+description: Transform verified video subtitle evidence into traceable, user-authorized articles, one-page visuals, card series, briefs, scripts, or custom media; coordinate resumable multi-video batches and portable project handoff without merging evidence. Use when the user wants to understand, condense, adapt, migrate, or share video information while preserving claims, evidence, caveats, attribution, and uncertainty.
 ---
 
 # Video to Content
@@ -34,8 +34,31 @@ When a completed subtitle job already exists:
 
 The content layer adds no OCR, ASR, browser, model, or rendering dependency. It
 uses the evidence already collected by `video-subtitle`. A requested final
-format may require a separate renderer available to the calling Agent. Live
-publishing-platform state is not part of the content project.
+format may use the first-party WeChat renderer or another renderer available to
+the calling Agent. Live publishing-platform state is not part of the content
+project.
+
+## Multi-input and portable work
+
+For multiple inputs, create one `video-content/batch-v1` ledger with
+`initialize_video_batch` before starting expensive work. Preserve the user's
+input order and requested carrier. Each item must keep its own subtitle manifest,
+content project, deliverable, fidelity audit, and optional platform receipt; the
+batch is a resume ledger, not a merged content project.
+
+Use `get_video_batch` to choose the next resumable item and stage. Mark a stage
+`running` immediately before work, then `completed` with an existing in-batch
+artifact path, or `failed`/`blocked` with a concise no-secret reason. Respect
+subtitle -> content -> handoff prerequisites. Do not mark handoff requested
+unless the user explicitly asked for it, and do not let one failed item erase
+successful work on others.
+
+For a machine or Agent handoff, export the completed content project with
+`scripts/project_bundle.py`. Verify the bundle before import. The bundle preserves
+project and evidence references with SHA-256 records, includes Agent/model
+provenance when supplied, scans text for credentials and persisted image Base64,
+and excludes source video by default. It transfers artifacts, not browser login,
+models, tools, GPU conclusions, or live-service readiness.
 
 ## Explicit phase timing
 
@@ -126,7 +149,7 @@ Read [`prompts/create-deliverable.md`](prompts/create-deliverable.md).
 When the selected target is a WeChat Official Account article or an equivalent
 copy-oriented rich-text handoff, also read
 [`references/wechat-article.md`](references/wechat-article.md). It defines the
-article manuscript, optional renderer, public source block, local-image package,
+article manuscript, first-party renderer, public source block, local-image package,
 preview, and validation boundaries without turning writing into a fixed script.
 The audited package must remain usable without any platform integration.
 
@@ -180,6 +203,22 @@ Do not add a stock account signature, author identity, QR-code block, follow
 prompt, or engagement CTA merely because a theme includes one. Save and audit
 the clean human-visible content artifact, not a browser preview wrapper.
 
+When the approved output matches the restrained baseline, write a
+`video-content/wechat-manuscript-v1` document and run:
+
+```powershell
+python scripts/render_wechat_article.py .\manuscript.json .\wechat-article
+```
+
+The first-party `restrained-editorial` renderer is deterministic and permits
+only `video_cover` and timestamped `video_frame` image blocks. It produces the
+semantic Markdown, clean body HTML, local preview, ordered image checklist, and
+one-line relative image markers, then runs package validation. The Agent still
+owns every sentence, block choice, source timestamp, and fidelity decision. Use
+another renderer only when the media plan needs a presentation this renderer
+cannot express or the user explicitly requests one; validate its output against
+the same provenance and minimal-edit rules.
+
 Call `save_video_content_deliverable` with:
 
 - the selected medium and actual serialization format;
@@ -232,6 +271,20 @@ Agent-authored artifacts:
 Subtitle evidence remains available through `list_subtitle_evidence` and
 `read_subtitle_evidence`.
 
+Multi-input ledger:
+
+- `initialize_video_batch`: create or idempotently reopen a per-input stage ledger.
+- `get_video_batch`: read counts and one resumable stage per unfinished item.
+- `update_video_batch_item`: apply a guarded transition and bind a completed
+  stage to an existing artifact under the batch directory.
+
+Deterministic repository scripts:
+
+- `scripts/render_wechat_article.py`: render and validate the first-party
+  restrained WeChat package from a structured manuscript.
+- `scripts/project_bundle.py export|verify|import`: transfer a no-secret,
+  hash-verified project bundle between machines or Agents.
+
 The JSON CLI exposes the same lifecycle:
 
 ```powershell
@@ -251,6 +304,12 @@ video-subtitle content-deliverable `
 video-subtitle content-save --project .\content\<project-id>\project.json `
   --kind fidelity_audit --document .\fidelity-audit.json
 video-subtitle content-validate --project .\content\<project-id>\project.json
+
+video-subtitle batch-init --manifest .\batch\batch.json `
+  --input $url1 --input $url2 --medium article
+video-subtitle batch-status --manifest .\batch\batch.json
+video-subtitle batch-update --manifest .\batch\batch.json `
+  --item-id item-001 --stage subtitle --status running
 ```
 
 See [`references/contracts.md`](references/contracts.md) for schema locations,

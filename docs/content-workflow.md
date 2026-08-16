@@ -149,16 +149,50 @@ manifest 的 attempt。`start_video_content_phase` 和 `finish_video_content_pha
 
 Prompt 只规定问题、边界和交付契约，不提供固定摘要算法。
 
+## 多视频批次与跨机器交接
+
+多视频任务仍由 Agent 逐条完成同一语义链，但仓库提供
+`video-content/batch-v1` 作为可恢复台账：
+
+```text
+batch item
+  subtitle: pending -> running -> completed(manifest.json)
+  content:  pending -> running -> completed(project.json)
+  handoff:  pending/not_requested -> running -> completed(receipt.json)
+```
+
+台账只记录输入顺序、目标载体、用户是否明确要求草稿、每阶段尝试与最后错误，以及批次目录内
+真实产物引用。它强制 subtitle -> content -> handoff 前置条件，支持 failed/blocked 后重试，且
+单条失败不覆盖其他条目的完成状态。它不把多条字幕拼成一个 manifest，不共享 content map，
+不替 Agent 选择并发，也不扩大草稿授权。
+
+使用 `initialize_video_batch`、`get_video_batch`、`update_video_batch_item`，或对应的
+`batch-init`、`batch-status`、`batch-update` CLI。Agent 在昂贵步骤前写 `running`，完成后绑定
+真实文件；错误字段只保存精简、无秘密的诊断信息。
+
+项目交给新电脑或新 Agent 时，使用 `scripts/project_bundle.py`：
+
+```powershell
+python scripts/project_bundle.py export --project $project --output .\project.zip `
+  --agent codex --model <model-name>
+python scripts/project_bundle.py verify .\project.zip
+python scripts/project_bundle.py import .\project.zip --destination .\restored
+```
+
+迁移包保存 content project、源 manifest、证据和交付目录的相对引用、SHA-256 与生成来源；默认
+排除原视频，并拒绝 Cookie/URL token/密码痕迹、落盘 Base64 和路径穿越。导入后重新运行项目
+完整性校验。迁移包不包含登录态、外部模型、可执行文件或旧机器的 GPU 调度结论。
+
 ## 公众号文章交付协议
 
-公众号文章不是“套一个公众号模板”。它仍然先完成内容重建，再把稳定稿交给可选的排版
-Skill：
+公众号文章不是“套一个公众号模板”。它仍然先完成内容重建，再把稳定稿交给首方克制排版器
+或用户明确选择的其他表现层：
 
 ```text
 Content map + Media plan
 -> article.md（文章语义稿）
 -> 原视频封面 + 与文章语义位置对应的可追溯视频截帧
--> 可选公众号排版 Skill（只负责主题与 HTML）
+-> 首方 restrained-editorial（或经批准的其他排版器，只负责主题与 HTML）
 -> 干净正文 HTML + 浏览器预览
 -> 本地图片 + 单行相对路径标记 + 简短导入清单
 -> HTML 合规校验 + 忠实度审计
@@ -218,16 +252,24 @@ wechat-article/
 路径、违反已选最小编辑模式、正文叙述口吻错误或宣称不完整产物“可直接粘贴”则必须失败
 并返修。
 
-仓库提供一个不依赖第三方库的确定性交付包检查：
+仓库提供首方 `video-content/wechat-manuscript-v1` 稿件契约和不依赖第三方库的渲染/校验：
 
 ```powershell
-python scripts/validate_wechat_package.py <wechat-article-directory>
+python scripts/render_wechat_article.py <manuscript.json> <wechat-article-directory>
 ```
 
-它输出 `video-content/wechat-package-validation-v1` JSON，检查正文标记、清单和本地文件顺序，
-区分干净 HTML 与预览外壳，并拒绝落盘 Base64、本地 URI、绝对路径、下划线、通用签名/互动
-组件及“可直接粘贴”等误导文案。这个结果只证明交付包机械完整，不能代替 Agent 对事实、
-归因、限定和作者口吻的 fidelity audit。
+它只接受原视频封面和带时间点的原视频截帧，输出 `article.md`、干净 `article.html`、本地预览、
+复制后的素材和有序清单，并返回渲染与 `video-content/wechat-package-validation-v1` 的组合 JSON。
+校验检查正文标记、清单和本地文件顺序，区分干净 HTML 与预览外壳，并拒绝落盘 Base64、
+本地 URI、绝对路径、下划线、通用签名/互动组件及“可直接粘贴”等误导文案。这个结果只证明
+交付包机械完整，不能代替 Agent 对事实、归因、限定和作者口吻的 fidelity audit。
+
+对于已有交付包或第三方渲染器输出，单独运行
+`python scripts/validate_wechat_package.py <wechat-article-directory>`；首方组合命令只是自动调用
+这一步，不会取消独立校验器的公共入口。
+
+当首方主题无法表达已批准的媒介计划，或用户明确指定其他风格时，可以使用第三方渲染 Skill；
+它仍须满足同一原视频素材、干净正文、最小图片标记和无默认 CTA/签名边界，并单独记录版本。
 
 ## 可选公众号草稿交接
 
@@ -244,23 +286,29 @@ python scripts/validate_wechat_package.py <wechat-article-directory>
 
 Base64 只是一次性运输层，不能写回正式 HTML、落盘、提交或成为新的审计对象。Agent 粘贴后
 必须核对正文图片数量、微信 CDN 地址、本地/临时地址是否清零、标题、摘要、封面和保存状态。
-若浏览器工具不能写入带图片字节的富文本剪贴板，或微信没有完整接管图片，就回退到原有
-单行路径人工插图流程，不能声称自动导入成功。
+仓库自带 `wechat-draft-handoff/scripts/prepare_clipboard.py`：默认只做 dry run 并报告图片数量，
+只有紧邻授权粘贴时才加 `--copy`；JSON 报告不包含 HTML/Base64，也不读取旧剪贴板。若浏览器
+工具不能写入带图片字节的富文本剪贴板，或微信没有完整接管图片，就回退到原有单行路径人工
+插图流程，不能声称自动导入成功。
 
 首次修改编辑器前，应启动类别为 `external` 的 `wechat_handoff` 阶段；保存并回读后，以实际
-结果结束该阶段。成功保存还必须在文章包旁写入 `wechat-draft-receipt.json`，使用
-`video-content/wechat-draft-receipt-v1`，并运行：
+结果结束该阶段。`browser-adapter.js` 可将正文图片和可见字段整理成无秘密的
+`video-content/wechat-browser-snapshot-v1`；Agent 还要从当前页面补齐封面、原创、内容检查、时间和
+持久保存证据，才能形成 `video-content/wechat-editor-observation-v1`。不支持脚本求值时，Agent
+仍按同一 observation schema 语义观察。成功保存还必须从完整观察构建
+`wechat-draft-receipt.json`，并运行：
 
 ```powershell
-python scripts/validate_wechat_draft_receipt.py `
-  <wechat-article-directory>\wechat-draft-receipt.json `
-  --project <content-project>\project.json
+python scripts/build_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-editor-observation.json `
+  --project <content-project>\project.json `
+  --output <wechat-article-directory>\wechat-draft-receipt.json
 ```
 
 回执记录当前 project、deliverable 和 fidelity-audit ID，开始与保存时间，稳定 `appmsgid`，
 正文图片的预期/可见加载/微信托管/残留本地源数量，封面、摘要、作者、原创状态，持久化的
 手动保存记录和保存后页面回读。它必须明确 `published=false` 且
-`publish_actions_performed=[]`。只有验证器返回 `valid=true` 才能报告草稿保存成功；成功 toast、
+`publish_actions_performed=[]`。只有构建器返回 `ok=true` 且 `validation.valid=true` 才能报告草稿保存成功；成功 toast、
 图片上传或 URL 中出现 ID 都不能单独替代完整回执。
 
 这条 Skill 只处理用户明确授权的编辑器写入和草稿保存；不读取 Cookie、Token、密码或
@@ -322,9 +370,9 @@ video-subtitle content-status --project $project
 ## 当前限制
 
 - 内容工程入口目前只接受本项目完成的字幕 manifest；
-- 多视频任务由 Agent 编排多个独立项目，仓库不提供把多条视频合并为单一内容项目的批次产物；
-- 一图流的 SVG/HTML、文章 Markdown 等内容由 Agent 或独立渲染 Skill 生成，本项目只保存
-  和校验，不内置模板化设计器；
+- 批次台账只保存独立项目的状态和恢复点，不执行调度，也不把多条视频合并为单一内容项目；
+- 一图流的 SVG/HTML 等视觉内容仍由 Agent 或独立渲染 Skill 生成；首方渲染器只覆盖克制编辑风
+  公众号文章，不是通用模板化设计器；
 - Python/MCP 内容项目不提供平台登录或写入；可选 `wechat-draft-handoff` 只复用调用方已有
   的登录浏览器并按显式授权保存草稿，不处理定时发布、正式发布、群发、原创声明或账号管理；
 - 当前 content map 的视觉引用由 Agent 从视频上下文判断，尚无按范围抽帧工具；

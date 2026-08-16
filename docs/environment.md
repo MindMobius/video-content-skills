@@ -10,9 +10,11 @@
 
 ```text
 scripts/bootstrap.py
-  → 安装 Python 包，报告 Skill、CLI、MCP 入口与 setup 结果
+  → 按 Python 约束安装包，报告 Skill、CLI、MCP 入口、锁哈希与 setup 结果
 video_subtitle_setup
   → 按能力解析外部依赖，返回 Agent / human actions
+scripts/runtime_setup.py
+  → 按重运行时锁计划、确认安装并校验 FFmpeg、VideOCR、ASR 与模型
 configure_video_subtitle
   → 持久化已发现的非秘密配置
 video_subtitle_doctor
@@ -31,11 +33,20 @@ MCP 客户端的配置格式各不相同，因此 Bootstrap 报告可移植的 `
 `transport`，不直接改写任一 Agent 的全局配置。MCP 不可用时，`fallback_command` 指向
 同一份 JSON CLI 契约。
 
-## 两类依赖清单
+## 四类依赖真值源
 
-`pyproject.toml` 是标准 Python 包依赖真值源。打包在
-`src/video_subtitle/requirements.json` 中的 `video-subtitle/requirements-v1`
-描述 Python 之外的运行能力：
+1. `pyproject.toml` 定义 Python 包的直接依赖与可选组；`uv.lock` 和
+   `requirements/mcp-constraints.txt` 固定已验证解析结果。
+2. `package.json` 定义 DSH/Node 分发边界；`npm-shrinkwrap.json` 固定 npm 开发契约并随
+   发布包分发。
+3. `src/video_subtitle/requirements.json` 的
+   `video-subtitle/requirements-v1` 描述每项能力需要哪些外部依赖，以及 Agent、人类和确认
+   动作如何分流。
+4. `requirements/runtime-lock.json` 的 `video-subtitle/runtime-lock-v1` 固定大体积或独立
+   运行时：VideOCR 1.5.1 的平台资产、字节数与 SHA-256，ASR Python/包组合，以及两个模型
+   的 40 位 revision。
+
+能力依赖包括：
 
 - 可执行程序：Node.js、yt-dlp、FFmpeg；
 - 外部项目或二进制：OpenCLI、VideOCR；
@@ -47,10 +58,39 @@ MCP 客户端的配置格式各不相同，因此 Bootstrap 报告可移植的 `
 每项能力只引用自己真正需要的依赖。Agent 应请求最小能力集合，不应默认安装全部
 模型和后端。
 
-清单根级 `verified_at` 记录基线核验日期；依赖可带 `tested_version` 或
-`tested_revision`。这是可复现实验和故障回退使用的已验证组合，不代表永不升级。
-升级者应查验上游来源，明确改动版本或模型 revision，并让 schema、单元测试和干净
-clone 验收同时通过。不能把无版本的“安装最新版”当作可复现安装动作。
+两份 JSON 清单的 `verified_at` 记录基线核验日期；能力依赖可带 `tested_version` 或
+`tested_revision`。这是可复现实验和故障回退使用的已验证组合，不代表永不升级。升级者应
+查验上游来源，明确改动版本、资产哈希或模型 revision，并让 schema、单元测试、锁文件和分层
+复现验收同时通过。不能把无版本的“安装最新版”当作可复现安装动作。
+
+## 重运行时计划与确认
+
+`scripts/runtime_setup.py` 始终输出 `video-subtitle/runtime-action-v1` JSON，并附带当前
+runtime lock 的绝对路径、SHA-256 和 `verified_at`。先运行只读计划：
+
+```powershell
+python scripts/runtime_setup.py plan ffmpeg
+python scripts/runtime_setup.py plan videocr
+python scripts/runtime_setup.py plan asr
+python scripts/runtime_setup.py plan qwen_asr_model
+python scripts/runtime_setup.py plan qwen_aligner_model
+```
+
+FFmpeg 计划给出当前探测状态和操作系统包管理器提示。VideOCR 默认选择当前平台 CPU 资产；
+Agent 只有在当前驱动和任务实际需要时才改选 CUDA 变体。ASR 计划列出固定 Python、torch、
+qwen-asr 与 transformers 组合；模型计划列出固定仓库与 revision。
+
+除 FFmpeg 外，`install` 都必须显式携带 `--confirm-large-download`。确认前向用户报告选择、
+目标位置、已知字节数或模型成本、revision 与 lock 哈希；确认后由 Agent 执行下载/环境创建。
+VideOCR 下载完成先校验字节数和 SHA-256，再解压并持久化 CLI 路径。模型安装生成文件哈希
+回执；迁移或怀疑损坏时用完整 `verify`，仅做快速启动检查时才用 `--quick`。最后必须重跑
+setup 与 doctor，不能把“文件存在”当成能力 ready。
+
+ASR 环境与模型目录开始安装时会写入 `.video-subtitle-installing.json`。下载或安装中断后，
+用完全相同的 profile/revision 和目标目录再次执行 `install`，工具会复用可恢复的半成品；
+不同计划不会混用该目录。验证成功后 marker 自动删除。不要为了绕过冲突手工改 marker；应先
+核对锁和目标，确需更换计划时改用新的空目录。ASR 新环境还必须由锁中声明的 Python 3.12
+创建，现有环境的 Python、torch、qwen-asr 与 transformers 会一起校验。
 
 ## 能力矩阵
 

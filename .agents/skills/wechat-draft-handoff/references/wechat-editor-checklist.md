@@ -22,6 +22,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] No absolute local path will enter the editor or final report.
 - [ ] The original source and transformation disclosure remains before the body
       when required.
+- [ ] The bundled `prepare_clipboard.py` dry run returned `ok=true`, the intended
+      marker count, `payload_persisted=false`, and `previous_clipboard_read=false`.
 
 ## C. Live editor preflight
 
@@ -39,6 +41,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] The temporary payload was not written to the delivery package or logs.
 - [ ] The complete article was pasted once in the intended order.
 - [ ] WeChat was given time to upload and rewrite all images.
+- [ ] `--copy` was used only immediately before this authorized paste; no rich
+      payload was redirected to a file, terminal log, or formal artifact.
 
 ## E. Ingestion verification
 
@@ -53,6 +57,11 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] Text, disclosure, hierarchy, and restrained styling survived the paste.
 - [ ] Image and field checks use the current rendered state rather than the
       first matching DOM node or the total number of `img` elements.
+- [ ] When `browser-adapter.js` was used, its sanitized browser snapshot contains no
+      URL token, cookie, browser storage, clipboard payload, or fixed tab ID.
+- [ ] The final `video-content/wechat-editor-observation-v1` adds visible cover,
+      originality, content-check, timestamp, and durable-save evidence; it is not
+      mislabeled from the partial snapshot alone.
 
 ## F. Metadata and save
 
@@ -80,8 +89,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] Stable `appmsgid`, persisted manual-save history, and saved-page read-back
       are all recorded.
 - [ ] `published=false` and `publish_actions_performed=[]`.
-- [ ] `python scripts/validate_wechat_draft_receipt.py ...` returned
-      `valid=true`.
+- [ ] `python scripts/build_wechat_draft_receipt.py ...` returned `ok=true` and
+      `validation.valid=true` for the sanitized editor observation.
 - [ ] The `wechat_handoff` timing phase was finished with the actual outcome.
 
 Report title, intended/imported visible image counts, cover, summary, validated

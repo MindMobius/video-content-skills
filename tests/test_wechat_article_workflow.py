@@ -22,7 +22,7 @@ def test_wechat_article_reference_preserves_agent_and_renderer_boundaries() -> N
     required_sections = [
         "## Responsibility split",
         "## Build the manuscript first",
-        "## Use a renderer as an optional downstream Skill",
+        "## Render the restrained baseline in-repository",
         "## Source article images from the video by default",
         "## Package local images explicitly",
         "## Validate two independent layers",

@@ -60,6 +60,22 @@ the manual local-image fallback defined in
 [`../video-to-content/references/wechat-article.md`](../video-to-content/references/wechat-article.md).
 Do not claim that images were imported when only path markers were pasted.
 
+Use the two bundled deterministic adapters when their host capabilities are
+available:
+
+- [`scripts/prepare_clipboard.py`](scripts/prepare_clipboard.py) validates the
+  package and assembles the one-time rich clipboard payload. Its default is a
+  no-write dry run; use `--copy` only immediately before the authorized paste.
+- [`scripts/browser-adapter.js`](scripts/browser-adapter.js) observes the current
+  editor through semantic DOM state and emits a no-secret
+  `video-content/wechat-browser-snapshot-v1`. Load or evaluate it through a
+  CDP-capable browser tool when direct semantic inspection is insufficient;
+  never depend on fixed coordinates or a stored tab ID. The snapshot is partial
+  evidence, not the final saved-draft observation.
+
+The adapters do not log in, choose the target article, click save, or authorize
+platform mutation. Inspect the visible page and verify every postcondition.
+
 ## Workflow
 
 Read [`references/wechat-editor-checklist.md`](references/wechat-editor-checklist.md)
@@ -112,6 +128,22 @@ Create one temporary rich-text fragment in memory or directly in the clipboard:
    styling.
 4. Write the result as rich `text/html` clipboard content.
 
+Prefer the bundled helper from the repository root:
+
+```powershell
+# Validate and count assets without changing the clipboard
+python .agents/skills/wechat-draft-handoff/scripts/prepare_clipboard.py `
+  <wechat-article-directory>
+
+# Run only immediately before the authorized paste
+python .agents/skills/wechat-draft-handoff/scripts/prepare_clipboard.py `
+  <wechat-article-directory> --copy
+```
+
+Require `ok=true`, `payload_persisted=false`, and
+`previous_clipboard_read=false`. Do not redirect, capture, or serialize the rich
+payload; the helper's JSON report deliberately excludes it.
+
 The Base64 payload is transport data only. Do not save it beside the article,
 write it back to the deliverable, include it in logs, commit it, or bind it to a
 new fidelity audit. Do not inspect or record the user's previous clipboard
@@ -149,6 +181,15 @@ Do not count every `img` element indiscriminately or accept the first matching
 field in the DOM; verify current rendered state and resolved image sources.
 Visible body-image count equals the intended image count only after those
 visibility, loading, and source checks have excluded helper nodes.
+
+When DOM script evaluation is available, use the bundled browser adapter to
+classify only visible, complete, non-zero-size body images as WeChat-hosted,
+transient, other, or empty. Combine that sanitized snapshot with cover,
+originality, content checks, timestamps, and durable-save state read from the
+current visible editor; only then persist the complete
+`video-content/wechat-editor-observation-v1` JSON. If script evaluation is
+unavailable, perform the same state checks with semantic browser inspection; the
+observation contract is authoritative, not a particular browser transport.
 
 ### 5. Fill metadata without changing provenance
 
@@ -200,15 +241,18 @@ persisted manual-save history entry and saved-page read-back; `published=false`;
 and an empty `publish_actions_performed` array. Do not copy the platform URL
 token, cookies, clipboard Base64, or hidden browser state into the receipt.
 
-Validate it from the repository root:
+Build and validate it from the repository root:
 
 ```powershell
-python scripts/validate_wechat_draft_receipt.py `
-  <wechat-article-directory>\wechat-draft-receipt.json `
-  --project <content-project>\project.json
+python scripts/build_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-editor-observation.json `
+  --project <content-project>\project.json `
+  --output <wechat-article-directory>\wechat-draft-receipt.json
 ```
 
-Require `valid=true`. A success toast, assigned `appmsgid`, image upload, or
+The builder validates the observation schema, rejects secret-bearing fields,
+constructs the receipt, and runs the receipt validator. Require `ok=true` and
+`validation.valid=true`. A success toast, assigned `appmsgid`, image upload, or
 history entry alone is insufficient; the validator requires the complete,
 current combination and checks that the receipt still targets the current
 audited deliverable. If the user requested editor population without saving,

@@ -37,6 +37,31 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 的 JSON CLI。可验证范围、干净 clone 验收和非确定性边界见
 [`docs/reproducibility.md`](docs/reproducibility.md)。
 
+## DSH 插件试玩
+
+仓库同时提供一个最小的 DeepSeek Harness Bundle。它不重写 Python 核心：Bundle 将上述三套
+Skill 注册到 DSH，并用 DSH 官方 MCP Client 连接现有 stdio MCP Server。当前原型没有专用
+UI，先验证自然语言入口、Skill 路由和 24 个工具能否作为一个完整垂直能力共同工作。
+
+在本地 clone 中完成一次 Python bootstrap，再把当前目录安装到 DSH 的 `web` profile：
+
+```powershell
+python scripts\bootstrap.py --apply
+dsh plugin --profile web add .
+dsh --profile web --dump-config
+dsh web
+```
+
+安装后可以直接说：
+
+```text
+把这个 B 站视频整理成一篇可追溯的公众号文章，先不要保存到公众号。
+```
+
+Bundle 默认使用仓库 `.venv` 中的 Python；可用 `VIDEO_SUBTITLE_DSH_PYTHON` 指向另一个已安装
+本项目及 MCP 依赖的 Python。公众号草稿交接仍需用户明确授权和可控制的已登录浏览器；安装
+此 Bundle 不代表获得发布、群发或账号管理权限。
+
 ## 当前能力
 
 - Bilibili 普通链接、短链接和分 P；
@@ -55,10 +80,13 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 - Agent 显式命名的内容阶段计时，以及按阶段名称、类别汇总的真实耗时；
 - 公众号文章配图默认使用原视频封面和带时间点的可追溯截帧；自制结构图、AI 配图、图库图和
   其他合成视觉只有在用户明确要求或单独批准后才可使用；
-- 公众号文章的“语义稿—原视频视觉素材—可选排版器—干净 HTML—单行相对图片路径与简短
-  导入清单”交付协议，以及依赖无关的交付包 JSON 校验器；
+- 首方 `restrained-editorial` 公众号渲染器：从结构化语义稿生成克制排版、干净 HTML、原视频
+  视觉素材、单行相对图片路径、预览与导入清单，并拒绝非视频来源配图；
 - 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
   填写标题/摘要/封面、只保存草稿并生成与当前审计绑定的可校验回执；
+- 多视频任务的逐条批次台账、阶段前置条件、失败重试和恢复点，不合并每条视频的独立产物；
+- 项目 ZIP 导出、SHA-256 校验、秘密扫描、路径穿越防护和跨机器导入，默认排除原视频；
+- `core`、`agent`、`media`、`live` 四层复现验收，其中 live 服务永远保持显式人工验证；
 - 检测证据变化、过期媒介计划、未审计成品和缺失核心限定条件。
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
@@ -74,9 +102,11 @@ Python 包依赖写在 `pyproject.toml`；外部程序、模型、浏览器登�
 - `human_actions`：浏览器登录、硬件缺失等必须由人处理的边界；
 - `confirmation_required`：模型等大体积下载，Agent 执行前需要确认成本。
 
-`requirements.json` 还记录 `verified_at`、已验证工具版本和模型 revision。它们是当前
-可复现基线，不是“永远使用旧版本”的锁死策略；升级时应先更新版本或 revision、完成
-schema 与回归测试，再改写基线，不能在同一次任务中静默漂移。
+Python 解析锁为 `uv.lock` 与 `requirements/mcp-constraints.txt`，Node 分发锁为会随 npm
+包发布的 `npm-shrinkwrap.json`；VideOCR 资产、ASR 包组合、模型 revision 和哈希基线位于
+[`runtime-lock.json`](requirements/runtime-lock.json)。`requirements.json` 负责说明“某项能力
+需要什么”，runtime lock 负责说明“本版本验证了哪一个具体运行时”。升级必须同步更新锁、
+schema、测试和 `verified_at`，不能在同一次任务中静默漂移到 `latest`。
 
 Agent 应只请求当前任务需要的能力；setup/doctor 也只运行相应 probe，不会为本地
 OCR 无故检查浏览器登录或导入 ASR/CUDA。
@@ -92,6 +122,11 @@ python scripts\bootstrap.py --apply `
   --config .\.video-subtitle-local\config.json `
   --capability platform_subtitle `
   --capability hard_ocr_url
+
+# 对 setup 返回的重依赖先读取计划；大下载必须经用户确认后才 install
+python scripts\runtime_setup.py plan videocr
+python scripts\runtime_setup.py plan asr
+python scripts\runtime_setup.py plan qwen_asr_model
 ```
 
 Bootstrap 始终只向 stdout 输出一份 `video-subtitle/bootstrap-v2` JSON。除了安装状态，
@@ -150,7 +185,10 @@ Bootstrap、依赖清单、持久配置和 setup 响应分别由
 [`content-map.schema.json`](schemas/content-map.schema.json)、
 [`media-plan.schema.json`](schemas/media-plan.schema.json) 和
 [`fidelity-audit.schema.json`](schemas/fidelity-audit.schema.json) 定义；已保存的公众号草稿回执由
-[`wechat-draft-receipt.schema.json`](schemas/wechat-draft-receipt.schema.json) 定义。
+[`wechat-draft-receipt.schema.json`](schemas/wechat-draft-receipt.schema.json) 定义。批次、迁移包、
+公众号语义稿和浏览器无秘密观察分别由 `batch-manifest.schema.json`、
+`portable-bundle.schema.json`、`wechat-manuscript.schema.json`、
+`wechat-browser-snapshot.schema.json` 与 `wechat-editor-observation.schema.json` 定义。
 
 ## 使用流程
 
@@ -204,9 +242,10 @@ video-subtitle extract $url `
 
 ## 多视频任务编排与耗时优化
 
-多视频任务由 Agent 编排多个独立的单视频任务，不创建无法追溯的“大批次合并稿”。每个输入
-都保留自己的 `manifest.json`、content project、deliverable、fidelity audit，以及用户明确要求
-保存草稿时才产生的 WeChat receipt。建议按用户给定顺序推进：
+多视频任务由 Agent 编排多个独立的单视频任务，并用 `video-content/batch-v1` 台账保存阶段状态
+和恢复点；它不是“大批次合并稿”。每个输入仍保留自己的 `manifest.json`、content project、
+deliverable、fidelity audit，以及用户明确要求保存草稿时才产生的 WeChat receipt。建议按用户
+给定顺序推进：
 
 1. 先为每个链接解析元数据和平台字幕，尽早暴露失效链接、分 P 与登录问题；
 2. 独立侦察每条视频是否有连续硬字幕；这个判断不受平台字幕是否存在影响；
@@ -216,6 +255,20 @@ video-subtitle extract $url `
    `fidelity_audit` 和 `wechat_handoff` 等显式阶段记录真实墙钟时间；
 6. 用 `get_video_content_project` / `content-status` 的按名称和类别汇总寻找瓶颈，不能用聊天
    时间戳或主观体感代替计时。
+
+```powershell
+video-subtitle batch-init --manifest .\batch\batch.json `
+  --input $url1 --input $url2 --medium article --draft
+video-subtitle batch-status --manifest .\batch\batch.json
+video-subtitle batch-update --manifest .\batch\batch.json `
+  --item-id item-001 --stage subtitle --status running
+video-subtitle batch-update --manifest .\batch\batch.json `
+  --item-id item-001 --stage subtitle --status completed `
+  --artifact .\batch\item-001\manifest.json
+```
+
+台账要求 subtitle -> content -> handoff 的前置条件，完成态必须指向批次目录内真实文件；单条失败
+不会抹掉其他条目的成功状态。只有用户明确要求草稿时才创建 handoff 阶段。
 
 后台 job 默认复用 `<VIDEO_SUBTITLE_HOME>/cache/media`；同步任务应持久化 `download_cache`
 或显式传入 `--download-cache`。下载 attempt 中的 `actual_bytes`、`actual_mib`、`cache_hit`、
@@ -285,6 +338,11 @@ video-subtitle content-save --project $project `
   --kind fidelity_audit --document .\fidelity-audit.json
 video-subtitle content-validate --project $project
 video-subtitle content-status --project $project
+
+# 将通过审计的项目安全交给另一台机器或 Agent
+python scripts\project_bundle.py export --project $project --output .\project.zip
+python scripts\project_bundle.py verify .\project.zip
+python scripts\project_bundle.py import .\project.zip --destination .\restored
 ```
 
 完整工作流、状态失效规则和 dbskill 复用边界见
@@ -307,25 +365,29 @@ video-subtitle content-status --project $project
 正文 DOM 含辅助图片节点时如何只统计可见、已加载的微信图片，作者口吻如何避免扩大事实授权，
 以及封面和草稿保存怎样形成可靠收据，见
 [`BV1jxREBSEUv 公众号草稿交接实测`](docs/cases/BV1jxREBSEUv-wechat-draft-handoff.md)。
-生成公众号文章包后，可从仓库根目录运行
-`python scripts/validate_wechat_package.py <wechat-article-directory>`，先检查图片标记、文件、清单、
-正式 HTML 和预览文案的确定性边界，再执行语义审计或可选平台交接。
+生成公众号文章时，先建立 `video-content/wechat-manuscript-v1`，再运行
+`python scripts/render_wechat_article.py <manuscript.json> <wechat-article-directory>`。首方渲染器会
+生成并立即校验图片标记、文件、清单、正式 HTML 和预览文案；它只接受原视频封面和带时间点
+截帧，语义内容与忠实度审计仍由 Agent 负责。已有包或第三方渲染结果仍可独立运行
+`python scripts/validate_wechat_package.py <wechat-article-directory>`，不能因为未经过首方渲染就
+跳过确定性包校验。
 如果用户还明确要求保存公众号草稿，保存并回读页面后必须在文章包旁生成
-`wechat-draft-receipt.json`，再运行：
+`wechat-editor-observation.json`，再运行：
 
 ```powershell
-python scripts/validate_wechat_draft_receipt.py `
-  <wechat-article-directory>\wechat-draft-receipt.json `
-  --project <content-project>\project.json
+python scripts/build_wechat_draft_receipt.py `
+  <wechat-article-directory>\wechat-editor-observation.json `
+  --project <content-project>\project.json `
+  --output <wechat-article-directory>\wechat-draft-receipt.json
 ```
 
-只有返回 `valid=true`，才能宣布草稿保存完成；回执必须绑定当前 deliverable 与 fidelity audit，
+只有返回 `ok=true` 且 `validation.valid=true`，才能宣布草稿保存完成；回执必须绑定当前 deliverable 与 fidelity audit，
 记录稳定 `appmsgid`、图片和元数据回读、持久化手动保存记录，并明确
 `published=false`、`publish_actions_performed=[]`。
 
 ## MCP
 
-MCP Server 使用 stdio，共暴露 21 个工具：
+MCP Server 使用 stdio，共暴露 24 个工具：
 
 环境：
 
@@ -365,6 +427,12 @@ MCP Server 使用 stdio，共暴露 21 个工具：
 - `save_video_content_deliverable`
 - `read_video_content_artifact`
 - `validate_video_content_project`
+
+批次台账：
+
+- `initialize_video_batch`
+- `get_video_batch`
+- `update_video_batch_item`
 
 Codex 配置示例：
 
@@ -406,12 +474,19 @@ video-subtitle-skill/
 │  ├─ diagnostics.py                  quick/deep doctor
 │  ├─ platforms/                      平台适配器
 │  ├─ backends/                       OCR、ASR、Forced Aligner
-│  ├─ core/                           SRT、证据、派生审阅与内容工程
+│  ├─ core/                           SRT、证据、派生审阅、内容、批次与迁移包
+│  ├─ wechat_renderer.py              首方克制排版公众号渲染器
+│  ├─ wechat_adapter.py               剪贴板运输与无秘密草稿回执适配器
 │  ├─ pipeline.py                     采集和资源调度
 │  ├─ jobs.py                         持久后台任务
 │  ├─ cli.py
 │  └─ mcp_server.py
+├─ requirements/                       Python 约束与重运行时锁
 ├─ scripts/bootstrap.py                无依赖安装入口与 Agent 运行契约
+├─ scripts/runtime_setup.py            重依赖计划、确认安装和校验
+├─ scripts/repro_check.py              四层可复现验收
+├─ scripts/render_wechat_article.py    首方公众号文章包渲染与校验
+├─ scripts/project_bundle.py            项目导出、验证和导入
 ├─ schemas/                            Bootstrap、环境、证据与内容契约
 ├─ tests/
 └─ docs/reproducibility.md             干净 clone、CI 与真实媒体验收边界
@@ -424,8 +499,11 @@ python -m ruff check .
 python -m ruff format --check .
 python -m pytest
 python scripts\mcp_smoke.py
+npm test
+npm run pack:check
+python scripts\repro_check.py --require-tier core --require-tier agent
 ```
 
-当前优先级是用真实长视频验证 content map 与媒介路由、增加按范围抽帧和可选渲染器，
-以及局部 OCR/ASR、通用派生修订、YouTube 和抖音平台适配器，而不是继续扩大固定启发式
-审阅或摘要规则。
+当前优先级是用更多授权真实长视频验证跨机器迁移、批次恢复和首方排版契约，增加按范围抽帧，
+以及局部 OCR/ASR、通用派生修订、YouTube 和抖音平台适配器，而不是继续扩大固定启发式审阅
+或摘要规则。

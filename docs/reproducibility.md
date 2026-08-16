@@ -26,17 +26,21 @@ JSON CLI 继续，按机器可读动作准备环境，只在真实人类边界�
 1. 根目录 `AGENTS.md`：任务路由、人机边界和全新机器入口；
 2. `.agents/skills/*/SKILL.md`：字幕取证、内容转换和可选公众号草稿交接决策；
 3. `src/video_subtitle/requirements.json`：能力依赖、已验证版本与模型 revision；
-4. `schemas/`：Bootstrap、setup、OCR 侦察、证据、内容产物和微信草稿回执的机器契约；
-5. `tests/`：确定性行为与入口可发现性；
-6. `docs/cases/`：观察性真实运行记录，不是可离线重放的测试 fixture。
+4. `requirements/runtime-lock.json`、`uv.lock`、Python constraints 与会随 npm 包发布的
+   `npm-shrinkwrap.json`：重运行时和包解析基线；
+5. `schemas/`：Bootstrap、setup、OCR 侦察、证据、内容、批次、迁移、渲染与微信回执契约；
+6. `tests/fixtures/authorized-video/`：仓库自生成的 CC0 音视频和硬字幕离线夹具；
+7. `tests/` 与 `scripts/repro_check.py`：确定性行为、入口可发现性和分层验收；
+8. `docs/cases/`：观察性真实运行记录，不是可离线重放的测试 fixture。
 
 ## 干净 clone 验收
 
-基础要求是 Python 3.10 或更高版本。Skill 安装器验收还需要 Node.js 20 或更高版本。
-在仓库根目录执行：
+核心 Python 契约要求 Python 3.10 或更高版本。完整 Agent/Node 分发验收使用 Node.js 24；
+`package.json` 支持 `^22.19 || >=24`，不要继续沿用无锁的 Node 20 假设。在仓库根目录执行：
 
 ```text
 npx -y skills@1.5.22 add . --list
+npm ci --ignore-scripts
 python scripts/bootstrap.py --apply --config .video-subtitle-local/config.json --capability hard_ocr_local
 ```
 
@@ -44,6 +48,7 @@ python scripts/bootstrap.py --apply --config .video-subtitle-local/config.json -
 
 - `schema_version` 为 `video-subtitle/bootstrap-v2`；
 - `installation.ready=true`；
+- `installation.lock.verified=true`，并记录实际 constraints/lock SHA-256；
 - `skills.available` 恰好包含 `video-subtitle`、`video-to-content` 与
   `wechat-draft-handoff`；
 - `cli.command` 携带同一绝对配置路径；
@@ -69,11 +74,42 @@ python -m ruff check .
 python -m ruff format --check .
 python -m pytest
 python scripts/mcp_smoke.py
+npm test
+npm run pack:check
+python scripts/repro_check.py --require-tier core --require-tier agent
 ```
 
 CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有一个干净 Ubuntu
-任务实际执行固定版本 Skill discovery 和 Bootstrap apply。macOS 尚未进入自动验收矩阵，
-不能只凭代码看起来可移植就宣称已经验证。
+任务使用 Node.js 24 实际执行 npm 锁安装、浏览器适配器测试、打包内容检查、固定版本 Skill
+discovery、Bootstrap apply，以及由 Bootstrap 创建的解释器执行 `core`/`agent` 分层复现检查。
+macOS 尚未进入自动验收矩阵，不能只凭代码看起来可移植就宣称已经验证。
+
+## 四层复现验收
+
+`scripts/repro_check.py` 输出 `video-subtitle/repro-check-v1`，把“代码能跑”和“外部服务当前
+可用”分开：
+
+| 层级 | 自动检查 | 能证明什么 |
+| --- | --- | --- |
+| `core` | 锁文件、Skill 发现、CC0 媒体静态哈希、首方渲染与剪贴板、批次恢复、迁移包往返 | 确定性核心契约完整 |
+| `agent` | Node 测试、stdio MCP 协议、npm 打包内容 | 新 Agent 能发现和调用分发入口 |
+| `media` | 用显式 FFprobe 或 FFmpeg 解码夹具的视频流和音轨 | 当前媒体工具可读取授权夹具 |
+| `live` | 始终为 `manual_required` | 提醒必须另做登录、真实 OCR/ASR 和微信交接 |
+
+完整离线验收示例：
+
+```powershell
+python scripts/repro_check.py `
+  --require-tier core `
+  --require-tier agent `
+  --require-tier media `
+  --ffmpeg C:\path\to\ffmpeg.exe `
+  --output .\repro-report.json
+```
+
+`core` 通过不代表 VideOCR 模型真的在当前 GPU 上运行；`media` 通过也只证明 FFmpeg 能解码
+仓库夹具；`live` 不允许用 mock、旧案例或成功 HTTP 状态冒充完成。LLM 文章只承诺契约等价和
+证据可追溯，不承诺字节级一致。
 
 ## 真实媒体验收边界
 
@@ -92,26 +128,35 @@ CI 在 Windows 与 Ubuntu、Python 3.10 与 3.12 上运行完整测试；另有�
    记录 Agent、工具、人类等待和外部交接耗时；
 8. 公众号文章包先运行 `scripts/validate_wechat_package.py`，确认图片标记、清单、本地文件、
    正式 HTML 和预览文案满足确定性交付契约；
-9. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
+9. 公众号语义稿先通过首方 `scripts/render_wechat_article.py` 生成并校验；若选择其他渲染器，
+   仍须满足相同的原视频配图、单行路径、无下划线/CTA/签名和干净 HTML 边界；
+10. 仅当用户明确要求公众号草稿交接时，另行验证已登录编辑器、临时剪贴板图片运输、微信
    CDN 接管、元数据和草稿保存状态；生成 `video-content/wechat-draft-receipt-v1`，使用
-   `scripts/validate_wechat_draft_receipt.py --project <project.json>` 验证，并明确没有发布。
+   `scripts/build_wechat_draft_receipt.py` 从无秘密浏览器观察构建并验证，并明确没有发布。
 
 `docs/cases/` 只证明某个日期、某台机器和某组上游输入曾真实跑通。远端视频可能删除或
 改版，仓库也不分发原视频、模型或登录凭证，因此这些文档不能冒充一键 replay fixture。
-多视频验收也不能把队列汇总当成单个可复现产物：每条视频必须有独立 manifest、content
-project、当前审计和可选草稿回执。下载缓存可以共享，但缓存命中必须由缓存键、文件存在和真实
-大小共同证明。
+多视频验收也不能把队列汇总当成单个可复现产物：`video-content/batch-v1` 只记录每条视频的
+subtitle/content/handoff 阶段、尝试、恢复点和批次内产物路径。每条视频必须有独立 manifest、
+content project、当前审计和可选草稿回执。下载缓存可以共享，但缓存命中必须由缓存键、文件
+存在和真实大小共同证明。
 
-可选渲染 Skill 和 `wechat-draft-handoff` 都属于外部执行层，不是内容工程核心依赖。真实
-案例应记录渲染器仓库、当时的 commit、主题、确定性校验结果、本地图片交接方式，以及平台
-交接实际验证到的图片数量、CDN 接管和保存状态；新运行仍应重新检查当前 Skill 与页面。
-即使渲染器、富文本剪贴板或已登录浏览器不可用，content map、media plan、文章语义稿、
-干净 HTML、人工图片清单和 fidelity audit 也必须能独立完成，不能让主题或平台状态成为
-理解视频的前置条件。
+首方 `restrained-editorial` 渲染器属于确定性仓库工具；可选第三方渲染器和
+`wechat-draft-handoff` 属于可替换表现/外部执行层。真实案例应记录渲染器版本或 commit、主题、
+确定性校验结果、本地图片交接方式，以及平台交接实际验证到的图片数量、CDN 接管和保存状态；
+新运行仍应重新检查当前 Skill 与页面。即使富文本剪贴板或已登录浏览器不可用，content map、
+media plan、文章语义稿、首方干净 HTML、人工图片清单和 fidelity audit 也必须能独立完成。
+
+跨机器交接使用 `scripts/project_bundle.py export` 生成
+`video-content/portable-bundle-v1` ZIP，再在目标机器先 `verify` 后 `import`。包内每个文件带
+SHA-256；导出拒绝 Cookie/Token/密码痕迹和持久化 Base64，导入拒绝路径穿越，默认排除大体积
+原视频。这个包迁移项目证据和产物，不迁移登录态、模型、外部工具或旧机器 GPU 并行结论。
 
 ## 升级纪律
 
 - 工具或模型升级必须更新 `requirements.json` 的 `verified_at` 与对应 version/revision；
+- 重运行时升级必须同步更新 `runtime-lock.json` 的资产字节数、SHA-256、包组合或模型 revision；
+- Python 或 Node 依赖变化必须重建相应锁文件并确认 Bootstrap/打包报告的哈希；
 - 不把“latest”静默混入声称可复现的任务；
 - 模型目录必须对应记录的 revision，大下载仍需事前确认；
 - 升级后先跑 schema、单元测试、MCP smoke 和干净 clone，再用代表性真实样本验证；
@@ -121,11 +166,11 @@ project、当前审计和可选草稿回执。下载缓存可以共享，但缓�
 ## 当前明确限制
 
 - 平台适配目前只有 Bilibili；YouTube 与抖音尚未实现；
-- 多视频任务由 Agent 维护多个独立任务；仓库没有把多条视频合并为单一 manifest 或内容项目的
-  批次格式；
+- 批次台账不执行调度，也不合并多个 manifest 或内容项目；Agent 仍负责选择逐条顺序和并发；
 - MCP 注册由调用 Agent 完成，仓库只提供可移植的 stdio 参数与 CLI fallback；
 - 自动登录、正式发布、定时、群发、原创声明和账号管理不属于项目职责；可选
   `wechat-draft-handoff` 只在用户明确要求时复用已经登录的可见浏览器并保存草稿；
-- 公众号排版器是可选下游 Skill，不由 `requirements.json` 安装或锁定；
+- 首方公众号渲染器只实现克制编辑基线，不替代 Agent 写作、视觉选材或忠实度审计；第三方主题
+  仍是可选下游能力，不由 `requirements.json` 安装；
 - 没有外部真值集时不报告 OCR/ASR 的虚构准确率；
 - 外部事实核验是独立工作，字幕多源一致不等于事实为真。

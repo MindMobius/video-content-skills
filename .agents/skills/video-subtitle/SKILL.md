@@ -31,6 +31,25 @@ capability changes:
 7. Call `video_subtitle_doctor` with `deep=true` before using ASR or before
    enabling shared-GPU parallel execution.
 
+Treat setup output as the capability truth and
+[`requirements/runtime-lock.json`](../../../requirements/runtime-lock.json) as
+the heavy-runtime version truth. Bootstrap installs the repository Python/MCP
+layer; it does not silently download VideOCR, ASR environments, or models. When
+setup returns one of those actions, run the read-only plan first:
+
+```powershell
+python scripts/runtime_setup.py plan videocr
+python scripts/runtime_setup.py plan asr
+python scripts/runtime_setup.py plan qwen_asr_model
+```
+
+Use the plan's exact variant, profile, revision, destination, and next command.
+Before `install`, show the user the known byte cost and lock SHA-256 and obtain
+confirmation for every action that requires `--confirm-large-download`. Run
+`verify` afterward, persist only the discovered executable or model path, rerun
+setup, and then run doctor. Never replace a pinned revision with `latest` merely
+because an upstream release is newer.
+
 If the MCP server and CLI are not installed but the repository is available,
 run this from the repository root:
 
@@ -262,6 +281,12 @@ video-subtitle evidence-list --manifest ".\result\manifest.json"
 video-subtitle evidence-read --manifest ".\result\manifest.json" `
   --evidence-id ev-0001 --start-ms 360000 --end-ms 390000
 ```
+
+For an offline reproducibility audit of the repository itself, run
+`python scripts/repro_check.py --require-tier core --require-tier agent`. Add the
+`media` tier only with an explicit working FFmpeg or FFprobe path. Never infer
+current Bilibili login, GPU OCR/ASR behavior, or other live-service readiness
+from deterministic fixture results.
 
 Report the final source coverage, unresolved conflicts, warnings, and relevant
 host-specific timing. Do not report a precision percentage unless it was

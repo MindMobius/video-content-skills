@@ -13,8 +13,10 @@ means, add an editorial stance, or turn the article into marketing copy.
 
 - `video-to-content` owns semantic reconstruction, source attribution,
   narrative voice, public disclosure, deliberate omissions, and fidelity.
-- An optional renderer Skill owns theme selection, rich-text-safe markup,
-  preview generation, and renderer-specific HTML validation.
+- The first-party `restrained-editorial` renderer owns only deterministic
+  rich-text-safe markup, preview generation, local-image packaging, and package
+  validation. Another renderer may replace that presentation layer when the
+  approved media plan requires it.
 - The optional `wechat-draft-handoff` Skill may place an already audited package
   into an already signed-in editor after explicit user authorization. It owns
   transient clipboard assembly, image-ingestion verification, only the
@@ -56,52 +58,44 @@ the canonical manuscript for that deliverable revision; the content map and
 media plan remain the semantic and provenance contracts. The rich-text HTML is
 a rendered derivative, not a replacement for either layer.
 
-## Use a renderer as an optional downstream Skill
+## Render the restrained baseline in-repository
 
-If an appropriate renderer Skill is installed or discoverable, read its
-instructions and use it after the manuscript is stable. The tested integration
-is [`isjiamu/gzh-design-skill`](https://github.com/isjiamu/gzh-design-skill), but
-it is not a dependency of this repository and other renderers may be used.
-
-A standard Skill installer can inspect that repository without installing it:
+After the semantic article and visual plan are stable, create a
+`video-content/wechat-manuscript-v1` JSON document. Use text blocks for the
+Agent-authored article structure and image blocks only for the original video
+cover or timestamped source-video frames. Then run:
 
 ```powershell
-npx -y skills@1.5.22 add isjiamu/gzh-design-skill --list
+python scripts/render_wechat_article.py .\manuscript.json .\wechat-article
 ```
 
-It should report the `gzh-design` Skill. If it is absent and rich-text styling
-is required, inspect the third-party source, then install `gzh-design` in the
-caller's user-level or isolated Skill scope according to that Agent's policy.
-Do not copy it into this repository or add it to the core Python requirements.
-If no renderer is available, deliver the stable manuscript and use only markup
-the calling Agent can validate; do not block semantic content work on a theme.
+The command uses the first-party `restrained-editorial` theme and immediately
+runs the package validator. It emits:
 
-When using `gzh-design-skill`:
+- `article.md`, the editable semantic manuscript;
+- `article.html`, the clean rich-text body fragment;
+- `article-preview.html`, a local preview whose copy notice keeps the manual
+  image boundary explicit;
+- copied local assets and `image-import-checklist.md` in article order;
+- one visible relative-path line per image with a machine-readable
+  `data-local-image-slot`, without a card, icon, duplicated instruction, or
+  underline-heavy decoration.
 
-- select a registered theme from the content's tone and density rather than
-  copying a theme from an unrelated example;
-- treat its component library as presentation guidance and remove stock
-  signature or CTA components when they conflict with the objective;
-- produce a clean `<section>...</section>` body fragment with inline styles,
-  then run its `scripts/validate_gzh_html.py` until both errors and warnings are
-  zero;
-- override a generic boxed material-placeholder component when local images use
-  the minimal-edit handoff below; renderer defaults do not authorize extra
-  cleanup work for the human editor;
-- create the browser preview with its `scripts/wrap_preview.py`, but do not save
-  the preview shell as the content deliverable.
+The renderer rejects non-video image provenance and does not invent prose,
+captions, timestamps, source attribution, or block order. Build those choices as
+Agent-authored manuscript input and audit the rendered result semantically.
 
-On Windows PowerShell, set UTF-8 before running renderer scripts that print
-Unicode symbols:
+Use another installed renderer only when the user requests a distinct visual
+language or the approved media plan requires components the first-party baseline
+cannot express. `isjiamu/gzh-design-skill` remains a tested optional integration,
+but it is not a dependency of this repository. Read and validate any alternative
+renderer before use, remove stock signatures and CTAs, retain the one-line local-image contract,
+and never save a preview wrapper as the deliverable. Renderer validation proves markup compatibility, not semantic fidelity.
+Unsupported claims still fail the content audit.
 
-```powershell
-$env:PYTHONIOENCODING = "utf-8"
-python <gzh-skill-root>\scripts\validate_gzh_html.py <clean-html>
-python <gzh-skill-root>\scripts\wrap_preview.py <clean-html>
-```
-
-Renderer validation proves markup compatibility, not semantic fidelity. A
-beautiful page with unsupported claims still fails the content audit.
+Before installing that optional integration, inspect its current Skill list with
+`npx -y skills@1.5.22 add isjiamu/gzh-design-skill --list`; install it only in the
+caller-approved scope and do not copy it into this repository.
 
 ## Source article images from the video by default
 

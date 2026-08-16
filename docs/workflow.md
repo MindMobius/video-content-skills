@@ -23,15 +23,17 @@
 ```text
 选择任务所需 capability
 → setup 返回依赖状态
-→ Agent 完成 agent_actions
+→ Agent 按 runtime lock 计划并完成 agent_actions
 → 只把 human_actions 交给人
 → configure 持久化非秘密路径
 → setup ready
 → deep doctor 验证重型运行时
 ```
 
-如果 CLI 尚不存在，先使用无第三方依赖的 `scripts/bootstrap.py` 建立 `.venv` 和 MCP
-入口。完整状态、配置优先级和扩展方式见 [`environment.md`](environment.md)。
+如果 CLI 尚不存在，先使用无第三方依赖的 `scripts/bootstrap.py` 按 Python 约束建立 `.venv`
+和 MCP 入口。FFmpeg、VideOCR、ASR 与模型使用 `scripts/runtime_setup.py plan|install|verify`，
+其中大下载必须经确认；不能用 Bootstrap 成功替代重运行时校验。完整锁、状态、配置优先级和
+扩展方式见 [`environment.md`](environment.md)。
 
 ## 可组合执行循环
 
@@ -47,7 +49,8 @@ Agent 根据当前任务反复执行最小循环：
 
 典型例子：
 
-- 只需要快速总结：先取平台字幕；不存在时再运行硬字幕 OCR。
+- 只需要快速总结：先低成本获取平台字幕，同时独立侦察连续硬字幕；有连续硬字幕就执行 OCR，
+  平台字幕存在不能跳过这条视觉证据分支。
 - 需要核对 06:04 的漏句：只读取该时间段 OCR/ASR，必要时只重跑这一段。
 - 专业术语密集：收集多来源，但 Agent 只审阅影响结论的冲突。
 - 需要交付完整精校 SRT：可以使用可选的固定窗口助手持久化全片决策。
@@ -166,8 +169,9 @@ worker 自动无上下文重跑并保留原始输出。
 ## 多视频任务编排
 
 多个视频必须保持一对一的证据和内容身份：每个视频各自拥有 manifest、attempt、日志、content
-project 和可选平台回执。Agent 可以按顺序维护任务队列，但不能把多条视频的证据合并进一个
-manifest，也不能用前一条视频的审计替代后一条。
+project 和可选平台回执。仓库的 `video-content/batch-v1` 台账只记录各条目的阶段、尝试、恢复点
+与批次内产物路径；不能把多条视频的证据合并进一个 manifest，也不能用前一条视频的审计替代
+后一条。
 
 推荐先对全部链接做低成本元数据和平台字幕探测，尽早发现失效链接、分 P 和登录问题；随后
 对每条视频独立侦察连续硬字幕，存在就跑全片 OCR，不存在才跳过。平台字幕存在与否不改变
@@ -175,6 +179,10 @@ manifest，也不能用前一条视频的审计替代后一条。
 仍服从每台机器的 `auto` / `serial` 调度，不因队列变长就自动并行。内容阶段和公众号交接
 耗时写入各自 content project，跨视频性能比较应使用这些持久计时与 manifest attempt，而不是
 聊天时间戳。
+
+使用 `initialize_video_batch` / `batch-init` 建立台账，`get_video_batch` / `batch-status` 选择下一
+个可恢复阶段，`update_video_batch_item` / `batch-update` 在工作前后执行受保护的状态迁移。台账
+不执行并发调度，也不把未请求的公众号交接变成待办。
 
 ## 可选固定窗口助手
 

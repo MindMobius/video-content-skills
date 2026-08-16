@@ -48,6 +48,24 @@ MCP launch contract, and the nested capability setup result:
    `confirmation_required=true`.
 6. Run a deep doctor check before ASR or explicit shared-GPU parallelism.
 
+Bootstrap installs only the repository Python/MCP layer. For FFmpeg, VideOCR,
+the isolated ASR environment, or model directories, follow the action returned
+by setup and use the pinned heavy-runtime helper:
+
+```text
+python scripts/runtime_setup.py plan <dependency>
+python scripts/runtime_setup.py install <dependency> <reported-options>
+python scripts/runtime_setup.py verify <dependency> <reported-options>
+```
+
+Read `requirements/runtime-lock.json` through the helper instead of inventing a
+release URL or silently selecting `latest`. VideOCR, ASR, and model installation
+require `--confirm-large-download`; show the selected variant, bytes when known,
+revision, destination, and lock SHA-256 before asking for that confirmation.
+ASR and model installation leave `.video-subtitle-installing.json` in an
+incomplete target. Rerun the same locked plan against that target to resume; a
+different plan is rejected. A verified successful install removes the marker.
+
 For URL-backed OCR or ASR, preserve the download cache across retries and
 related jobs. Background jobs default to `<VIDEO_SUBTITLE_HOME>/cache/media`;
 synchronous runs should use the persisted `download_cache` setting or an
@@ -84,12 +102,33 @@ work.
   the independent visual decision establishes that they do not.
 - The Python/MCP content project stops at an audited deliverable. It does not
   log in to publishing platforms, upload files, or change platform state.
+- For a multi-input request, initialize one `video-content/batch-v1` ledger with
+  `initialize_video_batch` or `batch-init`. Keep one subtitle manifest, content
+  project, deliverable, audit, and optional handoff receipt per item. The ledger
+  records guarded stage transitions and resume points; it never merges evidence
+  or authorizes a carrier or platform action that the user did not request.
+- For a WeChat article, prefer the repository's first-party
+  `scripts/render_wechat_article.py` renderer when its restrained contract fits.
+  It accepts a `video-content/wechat-manuscript-v1` document, permits only the
+  original video cover and timestamped source frames, and emits clean body HTML,
+  a preview, local assets, and one-line relative image markers. Use another
+  renderer only when the user asks for a different presentation or this renderer
+  cannot express the approved media plan.
+- To move an audited project to another machine or Agent, use
+  `scripts/project_bundle.py export|verify|import`. Verify the ZIP before import.
+  The portable bundle records hashes and provenance, scans text for secrets and
+  persisted Base64 image data, rejects path traversal, and excludes source video
+  by default. It does not move browser login state or prove live services ready.
 - Measure substantial content work with explicit Agent-named phases through
   `start_video_content_phase` and `finish_video_content_phase`. Timing is
   operational metadata, not a semantic workflow or an authorization signal.
 - The optional `wechat-draft-handoff` Skill may use an existing visible browser
   login to place an audited article and save it as a draft only after explicit
   user authorization. It must not read credentials or browser secrets.
+- During WeChat handoff, use the bundled clipboard helper only for transient rich
+  HTML and use `browser-adapter.js` to observe visible editor state. Persist only
+  the no-secret observation contract and the validated receipt; never persist the
+  clipboard payload, cookies, URL tokens, or browser storage.
 - A saved WeChat draft is complete only after a
   `video-content/wechat-draft-receipt-v1` receipt is validated against the
   current project with `scripts/validate_wechat_draft_receipt.py`. The receipt
@@ -106,7 +145,15 @@ python -m ruff check .
 python -m ruff format --check .
 python -m pytest
 python scripts/mcp_smoke.py
+npm test
+npm run pack:check
+python scripts/repro_check.py --require-tier core --require-tier agent
 ```
+
+Require the `media` tier only when FFmpeg or FFprobe is available and pass its
+explicit path when it is not on `PATH`. The `live` tier is intentionally manual:
+it requires current Bilibili/Browser Bridge state, representative OCR/ASR on the
+current machine, and separately authorized WeChat editor interaction.
 
 Preserve raw platform, OCR, ASR, and reviewed evidence as separate immutable
 artifacts. Do not silently replace one source with another.

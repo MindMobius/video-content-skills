@@ -14,6 +14,13 @@ def _frontmatter_value(content: str, field: str) -> str:
     return match.group(1).strip().strip("\"'")
 
 
+def _interface_value(content: str, field: str) -> str:
+    match = re.search(rf'(?m)^  {re.escape(field)}: "([^"]+)"$', content)
+    if match is None:
+        raise AssertionError(f"agents/openai.yaml is missing quoted {field!r}")
+    return match.group(1)
+
+
 def test_project_skills_use_the_standard_discovery_directory() -> None:
     assert not (ROOT / "skills").exists()
     assert (ROOT / "AGENTS.md").is_file()
@@ -28,6 +35,21 @@ def test_project_skills_use_the_standard_discovery_directory() -> None:
         content = skill_path.read_text(encoding="utf-8")
         assert _frontmatter_value(content, "name") == skill_path.parent.name
         assert _frontmatter_value(content, "description")
+
+
+def test_project_skills_include_valid_openai_interface_metadata() -> None:
+    for skill_path in sorted(SKILLS_ROOT.glob("*/SKILL.md")):
+        skill_name = skill_path.parent.name
+        metadata_path = skill_path.parent / "agents" / "openai.yaml"
+        assert metadata_path.is_file()
+        metadata = metadata_path.read_text(encoding="utf-8")
+
+        assert metadata.startswith("interface:\n")
+        assert _interface_value(metadata, "display_name")
+        short_description = _interface_value(metadata, "short_description")
+        assert 25 <= len(short_description) <= 64
+        default_prompt = _interface_value(metadata, "default_prompt")
+        assert f"${skill_name}" in default_prompt
 
 
 def test_skill_markdown_relative_links_resolve() -> None:
@@ -100,6 +122,77 @@ def test_public_entrypoints_discover_reliability_and_timing_contracts() -> None:
         "timing_summary",
     ):
         assert token in content_contract
+
+
+def test_skill_entrypoints_discover_reproducible_runtime_and_handoff_tools() -> None:
+    subtitle_skill = (SKILLS_ROOT / "video-subtitle" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    content_skill = (SKILLS_ROOT / "video-to-content" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    handoff_skill = (SKILLS_ROOT / "wechat-draft-handoff" / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    public_docs = "\n".join(
+        (ROOT / path).read_text(encoding="utf-8")
+        for path in (
+            "AGENTS.md",
+            "README.md",
+            "docs/environment.md",
+            "docs/reproducibility.md",
+            "docs/content-workflow.md",
+        )
+    )
+
+    for token in (
+        "requirements/runtime-lock.json",
+        "scripts/runtime_setup.py plan",
+        "--confirm-large-download",
+        "scripts/repro_check.py",
+    ):
+        assert token in f"{subtitle_skill}\n{public_docs}"
+
+    for token in (
+        "initialize_video_batch",
+        "get_video_batch",
+        "update_video_batch_item",
+        "scripts/render_wechat_article.py",
+        "video-content/wechat-manuscript-v1",
+        "scripts/project_bundle.py",
+        "video-content/portable-bundle-v1",
+    ):
+        assert token in f"{content_skill}\n{public_docs}"
+
+    for token in (
+        "scripts/prepare_clipboard.py",
+        "scripts/browser-adapter.js",
+        "video-content/wechat-editor-observation-v1",
+        "scripts/build_wechat_draft_receipt.py",
+    ):
+        assert token in handoff_skill
+
+    for schema in (
+        "runtime-lock.schema.json",
+        "batch-manifest.schema.json",
+        "portable-bundle.schema.json",
+        "wechat-manuscript.schema.json",
+        "wechat-browser-snapshot.schema.json",
+        "wechat-editor-observation.schema.json",
+    ):
+        assert (ROOT / "schemas" / schema).is_file()
+
+
+def test_mcp_smoke_reports_batch_tool_discovery() -> None:
+    smoke = (ROOT / "scripts" / "mcp_smoke.py").read_text(encoding="utf-8")
+
+    assert '"batch_tools_exposed"' in smoke
+    for tool_name in (
+        "initialize_video_batch",
+        "get_video_batch",
+        "update_video_batch_item",
+    ):
+        assert f'"{tool_name}"' in smoke
 
 
 def test_hard_subtitle_decision_is_independent_of_platform_tracks() -> None:
