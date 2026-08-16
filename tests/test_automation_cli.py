@@ -67,6 +67,31 @@ def test_parser_exposes_automation_commands() -> None:
         assert command in help_text
 
 
+def test_parser_separates_browser_and_automation_profile_aliases() -> None:
+    args = build_parser().parse_args(
+        [
+            "--profile",
+            "j6g376bb",
+            "automation-scan",
+            "--profile",
+            "profile.json",
+            "--store",
+            "automation-store",
+        ]
+    )
+
+    assert args.profile == "j6g376bb"
+    assert args.automation_profile == Path("profile.json")
+
+
+def test_doctor_accepts_watch_later_monitor_capability() -> None:
+    args = build_parser().parse_args(
+        ["doctor", "--capability", "watch_later_monitor"]
+    )
+
+    assert args.capability == ["watch_later_monitor"]
+
+
 def test_profile_save_cli_emits_json(tmp_path: Path) -> None:
     document = tmp_path / "profile-input.json"
     output = tmp_path / "profile.json"
