@@ -2,9 +2,24 @@
   "schema_version": "video-subtitle/requirements-v1",
   "verified_at": "2026-08-16",
   "capabilities": {
+    "watch_later_monitor": {
+      "description": "Monitor the authenticated Bilibili Watch Later list for new videos.",
+      "requires": [
+        "python",
+        "node",
+        "opencli",
+        "watch_later_adapter",
+        "browser_bridge"
+      ]
+    },
     "platform_subtitle": {
       "description": "Read metadata and subtitle tracks exposed by Bilibili.",
-      "requires": ["python", "node", "opencli", "browser_bridge"]
+      "requires": [
+        "python",
+        "node",
+        "opencli",
+        "browser_bridge"
+      ]
     },
     "video_download": {
       "description": "Download one authenticated source video for OCR or ASR.",
@@ -19,7 +34,10 @@
     },
     "hard_ocr_local": {
       "description": "Extract hard subtitles from an existing local video.",
-      "requires": ["python", "videocr"]
+      "requires": [
+        "python",
+        "videocr"
+      ]
     },
     "hard_ocr_url": {
       "description": "Download a video and extract hard subtitles.",
@@ -92,6 +110,16 @@
         "command": "npm install -g @jackwener/opencli@1.8.6",
         "reference": "https://github.com/jackwener/OpenCLI",
         "description": "Install the verified OpenCLI npm release, verify the opencli command, then persist its executable path when it is not on PATH."
+      }
+    },
+    "watch_later_adapter": {
+      "kind": "external_project",
+      "tested_version": "0.1.0",
+      "description": "Repository-owned read-only OpenCLI plugin for Bilibili Watch Later.",
+      "agent_action": {
+        "type": "install",
+        "command": "opencli plugin install file://./opencli-plugin",
+        "description": "Install the packaged local Watch Later plugin from the repository root, then verify the video-subtitle-watch-later command."
       }
     },
     "browser_bridge": {

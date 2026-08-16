@@ -110,13 +110,25 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
     downloads = diagnostics.get("download_tools") or {}
     ocr = diagnostics.get("hard_ocr") or {}
     asr = diagnostics.get("audio_asr") or {}
+    watch_later = diagnostics.get("watch_later_adapter") or {}
+    watch_later_required = "watch_later_monitor" in set(
+        diagnostics.get("requested_capabilities") or []
+    )
 
     python_ready = sys.version_info >= (3, 10)
     opencli_detected = bool(opencli.get("available"))
     node_state = _node_state(opencli)
     node_ready = node_state["status"] == "ready"
     opencli_ready = opencli_detected and node_ready
-    bridge_ready = bool(opencli.get("platform_ready")) and opencli_ready
+    watch_later_ready = bool(watch_later.get("available")) and opencli_ready
+    bridge_blockers: list[str] = []
+    if not opencli_ready:
+        bridge_blockers.append("opencli")
+    elif watch_later_required and not watch_later_ready:
+        bridge_blockers.append("watch_later_adapter")
+    bridge_ready = (
+        bool(opencli.get("platform_ready")) and opencli_ready and not bridge_blockers
+    )
     opencli_state: dict[str, Any] = {
         "status": (
             "ready" if opencli_ready else "blocked" if not node_ready else "missing"
@@ -132,16 +144,27 @@ def _dependency_states(diagnostics: dict[str, Any]) -> dict[str, dict[str, Any]]
         },
         "node": node_state,
         "opencli": opencli_state,
+        "watch_later_adapter": {
+            "status": (
+                "ready"
+                if watch_later_ready
+                else "blocked"
+                if not opencli_ready
+                else "missing"
+            ),
+            "detected": watch_later.get("command"),
+            **({"blocked_by": ["opencli"]} if not opencli_ready else {}),
+        },
         "browser_bridge": {
             "status": (
                 "ready"
                 if bridge_ready
-                else "human_action_required"
-                if opencli_ready
                 else "blocked"
+                if bridge_blockers
+                else "human_action_required"
             ),
             "detected": opencli.get("profile"),
-            **({"blocked_by": ["opencli"]} if not opencli_ready else {}),
+            **({"blocked_by": bridge_blockers} if bridge_blockers else {}),
         },
         "yt_dlp": _tool_state(downloads.get("yt_dlp")),
         "ffmpeg": _tool_state(downloads.get("ffmpeg")),

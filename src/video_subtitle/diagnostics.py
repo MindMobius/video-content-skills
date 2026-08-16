@@ -24,8 +24,10 @@ def doctor(
     config_path: str | Path | None = None,
 ) -> dict[str, Any]:
     selected = normalize_capabilities(capabilities)
+    watch_later_required = "watch_later_monitor" in selected
     platform_required = bool(
         {
+            "watch_later_monitor",
             "platform_subtitle",
             "video_download",
             "hard_ocr_url",
@@ -50,7 +52,14 @@ def doctor(
     }
     if platform_required:
         opencli["available"] = client.is_command_available()
-    if platform_required and opencli["available"]:
+    watch_later_adapter = {
+        "checked": watch_later_required,
+        "available": False,
+    }
+    if watch_later_required and opencli["available"]:
+        watch_later_adapter["available"] = client.watch_later_adapter_available()
+    auth_probe_ready = not watch_later_required or watch_later_adapter["available"]
+    if platform_required and opencli["available"] and auth_probe_ready:
         try:
             opencli["auth"] = client.auth_status()
             opencli["platform_ready"] = bilibili_auth_ready(opencli["auth"])
@@ -111,15 +120,20 @@ def doctor(
         "requested_capabilities": selected,
         "probes": {
             "platform": platform_required,
+            "watch_later": watch_later_required,
             "download": download_required,
             "hard_ocr": ocr_required,
             "audio_asr": asr_required,
         },
         "opencli": opencli,
+        "watch_later_adapter": watch_later_adapter,
         "download_tools": download_tools,
         "hard_ocr": ocr,
         "audio_asr": asr,
         "capabilities": {
+            "watch_later_monitor": bool(
+                watch_later_adapter["available"] and opencli["platform_ready"]
+            ),
             "platform_subtitle": bool(opencli["platform_ready"]),
             "video_download": download_ready,
             "hard_ocr_local": local_ocr_ready,

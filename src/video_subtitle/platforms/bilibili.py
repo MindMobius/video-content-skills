@@ -214,6 +214,23 @@ class OpenCliClient:
                 return script.is_file()
         return True
 
+    def watch_later_adapter_available(self) -> bool:
+        command = list(self.settings.command)
+        command += ["video-subtitle-watch-later", "--help"]
+        try:
+            process = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=30,
+                check=False,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+        return process.returncode == 0
+
     def auth_status(self) -> Any:
         return self._call(
             ["auth", "status", "--site", "bilibili", "--full"], timeout=30
@@ -263,6 +280,25 @@ class OpenCliClient:
                     "MALFORMED_RESULT",
                     "OpenCLI bilibili subtitle contained a non-object cue",
                 )
+        return payload
+
+    def watch_later(self, *, limit: int | None = None) -> list[dict[str, Any]]:
+        args = ["video-subtitle-watch-later", "list"]
+        if limit is not None:
+            if limit < 1 or limit > 100:
+                raise ValueError("Watch Later limit must be between 1 and 100")
+            args += ["--limit", str(limit)]
+        payload = self._call(args)
+        if not isinstance(payload, list):
+            raise OpenCliError(
+                "MALFORMED_RESULT",
+                "OpenCLI Watch Later did not return a row array",
+            )
+        if any(not isinstance(row, dict) for row in payload):
+            raise OpenCliError(
+                "MALFORMED_RESULT",
+                "OpenCLI Watch Later contained a non-object row",
+            )
         return payload
 
     def download(
