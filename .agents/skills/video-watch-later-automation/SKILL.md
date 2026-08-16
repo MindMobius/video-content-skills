@@ -64,10 +64,14 @@ human boundary; dependency installation and path discovery are Agent work.
 ### 2. Discover and queue
 
 Call `scan_bilibili_watch_later` once with the profile and durable store, then
-use `list_video_automation_jobs` to find eligible jobs. Watch Later identity is
-BVID plus page, combined with profile ID and version. Reordering must not create
-a new job, a second scan must not duplicate a job, and removing an item later
-must not cancel work already submitted.
+use `list_video_automation_jobs` to find eligible jobs. For a fresh unattended
+store, call it with `baseline_if_empty=true`: the first observed Watch Later list
+is persisted with no jobs, and the same option becomes a no-op once a latest
+snapshot exists. This makes only later additions enter the queue without a
+separate initialization script. Watch Later identity is BVID plus page, combined
+with profile ID and version. Reordering must not create a new job, a second scan
+must not duplicate a job, and removing an item later must not cancel work already
+submitted.
 
 Process each job independently. Never merge videos into one evidence manifest,
 article, receipt, or handoff binding.

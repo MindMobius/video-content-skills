@@ -644,14 +644,16 @@ def scan_bilibili_watch_later(
     profile_path: str,
     store_path: str,
     limit: int | None = None,
+    baseline_if_empty: bool = False,
 ) -> dict[str, Any]:
-    """Run one Watch Later scan and enqueue each newly observed video exactly once."""
+    """Run one scan, optionally treating the first observed list as the baseline."""
     client = OpenCliClient(_settings())
     return scan_watch_later(
         profile_path=Path(profile_path),
         source=OpenCliWatchLaterSource(client),
         store=Path(store_path),
         limit=limit,
+        baseline_if_empty=baseline_if_empty,
     )
 
 

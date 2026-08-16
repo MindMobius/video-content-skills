@@ -433,6 +433,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     automation_scan_parser.add_argument("--store", type=Path, required=True)
     automation_scan_parser.add_argument("--limit", type=_positive_int)
+    automation_scan_parser.add_argument(
+        "--baseline-if-empty",
+        action="store_true",
+        help="Record the first observed list as a baseline without creating jobs",
+    )
 
     automation_jobs_parser = commands.add_parser(
         "automation-jobs", help="List durable Watch Later automation jobs"
@@ -968,6 +973,7 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 source=OpenCliWatchLaterSource(client),
                 store=args.store,
                 limit=args.limit,
+                baseline_if_empty=args.baseline_if_empty,
             ),
             0,
         )

@@ -25,6 +25,7 @@ def scan_watch_later(
     source: WatchLaterSource,
     store: Path,
     limit: int | None = None,
+    baseline_if_empty: bool = False,
 ) -> dict[str, Any]:
     profile = read_automation_profile(profile_path)
     if profile["enabled"] is not True:
@@ -35,12 +36,15 @@ def scan_watch_later(
     snapshot_root = store / "automation" / profile["profile_id"] / "snapshots"
     latest_path = snapshot_root.parent / "watch-later-latest.json"
     previous = read_json(latest_path) if latest_path.is_file() else None
+    baseline_initialized = previous is None and baseline_if_empty
     snapshot = build_watch_later_snapshot(
         profile["profile_id"],
         profile["source"]["account_profile_alias"],
         entries,
         previous=previous,
     )
+    if baseline_initialized:
+        snapshot["new_entries"] = []
     archive_path = snapshot_root / f"{snapshot['snapshot_id']}.json"
     write_json_atomic(archive_path, snapshot)
     write_json_atomic(latest_path, snapshot)
@@ -70,6 +74,7 @@ def scan_watch_later(
         "profile_id": profile["profile_id"],
         "snapshot_path": str(archive_path),
         "latest_snapshot_path": str(latest_path),
+        "baseline_initialized": baseline_initialized,
         "entry_count": len(snapshot["entries"]),
         "new_entry_count": len(snapshot["new_entries"]),
         "created_jobs": created_jobs,

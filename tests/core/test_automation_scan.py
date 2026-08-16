@@ -98,9 +98,7 @@ def test_scan_can_initialize_baseline_without_enqueuing_existing_items(
     assert first["new_entry_count"] == 0
     assert first["created_jobs"] == []
     assert first["job_count"] == 0
-    latest = json.loads(
-        Path(first["latest_snapshot_path"]).read_text(encoding="utf-8")
-    )
+    latest = json.loads(Path(first["latest_snapshot_path"]).read_text(encoding="utf-8"))
     assert latest["entries"][0]["bvid"] == "BV1alpha"
     assert latest["new_entries"] == []
 
