@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/automation-handoff-binding-v1.json",
+  "title": "Automation WeChat Handoff Binding v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "binding_id",
+    "job_id",
+    "authorization_id",
+    "project_id",
+    "deliverable_id",
+    "fidelity_audit_id",
+    "receipt_path",
+    "receipt_sha256",
+    "appmsgid",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "video-automation/handoff-binding-v1"
+    },
+    "binding_id": {
+      "type": "string",
+      "pattern": "^binding_[a-f0-9]{16}$"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^auto_[a-f0-9]{16}$"
+    },
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^auth[-_][A-Za-z0-9_-]+$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^content_[a-f0-9]{16}$"
+    },
+    "deliverable_id": {
+      "type": "string",
+      "pattern": "^dlv-[0-9]{3}$"
+    },
+    "fidelity_audit_id": {
+      "type": "string",
+      "pattern": "^audit-[0-9]{3}$"
+    },
+    "receipt_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "appmsgid": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

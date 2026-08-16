@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
-import time
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Literal
 
+from .locking import exclusive_file_lock
 from .util import read_json, utc_now, write_json_atomic
 
 BatchStage = Literal["subtitle", "content", "handoff"]
@@ -146,7 +143,7 @@ def update_batch_item(
         "not_requested",
     }:
         raise ValueError(f"Unsupported batch stage status: {status}")
-    with _manifest_lock(manifest_path):
+    with exclusive_file_lock(manifest_path):
         document = read_json(manifest_path)
         _validate_batch(document)
         item = next(
@@ -321,26 +318,3 @@ def _require_manifest(path: Path) -> Path:
     if not path.is_file():
         raise FileNotFoundError(f"Batch manifest does not exist: {path}")
     return path
-
-
-@contextmanager
-def _manifest_lock(path: Path, timeout_seconds: float = 5.0) -> Iterator[None]:
-    lock_path = path.with_suffix(path.suffix + ".lock")
-    deadline = time.monotonic() + timeout_seconds
-    descriptor: int | None = None
-    while descriptor is None:
-        try:
-            descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            if time.monotonic() >= deadline:
-                raise TimeoutError(f"Batch manifest is locked: {path}") from None
-            time.sleep(0.05)
-    try:
-        os.write(descriptor, str(os.getpid()).encode("ascii"))
-        os.close(descriptor)
-        descriptor = None
-        yield
-    finally:
-        if descriptor is not None:
-            os.close(descriptor)
-        lock_path.unlink(missing_ok=True)

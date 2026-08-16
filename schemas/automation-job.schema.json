@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/automation-job-v1.json",
+  "title": "Video Automation Job v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "job_id",
+    "idempotency_key",
+    "profile_id",
+    "profile_version",
+    "source",
+    "status",
+    "stage",
+    "attempts",
+    "artifacts",
+    "retry",
+    "termination",
+    "timestamps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "video-automation/job-v1"
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^auto_[a-f0-9]{16}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^profile[-_][A-Za-z0-9_-]+$"
+    },
+    "profile_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "platform",
+        "bvid",
+        "page",
+        "title",
+        "url"
+      ],
+      "properties": {
+        "platform": {
+          "const": "bilibili"
+        },
+        "bvid": {
+          "type": "string",
+          "minLength": 3
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://www\\.bilibili\\.com/video/[^?]+/?$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "enum": [
+        "discovered",
+        "queued",
+        "evidence_running",
+        "evidence_ready",
+        "canonicalizing",
+        "canonical_ready",
+        "content_generating",
+        "content_auditing",
+        "rendering",
+        "handoff_running",
+        "retry_wait",
+        "paused_auth",
+        "completed",
+        "unprocessable",
+        "failed_retry_exhausted",
+        "cancelled"
+      ]
+    },
+    "stage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempts": {
+      "type": "object",
+      "required": [
+        "technical",
+        "content_repairs"
+      ],
+      "properties": {
+        "technical": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "content_repairs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_technical_attempts",
+        "max_content_repairs",
+        "backoff_seconds"
+      ],
+      "properties": {
+        "max_technical_attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_content_repairs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "backoff_seconds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "retry": {
+      "type": "object",
+      "required": [
+        "resume_status",
+        "next_retry_at"
+      ],
+      "properties": {
+        "resume_status": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next_retry_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "termination": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timestamps": {
+      "type": "object",
+      "required": [
+        "created_at",
+        "updated_at",
+        "finished_at"
+      ],
+      "properties": {
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "completed",
+              "unprocessable",
+              "failed_retry_exhausted",
+              "cancelled"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "retry": {
+            "properties": {
+              "next_retry_at": {
+                "type": "null"
+              }
+            }
+          },
+          "timestamps": {
+            "properties": {
+              "finished_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
