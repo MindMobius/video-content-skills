@@ -81,6 +81,7 @@ console.log(JSON.stringify({
         "video-subtitle",
         "video-to-content",
         "wechat-draft-handoff",
+        "video-watch-later-automation",
     ]
     assert all(
         skill["provider"] == "video-subtitle-skill" for skill in result["skills"]

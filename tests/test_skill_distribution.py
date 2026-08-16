@@ -221,3 +221,10 @@ def test_package_versions_are_synchronized_semver() -> None:
     assert package_version is not None
     assert project_version.group(1) == package_version.group(1)
     assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", project_version.group(1))
+
+
+def test_mcp_smoke_reports_automation_tool_discovery() -> None:
+    smoke = (ROOT / "scripts" / "mcp_smoke.py").read_text(encoding="utf-8")
+    assert '"automation_tools_exposed"' in smoke
+    assert "save_video_automation_profile" in smoke
+    assert "save_canonical_subtitle" in smoke
