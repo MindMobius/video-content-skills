@@ -170,7 +170,7 @@ def get_existing_handoff_binding(job_path: Path) -> dict[str, Any] | None:
 def _job_artifact(job_path: Path, job: dict[str, Any], kind: str) -> Path:
     metadata = job.get("artifacts", {}).get(kind)
     if not isinstance(metadata, dict):
-        raise ValueError(f"Automation job is missing {kind}")
+        raise TypeError(f"Automation job artifact {kind} must be an object")
     return _require_within_file(
         job_path.parent,
         job_path.parent / str(metadata.get("path") or ""),
