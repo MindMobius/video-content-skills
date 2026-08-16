@@ -61,6 +61,7 @@ def test_local_ocr_doctor_skips_platform_download_and_asr(
     assert report["ok"] is True
     assert report["probes"] == {
         "platform": False,
+        "watch_later": False,
         "download": False,
         "hard_ocr": True,
         "audio_asr": False,
