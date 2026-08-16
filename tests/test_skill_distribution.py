@@ -217,9 +217,7 @@ def test_package_versions_are_synchronized_semver() -> None:
         encoding="utf-8"
     )
     npm_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
-    shrinkwrap = json.loads(
-        (ROOT / "npm-shrinkwrap.json").read_text(encoding="utf-8")
-    )
+    shrinkwrap = json.loads((ROOT / "npm-shrinkwrap.json").read_text(encoding="utf-8"))
     project_version = re.search(r'(?m)^version = "([^"]+)"$', pyproject)
     package_version = re.search(r'(?m)^__version__ = "([^"]+)"$', package_init)
 

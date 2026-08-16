@@ -96,12 +96,32 @@ ASR 环境与模型目录开始安装时会写入 `.video-subtitle-installing.js
 
 | 能力 | 用途 | 关键依赖 |
 | --- | --- | --- |
+| `watch_later_monitor` | 读取 Bilibili 稍后再看并发现新增任务 | Python、Node、OpenCLI、仓库 Watch Later 插件、Browser Bridge |
 | `platform_subtitle` | Bilibili 元数据和平台字幕 | Python、Node、OpenCLI、Browser Bridge |
 | `video_download` | 获取一次认证视频 | 平台能力、yt-dlp、FFmpeg |
 | `hard_ocr_local` | 对本地视频做硬字幕 OCR | Python、VideOCR |
 | `hard_ocr_url` | 下载后做硬字幕 OCR | 下载能力、VideOCR |
 | `audio_asr_local` | 对本地视频做 Qwen3-ASR | FFmpeg、ASR 环境、两个模型、CUDA |
 | `audio_asr_url` | 下载后做 Qwen3-ASR | 下载能力、ASR 环境、两个模型、CUDA |
+
+### `watch_later_monitor` 安装顺序
+
+稍后再看监控不是 OpenCLI 内置命令，而是仓库分发的只读插件能力。setup 必须先返回并执行
+Agent 可完成的安装动作：固定版本 OpenCLI、`opencli-plugin` 本地插件、命令验证；只有这些
+依赖就绪后，Browser Bridge 登录才成为 human action。不要因为检测到浏览器未登录，就跳过
+插件安装并提前向用户索要登录处理。
+
+验证命令：
+
+```powershell
+opencli video-subtitle-watch-later --help
+opencli validate video-subtitle-watch-later/list
+video-subtitle doctor --capability watch_later_monitor
+```
+
+该 capability 只证明当前机器能够读取稍后再看列表。自动化 profile、草稿授权、一次扫描、
+任务状态机和周期调度见 [`watch-later-automation.md`](watch-later-automation.md)。仓库本身不
+注册 daemon 或真实定时任务；调用 Agent 负责每次 one-shot 唤醒。
 
 ## setup 状态机
 

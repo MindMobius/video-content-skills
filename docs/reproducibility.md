@@ -92,9 +92,18 @@ macOS 尚未进入自动验收矩阵，不能只凭代码看起来可移植就�
 | 层级 | 自动检查 | 能证明什么 |
 | --- | --- | --- |
 | `core` | 锁文件、Skill 发现、CC0 媒体静态哈希、首方渲染与剪贴板、批次恢复、迁移包往返 | 确定性核心契约完整 |
-| `agent` | Node 测试、stdio MCP 协议、npm 打包内容 | 新 Agent 能发现和调用分发入口 |
+| `agent` | Node 测试、stdio MCP 协议、稍后再看到草稿的确定性工作流、npm 打包内容 | 新 Agent 能发现入口，并证明任务与草稿幂等、失败关闭和禁止发布 |
 | `media` | 用显式 FFprobe 或 FFmpeg 解码夹具的视频流和音轨 | 当前媒体工具可读取授权夹具 |
 | `live` | 始终为 `manual_required` | 提醒必须另做登录、真实 OCR/ASR 和微信交接 |
+
+`agent` tier 的 `watch_later_to_draft_contract` 使用
+`tests/fixtures/automation/`，不访问任何真实账号。它验证一个新增条目只创建一个任务，
+多源证据生成 canonical subtitle，文章通过审计后只绑定一份草稿；第二周期不重复任务或草稿；
+不可用证据以 `unprocessable` 在内容阶段前结束；原始证据哈希不变；回执始终记录
+`published=false`。这能证明持久契约和幂等性，不能证明当前 Browser Bridge 或微信登录有效。
+
+完整运行和 live acceptance 边界见
+[`watch-later-automation.md`](watch-later-automation.md)。
 
 完整离线验收示例：
 

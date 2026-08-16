@@ -262,7 +262,7 @@ def _download_videocr(
         raise ValueError(f"Existing archive does not match the runtime lock: {archive}")
     partial = archive.with_suffix(archive.suffix + ".part")
     request = urllib.request.Request(
-        asset["url"], headers={"User-Agent": "video-subtitle-skill/0.6.0"}
+        asset["url"], headers={"User-Agent": "video-subtitle-skill/0.7.0"}
     )
     digest = hashlib.sha256()
     downloaded = 0

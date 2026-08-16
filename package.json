@@ -1,6 +1,6 @@
 {
   "name": "video-subtitle-skill",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Auditable video subtitle evidence and content transformation bundle for DeepSeek Harness.",
   "license": "MIT",
   "type": "module",

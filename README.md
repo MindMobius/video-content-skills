@@ -7,12 +7,13 @@ Skill、MCP Server 与 JSON CLI。
 检查、登录态、下载、识别、时间轴和产物；Agent 负责选择证据、理解语义、判断冲突
 并决定是否继续取证。
 
-仓库包含两个核心 Skill 和一个可选下游 Skill：`video-subtitle` 负责建立证据，
-`video-to-content` 负责把证据重建为可追溯的内容模型，再按用户指定的文章、一图流、卡片、
-Brief 或口播稿等载体生成成品；`wechat-draft-handoff` 只在用户明确要求时，把已经审计的
-公众号文章放入已登录编辑器并按授权保存草稿。用户没有指定载体时，Agent 可以分析和推荐，
-但必须等待用户选择；只有用户明确委托时才能代选。语义判断始终由 Agent 完成，工具只做
-依赖、持久化、版本和确定性校验。
+仓库包含四个可发现 Skill：`video-subtitle` 负责建立证据，`video-to-content`
+负责把证据重建为可追溯的内容模型并生成审计成品；`wechat-draft-handoff` 只在明确授权下
+把已审计公众号文章放入已登录编辑器并保存草稿；`video-watch-later-automation` 负责把已经
+选定的“Bilibili 稍后再看 -> 微信公众号草稿”长期工作流编排起来。普通单视频任务没有指定
+载体时，Agent 仍必须等待用户选择或明确委托；只有 standing profile 已经固定微信公众号文章
+时，自动化周期才不再逐条询问。语义判断始终由 Agent 完成，工具只做依赖、持久化、版本和
+确定性校验。
 
 Python/MCP 内容项目的终点仍是忠实、得体、恰当、优雅且通过审计的可交付成品。可选草稿
 交接不属于默认链路，不读取登录秘密，也不反向修改审计产物。定时发布、正式发布、群发、
@@ -20,7 +21,7 @@ Python/MCP 内容项目的终点仍是忠实、得体、恰当、优雅且通过
 
 ## Agent 快速入口
 
-仓库内的三个 Skill 位于标准项目目录 [`.agents/skills`](.agents/skills)，支持该约定的
+仓库内的四个 Skill 位于标准项目目录 [`.agents/skills`](.agents/skills)，支持该约定的
 Agent 在进入仓库后可以直接发现。其他项目或个人环境可先检查再安装：
 
 ```powershell
@@ -28,7 +29,8 @@ npx skills add MindMobius/video-subtitle-skill --list
 npx skills add MindMobius/video-subtitle-skill `
   --skill video-subtitle `
   --skill video-to-content `
-  --skill wechat-draft-handoff
+  --skill wechat-draft-handoff `
+  --skill video-watch-later-automation
 ```
 
 不支持 Agent Skills 自动发现的 Coding Agent 应从 [`AGENTS.md`](AGENTS.md) 开始；它会
@@ -39,9 +41,9 @@ Skill 负责告诉 Agent 如何判断和使用工具，不会假设 MCP 已经�
 
 ## DSH 插件试玩
 
-仓库同时提供一个最小的 DeepSeek Harness Bundle。它不重写 Python 核心：Bundle 将上述三套
+仓库同时提供一个最小的 DeepSeek Harness Bundle。它不重写 Python 核心：Bundle 将上述四套
 Skill 注册到 DSH，并用 DSH 官方 MCP Client 连接现有 stdio MCP Server。当前原型没有专用
-UI，先验证自然语言入口、Skill 路由和 24 个工具能否作为一个完整垂直能力共同工作。
+UI，先验证自然语言入口、Skill 路由和 35 个工具能否作为一个完整垂直能力共同工作。
 
 在本地 clone 中完成一次 Python bootstrap，再把当前目录安装到 DSH 的 `web` profile：
 
@@ -56,6 +58,8 @@ dsh web
 
 ```text
 把这个 B 站视频整理成一篇可追溯的公众号文章，先不要保存到公众号。
+
+运行我已经授权的稍后再看到公众号草稿自动化周期。
 ```
 
 Bundle 默认使用仓库 `.venv` 中的 Python；可用 `VIDEO_SUBTITLE_DSH_PYTHON` 指向另一个已安装
@@ -84,6 +88,8 @@ Bundle 默认使用仓库 `.venv` 中的 Python；可用 `VIDEO_SUBTITLE_DSH_PYT
   视觉素材、单行相对图片路径、预览与导入清单，并拒绝非视频来源配图；
 - 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
   填写标题/摘要/封面、只保存草稿并生成与当前审计绑定的可校验回执；
+- Bilibili 稍后再看自动化：新增发现、BVID + 分 P + profile 版本幂等入队、最佳字幕、文章审计、
+  有界重试、`unprocessable` 失败关闭、`paused_auth` 登录暂停，以及单草稿 binding；
 - 多视频任务的逐条批次台账、阶段前置条件、失败重试和恢复点，不合并每条视频的独立产物；
 - 项目 ZIP 导出、SHA-256 校验、秘密扫描、路径穿越防护和跨机器导入，默认排除原视频；
 - `core`、`agent`、`media`、`live` 四层复现验收，其中 live 服务永远保持显式人工验证；
@@ -91,6 +97,16 @@ Bundle 默认使用仓库 `.venv` 中的 Python；可用 `VIDEO_SUBTITLE_DSH_PYT
 
 YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心不依赖平台，新增
 平台只需实现 [`platforms/base.py`](src/video_subtitle/platforms/base.py) 的最小接口。
+
+## 稍后再看到公众号草稿自动化
+
+当用户已经明确选择长期工作流并授予仅限 `save_wechat_draft` 的可撤销授权后，可以把
+Bilibili“稍后再看”作为任务入口。仓库每次只执行一次扫描和一次队列推进；周期由调用方的
+Codex automation 或其他调度器负责，不创建隐藏 daemon。证据不足会记录为
+`unprocessable`，登录失效会记录为 `paused_auth`，任何路径都不会发布。
+
+完整的 profile、授权、CLI/MCP、状态机、幂等规则和 live acceptance 说明见
+[`docs/watch-later-automation.md`](docs/watch-later-automation.md)。
 
 ## Agent 可迁移环境
 
@@ -467,6 +483,7 @@ video-subtitle-skill/
 ├─ .agents/skills/video-subtitle/       字幕证据决策与安全边界
 ├─ .agents/skills/video-to-content/     内容重建、载体决策门、生成与审计 Prompt
 ├─ .agents/skills/wechat-draft-handoff/ 已审计公众号文章的可选草稿交接
+├─ .agents/skills/video-watch-later-automation/ 稍后再看到单份微信草稿的自动化编排
 ├─ src/video_subtitle/
 │  ├─ requirements.json               外部能力依赖契约
 │  ├─ config.py                       持久配置与优先级
@@ -489,7 +506,8 @@ video-subtitle-skill/
 ├─ scripts/project_bundle.py            项目导出、验证和导入
 ├─ schemas/                            Bootstrap、环境、证据与内容契约
 ├─ tests/
-└─ docs/reproducibility.md             干净 clone、CI 与真实媒体验收边界
+├─ docs/reproducibility.md             干净 clone、CI 与真实媒体验收边界
+└─ docs/watch-later-automation.md       稍后再看自动化的配置、调度与失败语义
 ```
 
 ## 开发验证
