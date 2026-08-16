@@ -352,3 +352,72 @@ def test_bundled_opencli_executable_does_not_require_node(
     )
     assert node["status"] == "ready"
     assert node["detected"] == "not required by standalone OpenCLI executable"
+
+
+def test_watch_later_capability_installs_adapter_before_requesting_login(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "video_subtitle.environment.shutil.which",
+        lambda command: f"/tools/{command}",
+    )
+    diagnostics = {
+        "deep": False,
+        "requested_capabilities": ["watch_later_monitor"],
+        "opencli": {
+            "available": True,
+            "platform_ready": False,
+            "command": "opencli",
+            "profile": "bridge",
+        },
+        "watch_later_adapter": {"checked": True, "available": False},
+        "download_tools": {},
+        "hard_ocr": {},
+        "audio_asr": {},
+    }
+    report = build_setup_report(
+        diagnostics,
+        capabilities=["watch_later_monitor"],
+        config_path=tmp_path / "config.json",
+    )
+    dependencies = {item["dependency_id"]: item for item in report["dependencies"]}
+    assert dependencies["watch_later_adapter"]["status"] == "missing"
+    assert dependencies["browser_bridge"]["status"] == "blocked"
+    assert [item["dependency_id"] for item in report["agent_actions"]] == [
+        "watch_later_adapter"
+    ]
+    assert report["human_actions"] == []
+
+
+def test_watch_later_capability_requests_login_after_adapter_is_ready(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "video_subtitle.environment.shutil.which",
+        lambda command: f"/tools/{command}",
+    )
+    diagnostics = {
+        "deep": False,
+        "requested_capabilities": ["watch_later_monitor"],
+        "opencli": {
+            "available": True,
+            "platform_ready": False,
+            "command": "opencli",
+            "profile": "bridge",
+        },
+        "watch_later_adapter": {"checked": True, "available": True},
+        "download_tools": {},
+        "hard_ocr": {},
+        "audio_asr": {},
+    }
+    report = build_setup_report(
+        diagnostics,
+        capabilities=["watch_later_monitor"],
+        config_path=tmp_path / "config.json",
+    )
+    assert report["agent_actions"] == []
+    assert [item["dependency_id"] for item in report["human_actions"]] == [
+        "browser_bridge"
+    ]
