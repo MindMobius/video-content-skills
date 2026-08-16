@@ -29,6 +29,7 @@ def test_project_skills_use_the_standard_discovery_directory() -> None:
     assert [path.parent.name for path in discovered] == [
         "video-subtitle",
         "video-to-content",
+        "video-watch-later-automation",
         "wechat-draft-handoff",
     ]
     for skill_path in discovered:

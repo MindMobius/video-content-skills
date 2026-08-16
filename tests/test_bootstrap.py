@@ -44,6 +44,7 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
     assert [item["name"] for item in report["skills"]["available"]] == [
         "video-subtitle",
         "video-to-content",
+        "video-watch-later-automation",
         "wechat-draft-handoff",
     ]
     assert report["mcp"]["transport"] == "stdio"
