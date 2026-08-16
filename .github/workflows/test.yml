@@ -6,6 +6,7 @@ on:
 
 jobs:
   python:
+    timeout-minutes: 15
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,10 +22,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install
-        run: python -m pip install -e ".[mcp,dev]"
+        run: >-
+          python -m pip install
+          -c requirements/mcp-constraints.txt
+          -e ".[mcp,dev]"
 
       - name: Lint
         run: python -m ruff check .
+
+      - name: Format
+        run: python -m ruff format --check .
 
       - name: Test
         run: python -m pytest
@@ -33,6 +40,7 @@ jobs:
         run: python scripts/mcp_smoke.py
 
   clean-agent-contract:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
 
     steps:
@@ -40,11 +48,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install Node development contract
+        run: npm ci --ignore-scripts
+
+      - name: Test browser adapter and bundle packaging
+        run: |
+          npm test
+          npm run pack:check
 
       - name: Discover project Skills
         run: npx -y skills@1.5.22 add . --list
@@ -62,7 +78,14 @@ jobs:
           assert report['schema_version']=='video-subtitle/bootstrap-v2';
           assert report['installation']['ready'];
           assert [item['name'] for item in report['skills']['available']]
-          == ['video-subtitle', 'video-to-content'];
+          == ['video-subtitle', 'video-to-content', 'wechat-draft-handoff'];
+          assert report['installation']['lock']['verified'];
           assert report['mcp']['transport']=='stdio';
           assert report['mcp']['env']['VIDEO_SUBTITLE_CONFIG']
           == report['setup']['configuration']['path']"
+
+      - name: Reproduce deterministic Agent contract
+        run: >-
+          .venv/bin/python scripts/repro_check.py
+          --require-tier core
+          --require-tier agent

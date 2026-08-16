@@ -107,6 +107,14 @@ async def smoke() -> None:
                             "validate_video_content_project",
                         )
                     ),
+                    "batch_tools_exposed": all(
+                        name in tool_names
+                        for name in (
+                            "initialize_video_batch",
+                            "get_video_batch",
+                            "update_video_batch_item",
+                        )
+                    ),
                     "typed_review_decisions": (
                         "ReviewDecisionInput" in submit_schema.get("$defs", {})
                         and submit_schema["$defs"]["ReviewDecisionInput"]["properties"][

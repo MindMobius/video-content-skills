@@ -10,6 +10,7 @@ from . import __version__
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
+from .core.batch import get_batch, initialize_batch, update_batch_item
 from .core.content import (
     finish_content_phase,
     get_content_project,
@@ -341,6 +342,55 @@ def build_parser() -> argparse.ArgumentParser:
     )
     content_validate_parser.add_argument("--project", type=Path, required=True)
 
+    batch_init_parser = commands.add_parser(
+        "batch-init",
+        help="Create a durable per-video ledger for a multi-video task",
+    )
+    batch_init_parser.add_argument("--manifest", type=Path, required=True)
+    batch_init_parser.add_argument("--input", action="append", required=True)
+    batch_init_parser.add_argument(
+        "--input-kind",
+        choices=("video_url", "video_file", "audio_file", "subtitle_file"),
+        default="video_url",
+    )
+    batch_init_parser.add_argument(
+        "--medium",
+        choices=(
+            "article",
+            "one_page",
+            "card_series",
+            "brief",
+            "script",
+            "custom",
+            "subtitles_only",
+        ),
+        default="article",
+    )
+    batch_init_parser.add_argument("--draft", action="store_true")
+
+    batch_status_parser = commands.add_parser(
+        "batch-status",
+        help="Read batch progress and the next resumable per-video stages",
+    )
+    batch_status_parser.add_argument("--manifest", type=Path, required=True)
+
+    batch_update_parser = commands.add_parser(
+        "batch-update",
+        help="Apply one guarded per-video stage transition",
+    )
+    batch_update_parser.add_argument("--manifest", type=Path, required=True)
+    batch_update_parser.add_argument("--item-id", required=True)
+    batch_update_parser.add_argument(
+        "--stage", choices=("subtitle", "content", "handoff"), required=True
+    )
+    batch_update_parser.add_argument(
+        "--status",
+        choices=("running", "completed", "failed", "blocked", "skipped"),
+        required=True,
+    )
+    batch_update_parser.add_argument("--artifact")
+    batch_update_parser.add_argument("--error")
+
     worker_parser = commands.add_parser("_worker", help=argparse.SUPPRESS)
     worker_parser.add_argument("--request-file", type=Path, required=True)
     return parser
@@ -654,6 +704,33 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if args.command == "content-validate":
         result = validate_content_project(args.project)
         return result, 0 if result["valid"] else 1
+
+    if args.command == "batch-init":
+        return (
+            initialize_batch(
+                args.manifest,
+                [{"kind": args.input_kind, "value": value} for value in args.input],
+                target_medium=args.medium,
+                draft_requested=args.draft,
+            ),
+            0,
+        )
+
+    if args.command == "batch-status":
+        return get_batch(args.manifest), 0
+
+    if args.command == "batch-update":
+        return (
+            update_batch_item(
+                args.manifest,
+                item_id=args.item_id,
+                stage=args.stage,
+                status=args.status,
+                artifact=args.artifact,
+                error=args.error,
+            ),
+            0,
+        )
 
     if args.command == "configure":
         result = update_configuration(

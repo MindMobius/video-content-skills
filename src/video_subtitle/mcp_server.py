@@ -8,6 +8,7 @@ from typing import Any, Literal
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import apply_configuration, update_configuration
+from .core.batch import get_batch, initialize_batch, update_batch_item
 from .core.content import (
     finish_content_phase,
     initialize_content_project,
@@ -76,6 +77,14 @@ class ReviewUnresolvedInput:
     issue: str
     cue_id: str | None = None
     evidence: list[str] | None = None
+
+
+@dataclass
+class BatchInput:
+    """One independent input in a durable multi-video task ledger."""
+
+    kind: Literal["video_url", "video_file", "audio_file", "subtitle_file"]
+    value: str
 
 
 def _settings() -> OpenCliSettings:
@@ -541,6 +550,53 @@ def validate_video_content_project(job_id: str, project_id: str) -> dict[str, An
     return validate_content_project(_content_project_path(job_id, project_id))
 
 
+def initialize_video_batch(
+    manifest_path: str,
+    inputs: list[BatchInput],
+    target_medium: Literal[
+        "article",
+        "one_page",
+        "card_series",
+        "brief",
+        "script",
+        "custom",
+        "subtitles_only",
+    ] = "article",
+    draft_requested: bool = False,
+) -> dict[str, Any]:
+    """Create a resumable ledger while keeping every video's artifacts independent."""
+    return initialize_batch(
+        Path(manifest_path),
+        [_compact_dataclass(item) for item in inputs],
+        target_medium=target_medium,
+        draft_requested=draft_requested,
+    )
+
+
+def get_video_batch(manifest_path: str) -> dict[str, Any]:
+    """Read aggregate progress and the next independently resumable stages."""
+    return get_batch(Path(manifest_path))
+
+
+def update_video_batch_item(
+    manifest_path: str,
+    item_id: str,
+    stage: Literal["subtitle", "content", "handoff"],
+    status: Literal["running", "completed", "failed", "blocked", "skipped"],
+    artifact: str | None = None,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """Record one stage transition, retry, artifact, or actionable failure."""
+    return update_batch_item(
+        Path(manifest_path),
+        item_id=item_id,
+        stage=stage,
+        status=status,
+        artifact=artifact,
+        error=error,
+    )
+
+
 if McpServer is not None:
     mcp = McpServer(
         "video-subtitle",
@@ -583,6 +639,9 @@ if McpServer is not None:
     mcp.tool(name="save_video_content_deliverable")(save_video_content_deliverable)
     mcp.tool(name="read_video_content_artifact")(read_video_content_artifact)
     mcp.tool(name="validate_video_content_project")(validate_video_content_project)
+    mcp.tool(name="initialize_video_batch")(initialize_video_batch)
+    mcp.tool(name="get_video_batch")(get_video_batch)
+    mcp.tool(name="update_video_batch_item")(update_video_batch_item)
 else:
     mcp = None
 

@@ -1,0 +1,19 @@
+{
+  "schema_version": "video-subtitle/authorized-media-fixture-v1",
+  "license": "CC0-1.0",
+  "generated": true,
+  "duration_seconds": 3,
+  "video": {
+    "path": "authorized-hard-subtitle.mp4",
+    "bytes": 32608,
+    "sha256": "f8d45439901e3c5c913ebf6780afb96770e7fbd65b478cc45d09c8f963c67d79",
+    "width": 640,
+    "height": 360,
+    "has_audio": true,
+    "hard_subtitle": "AUTHORIZED TEST SUBTITLE"
+  },
+  "generator": {
+    "script": "scripts/generate_media_fixture.py",
+    "ffmpeg_version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers"
+  }
+}
