@@ -161,19 +161,14 @@ def test_scan_advances_latest_snapshot_only_after_jobs_are_durable(
     profile_path = tmp_path / "profile.json"
     profile = save_automation_profile(profile_path, _profile())
     latest_path = (
-        tmp_path
-        / "automation"
-        / profile["profile_id"]
-        / "watch-later-latest.json"
+        tmp_path / "automation" / profile["profile_id"] / "watch-later-latest.json"
     )
     real_transition = automation_scan_module.transition_automation_job
 
     def fail_queue(*args, **kwargs):
         raise RuntimeError("simulated queue failure")
 
-    monkeypatch.setattr(
-        automation_scan_module, "transition_automation_job", fail_queue
-    )
+    monkeypatch.setattr(automation_scan_module, "transition_automation_job", fail_queue)
     with pytest.raises(RuntimeError, match="queue failure"):
         scan_watch_later(
             profile_path=profile_path,

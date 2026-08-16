@@ -16,6 +16,7 @@ from .automation_job import (
     transition_automation_job,
 )
 from .automation_profile import read_automation_profile
+from .locking import exclusive_file_lock
 from .util import read_json, write_json_atomic
 
 
@@ -35,39 +36,47 @@ def scan_watch_later(
     entries = normalize_watch_later_entries(rows)
     snapshot_root = store / "automation" / profile["profile_id"] / "snapshots"
     latest_path = snapshot_root.parent / "watch-later-latest.json"
-    previous = read_json(latest_path) if latest_path.is_file() else None
-    baseline_initialized = previous is None and baseline_if_empty
-    snapshot = build_watch_later_snapshot(
-        profile["profile_id"],
-        profile["source"]["account_profile_alias"],
-        entries,
-        previous=previous,
-    )
-    if baseline_initialized:
-        snapshot["new_entries"] = []
-    archive_path = snapshot_root / f"{snapshot['snapshot_id']}.json"
-    write_json_atomic(archive_path, snapshot)
-    write_json_atomic(latest_path, snapshot)
+    latest_path.parent.mkdir(parents=True, exist_ok=True)
 
     created_jobs: list[str] = []
     existing_jobs: list[str] = []
-    for entry in snapshot["new_entries"]:
-        result = initialize_automation_job(
-            store,
-            {
-                "platform": "bilibili",
-                "bvid": entry["bvid"],
-                "page": entry["page"],
-                "title": entry["title"],
-                "url": entry["url"],
-            },
-            profile,
+    with exclusive_file_lock(latest_path):
+        previous = read_json(latest_path) if latest_path.is_file() else None
+        baseline_initialized = previous is None and baseline_if_empty
+        snapshot = build_watch_later_snapshot(
+            profile["profile_id"],
+            profile["source"]["account_profile_alias"],
+            entries,
+            previous=previous,
         )
-        if result["reused_existing_job"]:
-            existing_jobs.append(result["job_id"])
-            continue
-        queued = transition_automation_job(Path(result["job_path"]), status="queued")
-        created_jobs.append(queued["job_id"])
+        if baseline_initialized:
+            snapshot["new_entries"] = []
+        archive_path = snapshot_root / f"{snapshot['snapshot_id']}.json"
+
+        for entry in snapshot["new_entries"]:
+            result = initialize_automation_job(
+                store,
+                {
+                    "platform": "bilibili",
+                    "bvid": entry["bvid"],
+                    "page": entry["page"],
+                    "title": entry["title"],
+                    "url": entry["url"],
+                },
+                profile,
+            )
+            if result["reused_existing_job"]:
+                if result["status"] == "discovered":
+                    transition_automation_job(Path(result["job_path"]), status="queued")
+                existing_jobs.append(result["job_id"])
+                continue
+            queued = transition_automation_job(
+                Path(result["job_path"]), status="queued"
+            )
+            created_jobs.append(queued["job_id"])
+
+        write_json_atomic(archive_path, snapshot)
+        write_json_atomic(latest_path, snapshot)
     jobs = list_automation_jobs(store)["jobs"]
     return {
         "schema_version": "video-automation/scan-result-v1",

@@ -71,7 +71,10 @@ snapshot exists. This makes only later additions enter the queue without a
 separate initialization script. Watch Later identity is BVID plus page, combined
 with profile ID and version. Reordering must not create a new job, a second scan
 must not duplicate a job, and removing an item later must not cancel work already
-submitted.
+submitted. Do not advance the latest Watch Later snapshot until every newly
+observed job is durably created and queued. If queueing is interrupted, retry the
+same scan and recover any existing `discovered` job before committing the new
+snapshot.
 
 Process each job independently. Never merge videos into one evidence manifest,
 article, receipt, or handoff binding.
@@ -151,6 +154,8 @@ is not enough. The binding is the idempotency guard that prevents a second draft
 
 - Temporary network, subprocess, browser-control, or service failure:
   `retry_wait`, using the persisted resume status and bounded technical attempts.
+- Bilibili risk control (`BILIBILI_RISK_CONTROL`): `retry_wait`; do not advance
+  the discovery snapshot and do not misclassify it as expired login.
 - Technical attempts exhausted: `failed_retry_exhausted`.
 - Expired interactive browser login: `paused_auth`.
 - Missing, contradictory, or unusable evidence: `unprocessable`.

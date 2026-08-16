@@ -1,14 +1,46 @@
 ﻿const canonicalUrl = (bvid) => `https://www.bilibili.com/video/${bvid}/`
 
+export class BilibiliWatchLaterError extends Error {
+  constructor(code, message, { authRequired = false, retryable = false } = {}) {
+    super(message)
+    this.name = 'BilibiliWatchLaterError'
+    this.code = code
+    this.authRequired = authRequired
+    this.retryable = retryable
+  }
+}
+
 export function normalizeWatchLaterPayload(payload, limit = 100) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error('Malformed Bilibili Watch Later response')
   }
+  const httpStatus = Number(payload.__http ?? 200)
+  const riskControlled = httpStatus === 403
+    || httpStatus === 412
+    || payload.code === -352
+    || payload.data?.v_voucher != null
+  if (riskControlled) {
+    const detail = httpStatus === 403 || httpStatus === 412
+      ? `HTTP ${httpStatus}`
+      : `API code ${payload.code}`
+    throw new BilibiliWatchLaterError(
+      'BILIBILI_RISK_CONTROL',
+      `Bilibili risk control triggered (${detail})`,
+      { retryable: true },
+    )
+  }
   if (payload.code === -101) {
-    throw new Error('Bilibili login required')
+    throw new BilibiliWatchLaterError(
+      'BILIBILI_AUTH_REQUIRED',
+      'Bilibili login required',
+      { authRequired: true },
+    )
   }
   if (payload.code !== 0) {
-    throw new Error(`Bilibili Watch Later failed: ${payload.message ?? payload.code}`)
+    throw new BilibiliWatchLaterError(
+      'BILIBILI_API_ERROR',
+      `Bilibili Watch Later failed: ${payload.message ?? payload.code}`,
+    )
   }
   const list = payload.data?.list
   if (!Array.isArray(list)) {

@@ -1,4 +1,4 @@
-﻿import { AuthRequiredError, CommandExecutionError } from '@jackwener/opencli/errors'
+﻿import { AuthRequiredError, CliError, CommandExecutionError, EXIT_CODES } from '@jackwener/opencli/errors'
 import { cli, Strategy } from '@jackwener/opencli/registry'
 
 import { normalizeWatchLaterPayload } from './lib/normalize-watch-later.mjs'
@@ -24,10 +24,15 @@ cli({
         });
         const text = await response.text();
         try {
-          return JSON.parse(text);
+          const payload = JSON.parse(text);
+          if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+            return { ...payload, __http: response.status };
+          }
+          return payload;
         } catch {
           return {
             code: -1,
+            __http: response.status,
             message: 'Non-JSON response (HTTP ' + response.status + '): ' + text.slice(0, 160),
           };
         }
@@ -37,8 +42,16 @@ cli({
       return normalizeWatchLaterPayload(payload, kwargs.limit)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      if (/login required/i.test(message)) {
+      if (error?.authRequired === true) {
         throw new AuthRequiredError('bilibili.com', message)
+      }
+      if (error?.retryable === true) {
+        throw new CliError(
+          error.code ?? 'BILIBILI_TEMPORARY_FAILURE',
+          message,
+          'Wait a few minutes and retry without increasing scan frequency.',
+          EXIT_CODES.TEMPFAIL,
+        )
       }
       throw new CommandExecutionError(message)
     }

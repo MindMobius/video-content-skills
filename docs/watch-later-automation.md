@@ -178,6 +178,14 @@ video-subtitle automation-jobs `
 
 相同条目再次扫描时不会产生新任务。已有有效 handoff binding 时不会再次触碰微信编辑器，也不会创建第二份草稿。
 
+The latest Watch Later snapshot is an incremental checkpoint. It is updated only
+after every newly observed job has been durably created and queued. If queueing
+is interrupted, the next scan compares against the previous snapshot and
+recovers any existing `discovered` job before committing the new checkpoint.
+Bilibili API code `-352`, voucher challenges, HTTP 403, and HTTP 412 are
+classified as `BILIBILI_RISK_CONTROL` and enter technical retry instead of
+`paused_auth`.
+
 ## 状态与失败处理
 
 | 状态 | 含义 | 自动动作 |
