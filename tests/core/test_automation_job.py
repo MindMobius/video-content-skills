@@ -84,3 +84,31 @@ def test_job_retry_is_bounded(tmp_path: Path) -> None:
     )
     assert result["status"] == "failed_retry_exhausted"
     assert get_automation_job(path)["termination"]["code"] == "RETRY_EXHAUSTED"
+
+
+def test_content_repairs_are_bounded(tmp_path: Path) -> None:
+    from video_subtitle.core.automation_job import record_content_repair
+
+    job = initialize_automation_job(tmp_path, _source(), _profile())
+    path = Path(job["job_path"])
+    transition_automation_job(path, status="queued")
+    transition_automation_job(path, status="evidence_running")
+    transition_automation_job(path, status="evidence_ready")
+    transition_automation_job(path, status="canonicalizing")
+    canonical = path.parent / "canonical.json"
+    canonical.write_text("{}", encoding="utf-8")
+    transition_automation_job(
+        path,
+        status="canonical_ready",
+        artifact_kind="canonical_subtitle",
+        artifact_path=str(canonical),
+        artifact_status="usable",
+    )
+    transition_automation_job(path, status="content_generating")
+    transition_automation_job(path, status="content_auditing")
+    first = record_content_repair(path)
+    assert first["status"] == "content_generating"
+    transition_automation_job(path, status="content_auditing")
+    exhausted = record_content_repair(path)
+    assert exhausted["status"] == "unprocessable"
+    assert exhausted["termination"]["code"] == "CONTENT_REPAIR_EXHAUSTED"
