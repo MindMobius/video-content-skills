@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -212,15 +213,26 @@ def test_hard_subtitle_decision_is_independent_of_platform_tracks() -> None:
 
 def test_package_versions_are_synchronized_semver() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    package = (ROOT / "src" / "video_subtitle" / "__init__.py").read_text(
+    package_init = (ROOT / "src" / "video_subtitle" / "__init__.py").read_text(
         encoding="utf-8"
     )
+    npm_package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    shrinkwrap = json.loads(
+        (ROOT / "npm-shrinkwrap.json").read_text(encoding="utf-8")
+    )
     project_version = re.search(r'(?m)^version = "([^"]+)"$', pyproject)
-    package_version = re.search(r'(?m)^__version__ = "([^"]+)"$', package)
+    package_version = re.search(r'(?m)^__version__ = "([^"]+)"$', package_init)
 
     assert project_version is not None
     assert package_version is not None
-    assert project_version.group(1) == package_version.group(1)
+    versions = {
+        project_version.group(1),
+        package_version.group(1),
+        npm_package["version"],
+        shrinkwrap["version"],
+        shrinkwrap["packages"][""]["version"],
+    }
+    assert versions == {"0.7.0"}
     assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", project_version.group(1))
 
 

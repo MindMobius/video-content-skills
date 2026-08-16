@@ -14,8 +14,8 @@ def test_dsh_bundle_manifest_matches_python_package() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert package["name"] == "video-subtitle-skill"
-    assert package["version"] == "0.6.0"
-    assert 'version = "0.6.0"' in pyproject
+    assert package["version"] == "0.7.0"
+    assert 'version = "0.7.0"' in pyproject
     assert package["dsh"]["bundle"]["patch"] == "./dsh/cordis.patch.yml"
     assert package["exports"]["./dsh"] == "./dsh/plugin.js"
     assert package["keywords"][0] == "dsh-plugin"

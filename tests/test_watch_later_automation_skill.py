@@ -22,3 +22,30 @@ def test_agent_routing_and_dsh_register_automation_skill() -> None:
     plugin = (ROOT / "dsh" / "plugin.js").read_text(encoding="utf-8")
     assert "video-watch-later-automation" in agents
     assert "video-watch-later-automation" in plugin
+
+
+def test_public_docs_explain_the_one_shot_operator_contract() -> None:
+    guide_path = ROOT / "docs" / "watch-later-automation.md"
+    guide = guide_path.read_text(encoding="utf-8")
+    public_docs = [
+        (ROOT / "README.md").read_text(encoding="utf-8"),
+        (ROOT / "docs" / "environment.md").read_text(encoding="utf-8"),
+        (ROOT / "docs" / "reproducibility.md").read_text(encoding="utf-8"),
+    ]
+
+    for token in (
+        "watch_later_monitor",
+        "automation-profile-save",
+        "automation-authorize-drafts",
+        "--confirm-draft-only-authorization",
+        "automation-scan",
+        "--store",
+        "unprocessable",
+        "paused_auth",
+        "manual_required",
+        "published=false",
+    ):
+        assert token in guide
+
+    for document in public_docs:
+        assert "watch-later-automation.md" in document
