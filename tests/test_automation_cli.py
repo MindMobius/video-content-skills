@@ -85,9 +85,7 @@ def test_parser_separates_browser_and_automation_profile_aliases() -> None:
 
 
 def test_doctor_accepts_watch_later_monitor_capability() -> None:
-    args = build_parser().parse_args(
-        ["doctor", "--capability", "watch_later_monitor"]
-    )
+    args = build_parser().parse_args(["doctor", "--capability", "watch_later_monitor"])
 
     assert args.capability == ["watch_later_monitor"]
 

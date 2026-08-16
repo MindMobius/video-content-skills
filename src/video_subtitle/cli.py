@@ -428,7 +428,9 @@ def build_parser() -> argparse.ArgumentParser:
     automation_scan_parser = commands.add_parser(
         "automation-scan", help="Scan Bilibili Watch Later and enqueue new videos"
     )
-    automation_scan_parser.add_argument("--profile", type=Path, required=True)
+    automation_scan_parser.add_argument(
+        "--profile", dest="automation_profile", type=Path, required=True
+    )
     automation_scan_parser.add_argument("--store", type=Path, required=True)
     automation_scan_parser.add_argument("--limit", type=_positive_int)
 
@@ -473,7 +475,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Initialize an automated content project from a usable canonical subtitle",
     )
     automation_content_parser.add_argument("--manifest", type=Path, required=True)
-    automation_content_parser.add_argument("--profile", type=Path, required=True)
+    automation_content_parser.add_argument(
+        "--profile", dest="automation_profile", type=Path, required=True
+    )
     automation_content_parser.add_argument("--job", type=Path, required=True)
 
     automation_handoff_prepare_parser = commands.add_parser(
@@ -482,7 +486,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     automation_handoff_prepare_parser.add_argument("--job", type=Path, required=True)
     automation_handoff_prepare_parser.add_argument(
-        "--profile", type=Path, required=True
+        "--profile", dest="automation_profile", type=Path, required=True
     )
     automation_handoff_prepare_parser.add_argument(
         "--authorization", type=Path, required=True
@@ -510,6 +514,7 @@ def _add_capability_arguments(parser: argparse.ArgumentParser) -> None:
         action="append",
         choices=(
             "all",
+            "watch_later_monitor",
             "platform_subtitle",
             "video_download",
             "hard_ocr_local",
@@ -893,7 +898,7 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         return (
             initialize_automated_content_project(
                 manifest_path=args.manifest,
-                profile_path=args.profile,
+                profile_path=args.automation_profile,
                 job_path=args.job,
             ),
             0,
@@ -903,7 +908,7 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         return (
             prepare_automation_handoff(
                 job_path=args.job,
-                profile_path=args.profile,
+                profile_path=args.automation_profile,
                 authorization_path=args.authorization,
             ),
             0,
@@ -959,7 +964,7 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
     if args.command == "automation-scan":
         return (
             scan_watch_later(
-                profile_path=args.profile,
+                profile_path=args.automation_profile,
                 source=OpenCliWatchLaterSource(client),
                 store=args.store,
                 limit=args.limit,
