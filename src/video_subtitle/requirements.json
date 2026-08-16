@@ -1,6 +1,6 @@
 {
   "schema_version": "video-subtitle/requirements-v1",
-  "verified_at": "2026-08-06",
+  "verified_at": "2026-08-16",
   "capabilities": {
     "platform_subtitle": {
       "description": "Read metadata and subtitle tracks exposed by Bilibili.",
@@ -123,8 +123,9 @@
       "description": "FFmpeg executable used for media download merging and ASR audio extraction.",
       "agent_action": {
         "type": "install",
+        "command": "python scripts/runtime_setup.py plan ffmpeg",
         "reference": "https://ffmpeg.org/download.html",
-        "description": "Install FFmpeg with the host package manager and persist the ffmpeg executable path."
+        "description": "Read the platform-aware plan, install FFmpeg with the host package manager, verify the detected version, and persist its executable path."
       }
     },
     "videocr": {
@@ -135,9 +136,10 @@
       "description": "VideOCR CLI backend for complete hard-subtitle timelines.",
       "agent_action": {
         "type": "large_download",
+        "command": "python scripts/runtime_setup.py plan videocr",
         "reference": "https://github.com/timminator/VideOCR/releases",
         "confirmation_required": true,
-        "description": "After confirming download and disk cost, inspect the host GPU, download the compatible VideOCR 1.5.1 asset, record the selected asset, and persist the executable path."
+        "description": "Inspect the host GPU, select a pinned runtime-lock variant, show its byte size, and only after confirmation download and SHA-256 verify the VideOCR 1.5.1 archive."
       }
     },
     "asr_python": {
@@ -148,8 +150,9 @@
       "description": "Separate Python environment containing CUDA PyTorch and qwen-asr.",
       "agent_action": {
         "type": "install",
+        "command": "python scripts/runtime_setup.py plan asr",
         "reference": "https://github.com/QwenLM/Qwen3-ASR",
-        "description": "Inspect the host NVIDIA driver, create an isolated ASR environment, install a compatible CUDA PyTorch build, and pin qwen-asr==0.0.6."
+        "description": "Inspect the host NVIDIA driver, select a pinned torch profile, then create and verify an isolated qwen-asr==0.0.6 environment only after confirmation."
       }
     },
     "qwen_asr_model": {
@@ -160,9 +163,10 @@
       "description": "Local Qwen3-ASR model directory; setup never approves an implicit first-run download.",
       "agent_action": {
         "type": "large_download",
+        "command": "python scripts/runtime_setup.py plan qwen_asr_model",
         "reference": "https://huggingface.co/Qwen/Qwen3-ASR-1.7B/tree/7278e1e70fe206f11671096ffdd38061171dd6e5",
         "confirmation_required": true,
-        "description": "After confirming disk and network cost, download Qwen3-ASR-1.7B at the tested revision and persist its local directory."
+        "description": "After confirming disk and network cost, download Qwen3-ASR-1.7B at the pinned revision, write a file-hash receipt, verify it, and persist its local directory."
       }
     },
     "qwen_aligner_model": {
@@ -173,9 +177,10 @@
       "description": "Local Qwen3 Forced Aligner directory; setup never approves an implicit first-run download.",
       "agent_action": {
         "type": "large_download",
+        "command": "python scripts/runtime_setup.py plan qwen_aligner_model",
         "reference": "https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B/tree/c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
         "confirmation_required": true,
-        "description": "After confirming disk and network cost, download Qwen3-ForcedAligner-0.6B at the tested revision and persist its local directory."
+        "description": "After confirming disk and network cost, download Qwen3-ForcedAligner-0.6B at the pinned revision, write a file-hash receipt, verify it, and persist its local directory."
       }
     },
     "cuda": {

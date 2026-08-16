@@ -48,6 +48,8 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
     ]
     assert report["mcp"]["transport"] == "stdio"
     assert report["mcp"]["registration_owner"] == "calling_agent"
+    assert report["installation"]["lock"]["verified"] is True
+    assert len(report["installation"]["lock"]["sha256"]) == 64
     assert report["cli"]["command"][-2:] == [
         "--config",
         str((tmp_path / "config.json").resolve()),

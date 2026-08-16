@@ -1,0 +1,56 @@
+{
+  "name": "video-subtitle-skill",
+  "version": "0.6.0",
+  "description": "Auditable video subtitle evidence and content transformation bundle for DeepSeek Harness.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dsh/plugin.js",
+  "exports": {
+    ".": "./dsh/plugin.js",
+    "./dsh": "./dsh/plugin.js",
+    "./cordis.patch.yml": "./dsh/cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    ".agents/skills/**/*",
+    "dsh/**/*",
+    "docs/*.md",
+    "requirements/**/*",
+    "schemas/**/*.json",
+    "scripts/**/*.py",
+    "src/video_subtitle/**/*.py",
+    "src/video_subtitle/requirements.json",
+    "tests/fixtures/**/*",
+    "tests/js/**/*",
+    "AGENTS.md",
+    "LICENSE",
+    "README.md",
+    "npm-shrinkwrap.json",
+    "pyproject.toml",
+    "uv.lock"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "bilibili",
+    "subtitle",
+    "ocr",
+    "asr"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MindMobius/video-subtitle-skill.git"
+  },
+  "engines": {
+    "node": "^22.19 || >=24"
+  },
+  "scripts": {
+    "test": "node --test tests/js/*.test.mjs",
+    "pack:check": "npm pack --dry-run --json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./dsh/cordis.patch.yml"
+    }
+  }
+}

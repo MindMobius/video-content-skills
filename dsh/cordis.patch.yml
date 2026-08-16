@@ -1,0 +1,20 @@
+# Register the packaged Skills first, then connect the existing Python MCP
+# server through DSH's official MCP client. The provider row resolves paths
+# from the installed package, so local links and packaged installs share the
+# same composition.
+- insert:
+    - id: video-subtitle-bundle
+      name: 'video-subtitle-skill/dsh'
+
+    - id: video-subtitle-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      inject: [videoSubtitleBundle]
+      config:
+        serverName: video_subtitle
+        transport: stdio
+        command: !!js ctx.videoSubtitleBundle.python
+        args: ['-m', 'video_subtitle.mcp_server']
+        env: !!js ctx.videoSubtitleBundle.env
+        cwd: !!js ctx.videoSubtitleBundle.root
+        toolCallTimeoutMs: 180000
+        failOnStartupError: false

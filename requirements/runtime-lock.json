@@ -1,0 +1,77 @@
+{
+  "schema_version": "video-subtitle/runtime-lock-v1",
+  "verified_at": "2026-08-16",
+  "ffmpeg": {
+    "minimum_major": 7,
+    "tested_version": "7.1",
+    "verification_argument": "-version",
+    "install_hints": {
+      "windows": ["winget", "install", "--id", "Gyan.FFmpeg", "--exact"],
+      "linux": ["apt-get", "install", "ffmpeg"],
+      "macos": ["brew", "install", "ffmpeg"]
+    }
+  },
+  "videocr": {
+    "version": "1.5.1",
+    "release": "https://github.com/timminator/VideOCR/releases/tag/v1.5.1",
+    "variants": {
+      "windows-x86_64-cpu": {
+        "asset": "videocr-cli-CPU-v1.5.1.7z",
+        "bytes": 471804781,
+        "sha256": "4380a364667ead5d7f0bdf2933b68108bcdc9f039f4e8917d5707b479056c315",
+        "url": "https://github.com/timminator/VideOCR/releases/download/v1.5.1/videocr-cli-CPU-v1.5.1.7z"
+      },
+      "windows-x86_64-cuda11.8": {
+        "asset": "videocr-cli-GPU-v1.5.1-CUDA-11.8.7z",
+        "bytes": 1264466721,
+        "sha256": "81dbf82eb3995c4cdf15e20a23dd6acd374dee17ae958aa18bf27dc476c99bc1",
+        "url": "https://github.com/timminator/VideOCR/releases/download/v1.5.1/videocr-cli-GPU-v1.5.1-CUDA-11.8.7z"
+      },
+      "windows-x86_64-cuda12.9": {
+        "asset": "videocr-cli-GPU-v1.5.1-CUDA-12.9.7z",
+        "bytes": 1589555742,
+        "sha256": "1561e77e4747a897ae2c4bd19e308572effe71f8ea33db01a33a8a0a97ff7cec",
+        "url": "https://github.com/timminator/VideOCR/releases/download/v1.5.1/videocr-cli-GPU-v1.5.1-CUDA-12.9.7z"
+      },
+      "linux-x86_64-cpu": {
+        "asset": "videocr-cli-CPU-v1.5.1-Linux.7z",
+        "bytes": 603218080,
+        "sha256": "6e8695fe4f681753f9db7e57b0759b02d68cdceb01eff3cb6e02e09fa388041f",
+        "url": "https://github.com/timminator/VideOCR/releases/download/v1.5.1/videocr-cli-CPU-v1.5.1-Linux.7z"
+      },
+      "linux-x86_64-cuda11.8": {
+        "asset": "videocr-cli-GPU-v1.5.1-CUDA-11.8-Linux.7z",
+        "bytes": 1614781768,
+        "sha256": "870ac0c6fce27a3eb64d5a4cb54df9f858a217ad3597519e74cb57f62988a3d6",
+        "url": "https://github.com/timminator/VideOCR/releases/download/v1.5.1/videocr-cli-GPU-v1.5.1-CUDA-11.8-Linux.7z"
+      }
+    }
+  },
+  "asr": {
+    "python": "3.12",
+    "qwen_asr": "0.0.6",
+    "transformers": "4.57.6",
+    "profiles": {
+      "nvidia-cu128": {
+        "torch": "2.11.0",
+        "index_url": "https://download.pytorch.org/whl/cu128"
+      },
+      "cpu": {
+        "torch": "2.11.0",
+        "index_url": "https://download.pytorch.org/whl/cpu"
+      }
+    }
+  },
+  "models": {
+    "qwen_asr_model": {
+      "repo_id": "Qwen/Qwen3-ASR-1.7B",
+      "revision": "7278e1e70fe206f11671096ffdd38061171dd6e5",
+      "confirmation_required": true
+    },
+    "qwen_aligner_model": {
+      "repo_id": "Qwen/Qwen3-ForcedAligner-0.6B",
+      "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
+      "confirmation_required": true
+    }
+  }
+}

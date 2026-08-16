@@ -26,11 +26,24 @@
     "repo": { "type": "string", "minLength": 1 },
     "installation": {
       "type": "object",
-      "required": ["ready", "venv_python", "requirements"],
+      "required": ["ready", "venv_python", "requirements", "lock"],
       "properties": {
         "ready": { "type": "boolean" },
         "venv_python": { "type": "string", "minLength": 1 },
-        "requirements": { "type": "string", "minLength": 1 }
+        "requirements": { "type": "string", "minLength": 1 },
+        "lock": {
+          "type": "object",
+          "required": ["path", "sha256", "verified"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "sha256": {
+              "type": ["string", "null"],
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "verified": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },

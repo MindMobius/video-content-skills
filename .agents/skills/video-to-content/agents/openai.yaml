@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video to Content"
+  short_description: "Adapt verified video evidence into a faithful medium"
+  default_prompt: "Use $video-to-content to transform verified video evidence into the requested content format."

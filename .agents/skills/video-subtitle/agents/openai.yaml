@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Subtitle Evidence"
+  short_description: "Collect and verify subtitle evidence from video inputs"
+  default_prompt: "Use $video-subtitle to collect and verify subtitle evidence for this video."

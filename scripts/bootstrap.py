@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shlex
 import subprocess
@@ -77,6 +78,8 @@ def main() -> None:
                     "-m",
                     "pip",
                     "install",
+                    "-c",
+                    str(root / "requirements" / "mcp-constraints.txt"),
                     "-e",
                     f"{root}[mcp]",
                 ],
@@ -210,6 +213,8 @@ def _bootstrap_report(
         cli_command += ["--config", config_path]
     mcp_args = ["-m", "video_subtitle.mcp_server"]
     mcp_environment = {"VIDEO_SUBTITLE_CONFIG": config_path} if config_path else {}
+    lock_path = root / "requirements" / "mcp-constraints.txt"
+    lock_sha256 = _sha256_file(lock_path) if lock_path.is_file() else None
     report: dict[str, Any] = {
         "schema_version": "video-subtitle/bootstrap-v2",
         "status": status,
@@ -219,6 +224,11 @@ def _bootstrap_report(
             "ready": installed,
             "venv_python": str(python),
             "requirements": str(root / "src" / "video_subtitle" / "requirements.json"),
+            "lock": {
+                "path": str(lock_path),
+                "sha256": lock_sha256,
+                "verified": lock_sha256 is not None,
+            },
         },
         "skills": {
             "discovery_root": str(skills_root),
@@ -291,6 +301,14 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
 def _bounded_process_error(process: subprocess.CompletedProcess[str]) -> str:
     details = (process.stderr or process.stdout or "").strip()
     return details[-4000:]
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _display_command(command: list[str]) -> str:

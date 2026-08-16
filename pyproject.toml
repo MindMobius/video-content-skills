@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools==80.10.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-subtitle-skill"
-version = "0.5.0"
+version = "0.6.0"
 description = "Agent-first video subtitle evidence and traceable content transformation tools"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -17,8 +17,8 @@ Repository = "https://github.com/MindMobius/video-subtitle-skill"
 Issues = "https://github.com/MindMobius/video-subtitle-skill/issues"
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.2"]
-dev = ["jsonschema>=4.23", "pytest>=8", "ruff>=0.16"]
+mcp = ["mcp==2.0.0"]
+dev = ["jsonschema==4.26.0", "pytest==9.1.1", "ruff==0.16.1"]
 
 [project.scripts]
 video-subtitle = "video_subtitle.cli:main"
