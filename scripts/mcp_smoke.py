@@ -115,6 +115,22 @@ async def smoke() -> None:
                             "update_video_batch_item",
                         )
                     ),
+                    "automation_tools_exposed": all(
+                        name in tool_names
+                        for name in (
+                            "save_video_automation_profile",
+                            "authorize_video_automation_drafts",
+                            "scan_bilibili_watch_later",
+                            "list_video_automation_jobs",
+                            "get_video_automation_job",
+                            "update_video_automation_job",
+                            "save_canonical_subtitle",
+                            "get_canonical_subtitle",
+                            "initialize_automated_video_content",
+                            "prepare_video_automation_handoff",
+                            "bind_video_automation_handoff",
+                        )
+                    ),
                     "typed_review_decisions": (
                         "ReviewDecisionInput" in submit_schema.get("$defs", {})
                         and submit_schema["$defs"]["ReviewDecisionInput"]["properties"][

@@ -8,7 +8,28 @@ from typing import Any, Literal
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import apply_configuration, update_configuration
+from .core.automation_content import initialize_automated_content_project
+from .core.automation_handoff import (
+    bind_automation_handoff_receipt,
+    prepare_automation_handoff,
+)
+from .core.automation_job import (
+    get_automation_job,
+    list_automation_jobs,
+    transition_automation_job,
+)
+from .core.automation_profile import (
+    save_automation_profile,
+    save_draft_authorization,
+)
+from .core.automation_scan import scan_watch_later
 from .core.batch import get_batch, initialize_batch, update_batch_item
+from .core.canonical import (
+    get_canonical_subtitle as read_canonical_subtitle,
+)
+from .core.canonical import (
+    save_canonical_subtitle as persist_canonical_subtitle,
+)
 from .core.content import (
     finish_content_phase,
     initialize_content_project,
@@ -43,6 +64,7 @@ from .platforms.bilibili import (
     OpenCliClient,
     OpenCliSettings,
 )
+from .platforms.watch_later import OpenCliWatchLaterSource
 
 try:
     # MCP Python SDK 2.x
@@ -597,6 +619,141 @@ def update_video_batch_item(
     )
 
 
+def save_video_automation_profile(
+    profile_path: str,
+    document: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate and persist one versioned Bilibili Watch Later automation profile."""
+    return save_automation_profile(Path(profile_path), document)
+
+
+def authorize_video_automation_drafts(
+    authorization_path: str,
+    document: dict[str, Any],
+    confirm_draft_only_authorization: bool = False,
+) -> dict[str, Any]:
+    """Persist revocable standing authorization limited to saving WeChat drafts."""
+    if confirm_draft_only_authorization is not True:
+        raise ValueError(
+            "Explicit confirmation is required for draft-only automation authorization"
+        )
+    return save_draft_authorization(Path(authorization_path), document)
+
+
+def scan_bilibili_watch_later(
+    profile_path: str,
+    store_path: str,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """Run one Watch Later scan and enqueue each newly observed video exactly once."""
+    client = OpenCliClient(_settings())
+    return scan_watch_later(
+        profile_path=Path(profile_path),
+        source=OpenCliWatchLaterSource(client),
+        store=Path(store_path),
+        limit=limit,
+    )
+
+
+def list_video_automation_jobs(
+    store_path: str,
+    status: str | None = None,
+) -> dict[str, Any]:
+    """List durable Watch Later automation jobs, optionally filtered by status."""
+    return list_automation_jobs(Path(store_path), status=status)
+
+
+def get_video_automation_job(job_path: str) -> dict[str, Any]:
+    """Read one durable Watch Later automation job."""
+    return get_automation_job(Path(job_path))
+
+
+def update_video_automation_job(
+    job_path: str,
+    status: str,
+    stage: str | None = None,
+    artifact_kind: str | None = None,
+    artifact_path: str | None = None,
+    artifact_sha256: str | None = None,
+    artifact_status: str | None = None,
+    error_code: str | None = None,
+    error_message: str | None = None,
+    next_retry_at: str | None = None,
+) -> dict[str, Any]:
+    """Apply one guarded transition, retry, pause, or terminal automation outcome."""
+    error = None
+    if error_code or error_message:
+        error = {
+            "code": error_code or "AUTOMATION_ERROR",
+            "message": error_message or error_code or "Automation error",
+        }
+    return transition_automation_job(
+        Path(job_path),
+        status=status,
+        stage=stage,
+        artifact_kind=artifact_kind,
+        artifact_path=artifact_path,
+        artifact_sha256=artifact_sha256,
+        artifact_status=artifact_status,
+        error=error,
+        next_retry_at=next_retry_at,
+    )
+
+
+def save_canonical_subtitle(
+    manifest_path: str,
+    document: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate and save the Agent-authored best subtitle as derived evidence."""
+    return persist_canonical_subtitle(Path(manifest_path), document=document)
+
+
+def get_canonical_subtitle(manifest_path: str) -> dict[str, Any]:
+    """Read the current canonical subtitle report for one evidence manifest."""
+    return read_canonical_subtitle(Path(manifest_path))
+
+
+def initialize_automated_video_content(
+    manifest_path: str,
+    profile_path: str,
+    job_path: str,
+) -> dict[str, Any]:
+    """Initialize an audited content project from a usable canonical subtitle."""
+    return initialize_automated_content_project(
+        manifest_path=Path(manifest_path),
+        profile_path=Path(profile_path),
+        job_path=Path(job_path),
+    )
+
+
+def prepare_video_automation_handoff(
+    job_path: str,
+    profile_path: str,
+    authorization_path: str,
+) -> dict[str, Any]:
+    """Verify draft-only authorization and return an idempotent WeChat handoff plan."""
+    return prepare_automation_handoff(
+        job_path=Path(job_path),
+        profile_path=Path(profile_path),
+        authorization_path=Path(authorization_path),
+    )
+
+
+def bind_video_automation_handoff(
+    job_path: str,
+    authorization_path: str,
+    receipt_path: str,
+    output_path: str,
+) -> dict[str, Any]:
+    """Bind one validated saved-draft receipt and complete the automation job."""
+    return bind_automation_handoff_receipt(
+        job_path=Path(job_path),
+        authorization_path=Path(authorization_path),
+        receipt_path=Path(receipt_path),
+        output_path=Path(output_path),
+    )
+
+
 if McpServer is not None:
     mcp = McpServer(
         "video-subtitle",
@@ -615,7 +772,10 @@ if McpServer is not None:
             "actionable state, not success. For content transformation, initialize an "
             "evidence-pinned project, let the calling Agent author the content map, media "
             "plan, deliverable, and fidelity audit, and use tools only to validate and "
-            "version those artifacts."
+            "version those artifacts. Watch Later automation is one-shot per scan: retry "
+            "technical failures, use paused_auth for expired login, terminate physically "
+            "insufficient evidence as unprocessable without asking the user, save at most "
+            "one authorized WeChat draft, and never publish."
         ),
     )
     mcp.tool(name="video_subtitle_setup")(setup_environment)
@@ -642,6 +802,21 @@ if McpServer is not None:
     mcp.tool(name="initialize_video_batch")(initialize_video_batch)
     mcp.tool(name="get_video_batch")(get_video_batch)
     mcp.tool(name="update_video_batch_item")(update_video_batch_item)
+    mcp.tool(name="save_video_automation_profile")(save_video_automation_profile)
+    mcp.tool(name="authorize_video_automation_drafts")(
+        authorize_video_automation_drafts
+    )
+    mcp.tool(name="scan_bilibili_watch_later")(scan_bilibili_watch_later)
+    mcp.tool(name="list_video_automation_jobs")(list_video_automation_jobs)
+    mcp.tool(name="get_video_automation_job")(get_video_automation_job)
+    mcp.tool(name="update_video_automation_job")(update_video_automation_job)
+    mcp.tool(name="save_canonical_subtitle")(save_canonical_subtitle)
+    mcp.tool(name="get_canonical_subtitle")(get_canonical_subtitle)
+    mcp.tool(name="initialize_automated_video_content")(
+        initialize_automated_video_content
+    )
+    mcp.tool(name="prepare_video_automation_handoff")(prepare_video_automation_handoff)
+    mcp.tool(name="bind_video_automation_handoff")(bind_video_automation_handoff)
 else:
     mcp = None
 
