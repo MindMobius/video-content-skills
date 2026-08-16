@@ -1,15 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/wechat-draft-receipt-v1.json",
-  "title": "WeChat Draft Receipt v1",
+  "$id": "https://video-subtitle.local/schemas/wechat-editor-observation-v1.json",
+  "title": "WeChat Editor Observation v1",
   "type": "object",
   "required": [
     "schema_version",
-    "project_id",
-    "deliverable_id",
-    "fidelity_audit_id",
-    "platform",
-    "status",
     "started_at",
     "saved_at",
     "title",
@@ -20,53 +15,50 @@
     "author",
     "originality",
     "content_checks",
-    "save",
-    "published",
-    "publish_actions_performed"
+    "save"
   ],
   "properties": {
-    "schema_version": {
-      "const": "video-content/wechat-draft-receipt-v1"
-    },
-    "project_id": {
-      "type": "string",
-      "pattern": "^content_[a-f0-9]{16}$"
-    },
-    "deliverable_id": { "type": "string", "minLength": 1 },
-    "fidelity_audit_id": { "type": "string", "minLength": 1 },
-    "platform": { "const": "wechat_official_account" },
-    "status": { "const": "saved_as_draft" },
+    "schema_version": { "const": "video-content/wechat-editor-observation-v1" },
     "started_at": { "type": "string", "format": "date-time" },
     "saved_at": { "type": "string", "format": "date-time" },
     "title": { "type": "string", "minLength": 1 },
-    "appmsgid": { "type": "string", "minLength": 1 },
+    "appmsgid": { "type": "string", "pattern": "^[0-9]+$" },
     "body_images": {
       "type": "object",
-      "required": [
-        "intended",
-        "visible_loaded",
-        "wechat_hosted",
-        "non_wechat_hosted",
-        "local_path_markers_remaining"
-      ],
+      "required": ["intended", "items", "local_path_markers_remaining"],
       "properties": {
         "intended": { "type": "integer", "minimum": 0 },
-        "visible_loaded": { "type": "integer", "minimum": 0 },
-        "wechat_hosted": { "type": "integer", "minimum": 0 },
-        "non_wechat_hosted": { "const": 0 },
-        "local_path_markers_remaining": { "const": 0 }
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["visible", "complete", "natural_width", "width", "height", "host_class"],
+            "properties": {
+              "visible": { "type": "boolean" },
+              "complete": { "type": "boolean" },
+              "natural_width": { "type": "number", "minimum": 0 },
+              "width": { "type": "number", "minimum": 0 },
+              "height": { "type": "number", "minimum": 0 },
+              "host_class": { "enum": ["wechat", "transient", "other", "empty"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "local_path_markers_remaining": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     },
+    "cover": { "$ref": "#/$defs/cover" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "author": { "$ref": "#/$defs/author" },
+    "originality": { "$ref": "#/$defs/originality" },
+    "content_checks": { "$ref": "#/$defs/contentChecks" },
+    "save": { "$ref": "#/$defs/save" }
+  },
+  "$defs": {
     "cover": {
       "type": "object",
-      "required": [
-        "source",
-        "asset",
-        "selected",
-        "crop_confirmed",
-        "wechat_hosted_preview"
-      ],
+      "required": ["source", "asset", "selected", "crop_confirmed", "wechat_hosted_preview"],
       "properties": {
         "source": { "type": "string", "minLength": 1 },
         "asset": { "type": "string", "minLength": 1 },
@@ -103,15 +95,9 @@
       },
       "additionalProperties": false
     },
-    "content_checks": {
+    "contentChecks": {
       "type": "object",
-      "required": [
-        "source_disclosure_present",
-        "ending_present",
-        "underline_count",
-        "stock_cta_present",
-        "speaker_identity_preserved"
-      ],
+      "required": ["source_disclosure_present", "ending_present", "underline_count", "stock_cta_present", "speaker_identity_preserved"],
       "properties": {
         "source_disclosure_present": { "const": true },
         "ending_present": { "const": true },
@@ -123,14 +109,7 @@
     },
     "save": {
       "type": "object",
-      "required": [
-        "saved",
-        "channel",
-        "mode",
-        "history_record",
-        "history_record_persisted",
-        "saved_page_read_back"
-      ],
+      "required": ["saved", "channel", "mode", "history_record", "history_record_persisted", "saved_page_read_back"],
       "properties": {
         "saved": { "const": true },
         "channel": { "type": "string", "minLength": 1 },
@@ -140,20 +119,6 @@
         "saved_page_read_back": { "const": true }
       },
       "additionalProperties": false
-    },
-    "adapter": {
-      "type": "object",
-      "required": ["id", "version"],
-      "properties": {
-        "id": { "const": "video-subtitle/wechat-browser-adapter" },
-        "version": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
-    },
-    "published": { "const": false },
-    "publish_actions_performed": {
-      "type": "array",
-      "maxItems": 0
     }
   },
   "additionalProperties": false

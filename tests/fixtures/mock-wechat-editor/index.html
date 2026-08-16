@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>本地公众号编辑器验收替身</title>
+<style>
+body { margin: 0; background: #eef0ef; color: #24282d; font-family: system-ui, sans-serif; letter-spacing: 0; }
+main { box-sizing: border-box; max-width: 920px; min-height: 100vh; margin: 0 auto; padding: 28px; background: #fff; }
+label { display: block; margin: 16px 0 6px; color: #5f666c; font-size: 13px; }
+input, textarea, [contenteditable] { box-sizing: border-box; width: 100%; border: 1px solid #cfd4d1; border-radius: 4px; padding: 10px; font: inherit; }
+[contenteditable] { min-height: 260px; line-height: 1.8; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+button { border: 0; border-radius: 4px; padding: 9px 14px; background: #2f6f5e; color: #fff; cursor: pointer; }
+pre { overflow: auto; padding: 14px; background: #f5f6f5; color: #454b50; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+<h1>本地公众号编辑器验收替身</h1>
+<label for="title">标题</label><input id="title">
+<label for="summary">摘要</label><textarea id="summary" rows="3"></textarea>
+<label for="editor">正文</label><section id="editor" contenteditable="true"></section>
+<div class="actions">
+  <button id="load" type="button">载入测试正文</button>
+  <button id="cover" type="button">从正文选择封面</button>
+  <button id="save" type="button">保存草稿</button>
+</div>
+<pre id="readback"></pre>
+</main>
+<script type="module">
+import { createEditorState, pasteArticle, readBack, saveDraft, selectCover } from './mock-editor-model.mjs'
+let state = createEditorState()
+const show = () => { document.getElementById('readback').textContent = JSON.stringify(readBack(state), null, 2) }
+document.getElementById('load').addEventListener('click', () => {
+  state = pasteArticle(state, { title: '验收文章', summary: '本地确定性摘要', body_html: '<p>正文</p>', image_count: 1 })
+  document.getElementById('title').value = state.title
+  document.getElementById('summary').value = state.summary
+  document.getElementById('editor').innerHTML = state.body_html
+  show()
+})
+document.getElementById('cover').addEventListener('click', () => { state = selectCover(state, 1); show() })
+document.getElementById('save').addEventListener('click', () => { state = saveDraft(state); show() })
+window.mockWechatEditor = { getState: () => readBack(state) }
+show()
+</script>
+</body>
+</html>

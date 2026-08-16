@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-subtitle.local/schemas/wechat-browser-snapshot-v1.json",
+  "title": "WeChat Browser Snapshot v1",
+  "type": "object",
+  "required": ["schema_version", "adapter", "ready", "appmsgid"],
+  "properties": {
+    "schema_version": { "const": "video-content/wechat-browser-snapshot-v1" },
+    "adapter": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "const": "video-subtitle/wechat-browser-adapter" },
+        "version": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "ready": { "type": "boolean" },
+    "appmsgid": { "type": ["string", "null"], "pattern": "^[0-9]+$" },
+    "ambiguity": {
+      "type": "object",
+      "required": ["body_candidates"],
+      "properties": {
+        "body_candidates": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "body_images": { "$ref": "#/$defs/bodyImages" },
+    "fields": {
+      "type": "object",
+      "required": ["title", "summary", "author"],
+      "properties": {
+        "title": { "$ref": "#/$defs/field" },
+        "summary": { "$ref": "#/$defs/field" },
+        "author": { "$ref": "#/$defs/field" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "ready": { "const": true } } },
+      "then": {
+        "required": ["body_images", "fields"],
+        "not": { "required": ["ambiguity"] }
+      },
+      "else": {
+        "required": ["ambiguity"],
+        "not": {
+          "anyOf": [
+            { "required": ["body_images"] },
+            { "required": ["fields"] }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "field": {
+      "type": "object",
+      "required": ["value", "visible_candidates"],
+      "properties": {
+        "value": { "type": ["string", "null"] },
+        "visible_candidates": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "bodyImages": {
+      "type": "object",
+      "required": ["intended", "items", "local_path_markers_remaining"],
+      "properties": {
+        "intended": { "type": "number", "minimum": 0 },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["visible", "complete", "natural_width", "width", "height", "host_class"],
+            "properties": {
+              "visible": { "type": "boolean" },
+              "complete": { "type": "boolean" },
+              "natural_width": { "type": "number", "minimum": 0 },
+              "width": { "type": "number", "minimum": 0 },
+              "height": { "type": "number", "minimum": 0 },
+              "host_class": { "enum": ["wechat", "transient", "other", "empty"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "local_path_markers_remaining": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
