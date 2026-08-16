@@ -12,6 +12,7 @@ const skillNames = [
   'video-subtitle',
   'video-to-content',
   'wechat-draft-handoff',
+  'video-watch-later-automation',
 ]
 
 function readSkill(skillName) {

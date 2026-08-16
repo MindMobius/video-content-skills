@@ -5,6 +5,11 @@ project. Read this file before choosing tools or changing the environment.
 
 ## Skill routing
 
+- For an authorized Bilibili Watch Later-to-WeChat draft cycle, queue drain,
+  retry, or resume, read
+  [`.agents/skills/video-watch-later-automation/SKILL.md`](.agents/skills/video-watch-later-automation/SKILL.md)
+  completely before acting. It orchestrates the other Skills, uses the selected
+  WeChat carrier from the standing profile, and never publishes.
 - For a video URL, local video, audio, subtitle file, subtitle retrieval, OCR,
   ASR, or evidence correction, read
   [`.agents/skills/video-subtitle/SKILL.md`](.agents/skills/video-subtitle/SKILL.md)
@@ -17,9 +22,10 @@ project. Read this file before choosing tools or changing the environment.
   only when the user explicitly asks to place it in an already signed-in
   WeChat editor. Saving the draft must also be explicitly in scope. This Skill
   never publishes.
-- If the user supplied only an input, finish the subtitle evidence first and
-  ask whether they want only subtitles or a specific carrier. Do not choose a
-  carrier unless the user explicitly delegates that decision.
+- Outside an active Watch Later automation profile, if the user supplied only
+  an input, finish the subtitle evidence first and ask whether they want only
+  subtitles or a specific carrier. Do not choose a carrier unless the user
+  explicitly delegates that decision.
 
 The directories under `.agents/skills/` are the canonical Skill sources. Do
 not create a second copy under another Agent-specific directory. Consumers that
@@ -102,6 +108,11 @@ work.
   the independent visual decision establishes that they do not.
 - The Python/MCP content project stops at an audited deliverable. It does not
   log in to publishing platforms, upload files, or change platform state.
+- Watch Later automation exposes one-shot scan and job operations. The calling
+  Agent or Codex automation owns recurrence; this repository must not create a
+  hidden daemon. Retry technical failures, record physically insufficient
+  evidence or content as `unprocessable` without asking the user, and use
+  `paused_auth` only for a real authentication boundary.
 - For a multi-input request, initialize one `video-content/batch-v1` ledger with
   `initialize_video_batch` or `batch-init`. Keep one subtitle manifest, content
   project, deliverable, audit, and optional handoff receipt per item. The ledger

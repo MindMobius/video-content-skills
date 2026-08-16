@@ -20,18 +20,29 @@ live state. A matching DOM node by itself is not a completion receipt.
 
 ## Authorization gate
 
-Proceed only when all of the following are true:
+Proceed through exactly one explicit authorization path:
 
-1. The user explicitly asked to place the article in the WeChat editor. Saving
-   the draft requires an explicit request to save, not merely to inspect or
-   populate the form.
-2. The article package has a current fidelity audit of `pass` or
-   `pass_with_warnings`, and `validate_video_content_project` reports
-   `ready_for_delivery=true`.
-3. The target browser is already signed in and the intended article editor is
-   visible. Ask the user to complete interactive login if the session expired.
-4. The clean HTML, local assets, title, and any requested summary or cover
-   instruction are known.
+1. **Interactive path:** The user explicitly asked to place this article in the
+   WeChat editor. Saving the draft requires an explicit request to save, not
+   merely to inspect or populate the form.
+2. **Standing automation path:** `prepare_video_automation_handoff` validated an
+   active `video-automation/draft-authorization-v1` document for this job and
+   returned `allowed_actions=['save_wechat_draft']`. This prior bounded grant
+   replaces a repeated per-item prompt; it does not authorize any other platform
+   action. If preparation reports an existing handoff binding, do not touch the
+   editor or create another draft.
+
+In either path, all of the following must also be true:
+
+- The article package has a current fidelity audit of `pass` or
+  `pass_with_warnings`, and `validate_video_content_project` reports
+  `ready_for_delivery=true`.
+- The target browser is already signed in and the intended article editor is
+  visible. In an automation job, expired login becomes `paused_auth`; resume
+  only after the visible login state is restored. In an interactive task, ask
+  the user to complete interactive login.
+- The clean HTML, local assets, title, and any requested summary or cover
+  instruction are known.
 
 If the article is not audited, return to
 [`../video-to-content/SKILL.md`](../video-to-content/SKILL.md). If the user only
@@ -77,6 +88,13 @@ The adapters do not log in, choose the target article, click save, or authorize
 platform mutation. Inspect the visible page and verify every postcondition.
 
 ## Workflow
+
+For a standing automation job, call `prepare_video_automation_handoff` before
+the first browser observation or mutation. If it returns
+`already_completed=true`, use the existing handoff binding as the durable result
+and stop without opening or changing the editor. If login is no longer active,
+transition the job to `paused_auth`; do not create a receipt and do not ask for
+credentials.
 
 Read [`references/wechat-editor-checklist.md`](references/wechat-editor-checklist.md)
 before making platform changes.
@@ -213,7 +231,8 @@ current value.
 
 ### 6. Save only the authorized draft
 
-When the user explicitly requested a saved draft, click the draft-save control
+When the user explicitly requested a saved draft, or the current automation
+preparation authorizes only `save_wechat_draft`, click the draft-save control
 and wait for a durable receipt. Prefer a stable article identifier together with
 a persisted manual-save or version-history entry when both are available; a
 transient success toast alone is not sufficient. After saving, re-read the
@@ -258,6 +277,12 @@ current combination and checks that the receipt still targets the current
 audited deliverable. If the user requested editor population without saving,
 do not fabricate this saved-draft receipt.
 
+For a standing automation job, call `bind_video_automation_handoff` only after
+that validation passes. The binding must match the current job, authorization,
+project, receipt hash, and stable `appmsgid`; it completes the job and prevents a
+duplicate draft on later cycles. An unbound receipt is not automation
+completion.
+
 ## Completion report
 
 Report the live result separately from the core content artifact:
@@ -277,8 +302,9 @@ independent states.
 
 ## Hard boundaries
 
-- Never operate the platform without explicit user authorization for this
-  article and this action.
+- Never operate the platform without either explicit per-item authorization
+  or a current standing authorization limited to `save_wechat_draft`.
+- Never save again when an existing handoff binding already proves completion.
 - Never overwrite unrelated editor content based on a guessed target.
 - Never persist the Base64 clipboard transport as a formal deliverable.
 - Never treat WeChat CDN upload as evidence that the article is semantically

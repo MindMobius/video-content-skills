@@ -155,7 +155,12 @@ def _check_locks() -> dict[str, Any]:
 
 
 def _check_skills() -> dict[str, Any]:
-    expected = ["video-subtitle", "video-to-content", "wechat-draft-handoff"]
+    expected = [
+        "video-subtitle",
+        "video-to-content",
+        "video-watch-later-automation",
+        "wechat-draft-handoff",
+    ]
     discovered = []
     for skill_path in sorted((ROOT / ".agents" / "skills").glob("*/SKILL.md")):
         name = skill_path.parent.name

@@ -23,7 +23,9 @@ def test_wechat_draft_handoff_requires_audited_explicitly_authorized_input() -> 
     assert "references/wechat-editor-checklist.md" in skill
 
 
-def test_wechat_draft_handoff_accepts_bounded_standing_automation_authorization() -> None:
+def test_wechat_draft_handoff_accepts_bounded_standing_automation_authorization() -> (
+    None
+):
     skill = (HANDOFF_ROOT / "SKILL.md").read_text(encoding="utf-8")
     checklist = (HANDOFF_ROOT / "references" / "wechat-editor-checklist.md").read_text(
         encoding="utf-8"

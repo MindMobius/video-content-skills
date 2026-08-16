@@ -5,8 +5,13 @@ and layout may change; the observable preconditions and postconditions do not.
 
 ## A. Authorization and input
 
-- [ ] The user explicitly requested editor handoff.
-- [ ] Saving the draft is explicitly in scope.
+- [ ] One authorization path is proven: the user explicitly requested this
+      editor handoff and save, or `prepare_video_automation_handoff` returned an
+      active standing authorization limited to `save_wechat_draft`.
+- [ ] For automation, no existing handoff binding is present. If one exists,
+      stop without touching the editor or saving another draft.
+- [ ] For automation, an expired login was recorded as `paused_auth`; no
+      credential, cookie, or token was requested.
 - [ ] The exact audited deliverable and its local asset directory are known.
 - [ ] `ready_for_delivery=true` and the current fidelity audit was read.
 - [ ] Title, summary source, cover instruction, author field, and originality
@@ -91,6 +96,8 @@ and layout may change; the observable preconditions and postconditions do not.
 - [ ] `published=false` and `publish_actions_performed=[]`.
 - [ ] `python scripts/build_wechat_draft_receipt.py ...` returned `ok=true` and
       `validation.valid=true` for the sanitized editor observation.
+- [ ] For automation, `bind_video_automation_handoff` created or reused the
+      binding for this job, authorization, receipt hash, and stable `appmsgid`.
 - [ ] The `wechat_handoff` timing phase was finished with the actual outcome.
 
 Report title, intended/imported visible image counts, cover, summary, validated
