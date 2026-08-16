@@ -1,0 +1,26 @@
+﻿[
+  {
+    "bvid": "BV1beta",
+    "page": 1,
+    "title": "Beta",
+    "url": "https://www.bilibili.com/video/BV1beta/",
+    "position": 1,
+    "addedAt": "2026-08-15T01:00:00.000Z"
+  },
+  {
+    "bvid": "BV1new",
+    "page": 2,
+    "title": "New",
+    "url": "https://www.bilibili.com/video/BV1new/",
+    "position": 2,
+    "addedAt": "2026-08-16T00:00:00.000Z"
+  },
+  {
+    "bvid": "BV1alpha",
+    "page": 1,
+    "title": "Alpha",
+    "url": "https://www.bilibili.com/video/BV1alpha/",
+    "position": 3,
+    "addedAt": "2026-08-15T00:00:00.000Z"
+  }
+]

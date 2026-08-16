@@ -262,3 +262,18 @@ def test_download_reuses_media_that_completed_after_unknown_result(
     assert result["cache_hit"] is True
     assert result["cache_state"] == "recovered_after_error"
     assert result["retry_index"] == 1
+
+
+@patch("video_subtitle.platforms.bilibili.subprocess.run")
+def test_watch_later_calls_verified_plugin_command(mock_run) -> None:
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout='[{"bvid":"BV1alpha","page":1,"title":"Alpha","url":"https://www.bilibili.com/video/BV1alpha/","position":1,"addedAt":null}]',
+        stderr="",
+    )
+    result = _client().watch_later(limit=10)
+    assert result[0]["bvid"] == "BV1alpha"
+    command = mock_run.call_args.args[0]
+    assert command[3:6] == ["video-subtitle-watch-later", "list", "--limit"]
+    assert command[6] == "10"
