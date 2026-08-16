@@ -36,3 +36,8 @@ addopts = "-q"
 
 [tool.ruff]
 target-version = "py310"
+[tool.ruff.lint.per-file-ignores]
+".agents/skills/wechat-draft-handoff/scripts/prepare_clipboard.py" = ["E402"]
+"scripts/render_wechat_article.py" = ["E402"]
+"scripts/repro_check.py" = ["E402"]
+

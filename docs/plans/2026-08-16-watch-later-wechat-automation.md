@@ -185,7 +185,9 @@ python -m pytest tests/core/test_automation_profile.py -q
 ```python
 def save_automation_profile(path: Path, document: dict[str, Any]) -> dict[str, Any]: ...
 def read_automation_profile(path: Path) -> dict[str, Any]: ...
-def save_draft_authorization(path: Path, document: dict[str, Any]) -> dict[str, Any]: ...
+def save_draft_authorization(
+    path: Path, document: dict[str, Any]
+) -> dict[str, Any]: ...
 def read_draft_authorization(path: Path) -> dict[str, Any]: ...
 def require_active_draft_authorization(
     profile: dict[str, Any], authorization: dict[str, Any]
@@ -239,12 +241,16 @@ def automation_idempotency_key(
     platform: str, bvid: str, page: int, profile_id: str, profile_version: int
 ) -> str: ...
 
+
 def initialize_automation_job(
     store: Path, source: dict[str, Any], profile: dict[str, Any]
 ) -> dict[str, Any]: ...
 
+
 def get_automation_job(path: Path) -> dict[str, Any]: ...
-def list_automation_jobs(store: Path, *, status: str | None = None) -> dict[str, Any]: ...
+def list_automation_jobs(
+    store: Path, *, status: str | None = None
+) -> dict[str, Any]: ...
 def transition_automation_job(
     path: Path,
     *,
@@ -326,10 +332,14 @@ class WatchLaterEntry:
     position: int
     added_at: str | None = None
 
+
 class WatchLaterSource(Protocol):
     def list_entries(self, *, limit: int | None = None) -> list[dict[str, Any]]: ...
 
-def normalize_watch_later_entries(rows: list[dict[str, Any]]) -> list[WatchLaterEntry]: ...
+
+def normalize_watch_later_entries(
+    rows: list[dict[str, Any]],
+) -> list[WatchLaterEntry]: ...
 def build_watch_later_snapshot(
     profile_id: str,
     account_profile_alias: str,
@@ -516,7 +526,9 @@ def test_usable_canonical_is_added_as_derived_evidence(manifest_path):
     result = save_canonical_subtitle(manifest_path, document=_usable_document())
     catalog = list_subtitle_evidence_for_manifest(manifest_path)
     assert result["status"] == "usable"
-    assert any(item["source_kind"] == "canonical_subtitle" for item in catalog["evidence"])
+    assert any(
+        item["source_kind"] == "canonical_subtitle" for item in catalog["evidence"]
+    )
 ```
 
 Run:
@@ -535,6 +547,7 @@ def save_canonical_subtitle(
     *,
     document: dict[str, Any],
 ) -> dict[str, Any]: ...
+
 
 def get_canonical_subtitle(manifest_path: Path) -> dict[str, Any]: ...
 def require_usable_canonical_subtitle(manifest_path: Path) -> dict[str, Any]: ...
@@ -666,6 +679,7 @@ def prepare_automation_handoff(
     *, job_path: Path, profile_path: Path, authorization_path: Path
 ) -> dict[str, Any]: ...
 
+
 def bind_automation_handoff_receipt(
     *,
     job_path: Path,
@@ -673,6 +687,7 @@ def bind_automation_handoff_receipt(
     receipt_path: Path,
     output_path: Path,
 ) -> dict[str, Any]: ...
+
 
 def get_existing_handoff_binding(job_path: Path) -> dict[str, Any] | None: ...
 ```
