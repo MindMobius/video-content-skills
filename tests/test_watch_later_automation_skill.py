@@ -15,6 +15,7 @@ def test_watch_later_automation_skill_encodes_fail_closed_flow() -> None:
     assert "save_wechat_draft" in text
     assert "never publish" in text.lower()
     assert "do not ask the user" in text.lower()
+    assert "baseline_if_empty=true" in text
 
 
 def test_agent_routing_and_dsh_register_automation_skill() -> None:
@@ -39,6 +40,7 @@ def test_public_docs_explain_the_one_shot_operator_contract() -> None:
         "automation-authorize-drafts",
         "--confirm-draft-only-authorization",
         "automation-scan",
+        "--baseline-if-empty",
         "--store",
         "unprocessable",
         "paused_auth",

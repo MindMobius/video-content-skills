@@ -77,11 +77,13 @@ def test_parser_separates_browser_and_automation_profile_aliases() -> None:
             "profile.json",
             "--store",
             "automation-store",
+            "--baseline-if-empty",
         ]
     )
 
     assert args.profile == "j6g376bb"
     assert args.automation_profile == Path("profile.json")
+    assert args.baseline_if_empty is True
 
 
 def test_doctor_accepts_watch_later_monitor_capability() -> None:

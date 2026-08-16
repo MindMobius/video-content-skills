@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -77,6 +78,56 @@ def test_scan_is_idempotent_and_enqueues_only_new_items(tmp_path: Path) -> None:
     assert len(first["created_jobs"]) == 1
     assert second["new_entry_count"] == 0
     assert second["created_jobs"] == []
+
+
+def test_scan_can_initialize_baseline_without_enqueuing_existing_items(
+    tmp_path: Path,
+) -> None:
+    profile_path = tmp_path / "profile.json"
+    save_automation_profile(profile_path, _profile())
+
+    first = scan_watch_later(
+        profile_path=profile_path,
+        source=FakeWatchLaterSource(_rows()),
+        store=tmp_path,
+        baseline_if_empty=True,
+    )
+
+    assert first["baseline_initialized"] is True
+    assert first["entry_count"] == 1
+    assert first["new_entry_count"] == 0
+    assert first["created_jobs"] == []
+    assert first["job_count"] == 0
+    latest = json.loads(
+        Path(first["latest_snapshot_path"]).read_text(encoding="utf-8")
+    )
+    assert latest["entries"][0]["bvid"] == "BV1alpha"
+    assert latest["new_entries"] == []
+
+    changed = FakeWatchLaterSource(
+        _rows()
+        + [
+            {
+                "bvid": "BV1new",
+                "page": 1,
+                "title": "New",
+                "url": "https://www.bilibili.com/video/BV1new/",
+                "position": 1,
+                "addedAt": "2026-08-16T00:00:00Z",
+            }
+        ]
+    )
+    second = scan_watch_later(
+        profile_path=profile_path,
+        source=changed,
+        store=tmp_path,
+        baseline_if_empty=True,
+    )
+
+    assert second["baseline_initialized"] is False
+    assert second["new_entry_count"] == 1
+    assert len(second["created_jobs"]) == 1
+    assert second["job_count"] == 1
 
 
 def test_scan_adds_one_new_identity_and_does_not_cancel_removed_item(
