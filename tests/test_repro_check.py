@@ -33,6 +33,20 @@ def test_repro_check_core_tier_passes() -> None:
     assert report["boundaries"]["published"] is False
 
 
+def test_repro_check_agent_tier_includes_watch_later_contract() -> None:
+    report = run_repro_check(required_tiers=["agent"])
+    checks = {
+        item["name"]: item for item in report["tiers"]["agent"]["checks"]
+    }
+
+    automation = checks["watch_later_to_draft_contract"]
+    assert automation["status"] == "passed"
+    assert automation["details"]["jobs_created"] == 1
+    assert automation["details"]["draft_bindings"] == 1
+    assert automation["details"]["duplicate_drafts"] == 0
+    assert automation["details"]["published"] is False
+
+
 def test_repro_check_cli_writes_the_same_machine_readable_contract(
     tmp_path: Path,
 ) -> None:

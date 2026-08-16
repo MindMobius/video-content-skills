@@ -1,0 +1,101 @@
+{
+  "schema_version": "video-automation/repro-fixture-v1",
+  "profile": {
+    "enabled": true,
+    "source": {
+      "kind": "bilibili_watch_later",
+      "account_profile_alias": "fixture-bilibili",
+      "poll_interval_seconds": 900
+    },
+    "content": {
+      "medium": "wechat_article",
+      "objective": "faithful_information_transfer",
+      "audience": "????????????????",
+      "output_language": "zh-CN",
+      "style": "restrained-editorial",
+      "image_policy": "source_video_only"
+    },
+    "evidence_policy": {
+      "require_hard_subtitle_assessment": true,
+      "allow_platform_subtitle": true,
+      "allow_hard_ocr": true,
+      "allow_audio_asr": true
+    },
+    "retry_policy": {
+      "max_technical_attempts": 2,
+      "max_content_repairs": 1,
+      "backoff_seconds": 1
+    },
+    "draft_authorization_id": "auth-fixture-watch-later",
+    "prohibited_actions": [
+      "publish",
+      "mass_send",
+      "schedule",
+      "originality",
+      "account_management"
+    ]
+  },
+  "watch_later_cycles": [
+    [
+      {
+        "bvid": "BV1fixtureusable",
+        "page": 1,
+        "title": "???????????",
+        "url": "https://www.bilibili.com/video/BV1fixtureusable/",
+        "position": 1,
+        "addedAt": "2026-08-16T00:00:00Z"
+      }
+    ],
+    [
+      {
+        "bvid": "BV1fixtureusable",
+        "page": 1,
+        "title": "???????????",
+        "url": "https://www.bilibili.com/video/BV1fixtureusable/",
+        "position": 9,
+        "addedAt": "2026-08-16T00:00:00Z"
+      }
+    ]
+  ],
+  "usable": {
+    "platform_srt": "usable-platform.srt",
+    "ocr_srt": "usable-ocr.srt",
+    "canonical_cues": [
+      {
+        "start_ms": 0,
+        "end_ms": 4000,
+        "text": "????????????????????"
+      },
+      {
+        "start_ms": 4000,
+        "end_ms": 9000,
+        "text": "???????????????????"
+      }
+    ],
+    "canonical_decisions": [
+      {
+        "issue": "???????? OCR ????/???????",
+        "decision": "????????????OCR ???????????",
+        "confidence": "high"
+      }
+    ],
+    "article_title": "??????????????????",
+    "article_body": "# ???????????\n\n?????????????????????????????????????????\n\n???????????????????????????",
+    "appmsgid": "100000901"
+  },
+  "unusable": {
+    "source": {
+      "bvid": "BV1fixturebad",
+      "page": 1,
+      "title": "???????????",
+      "url": "https://www.bilibili.com/video/BV1fixturebad/",
+      "position": 1,
+      "addedAt": "2026-08-16T01:00:00Z"
+    },
+    "platform_srt": "unusable-platform.srt",
+    "termination": {
+      "code": "INSUFFICIENT_EVIDENCE",
+      "message": "The available media does not contain a reliable transcript."
+    }
+  }
+}
