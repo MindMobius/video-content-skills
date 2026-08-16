@@ -11,6 +11,7 @@ _CUE_ARTIFACT_KINDS = {
     "ocr_primary_srt",
     "ocr_validation_srt",
     "reviewed_subtitle_srt",
+    "canonical_subtitle_srt",
 }
 
 
@@ -44,7 +45,13 @@ def list_subtitle_evidence_for_manifest(manifest_path: Path) -> dict[str, Any]:
                     if source_metadata is not None
                     else "derived"
                 ),
-                "layer": "raw" if source_metadata is not None else "derived",
+                "layer": (
+                    "raw"
+                    if source_metadata is not None
+                    and source_metadata.get("kind")
+                    in {"platform_subtitle", "hard_ocr", "audio_asr"}
+                    else "derived"
+                ),
                 "selected": artifact.get("selected") is True,
                 "cue_count": cue_count,
                 "available": path is not None and path.is_file(),

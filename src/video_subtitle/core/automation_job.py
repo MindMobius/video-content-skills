@@ -198,6 +198,15 @@ def transition_automation_job(
                 "message": _safe_error_message(error),
             }
             document["retry"] = {"resume_status": None, "next_retry_at": None}
+        if artifact_kind or artifact_path:
+            if not artifact_kind or not artifact_path:
+                raise ValueError("Artifact kind and path must be supplied together")
+            document["artifacts"][artifact_kind] = _artifact(
+                path,
+                artifact_path,
+                sha256=artifact_sha256,
+                status=artifact_status,
+            )
         if requested == "completed":
             binding = document["artifacts"].get("handoff_binding")
             if not binding:
@@ -212,15 +221,6 @@ def transition_automation_job(
             audit = document["artifacts"].get("fidelity_audit")
             if not audit or audit.get("status") not in {"pass", "pass_with_warnings"}:
                 raise ValueError("Rendering requires a passing fidelity audit")
-        if artifact_kind or artifact_path:
-            if not artifact_kind or not artifact_path:
-                raise ValueError("Artifact kind and path must be supplied together")
-            document["artifacts"][artifact_kind] = _artifact(
-                path,
-                artifact_path,
-                sha256=artifact_sha256,
-                status=artifact_status,
-            )
         document["status"] = requested
         document["stage"] = stage.strip() if stage else requested
         document["timestamps"]["updated_at"] = now
@@ -245,6 +245,11 @@ def record_content_repair(path: Path) -> dict[str, Any]:
                 "message": "Article could not pass fidelity audit within the repair limit.",
             }
             document["timestamps"]["finished_at"] = utc_now()
+        else:
+            if document["status"] != "content_auditing":
+                raise ValueError("Content repair requires a content_auditing job")
+            document["status"] = "content_generating"
+            document["stage"] = "content_generating"
         document["timestamps"]["updated_at"] = utc_now()
         write_json_atomic(path, document)
     return get_automation_job(path)
