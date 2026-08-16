@@ -31,6 +31,14 @@ class WatchLaterSource(Protocol):
     def list_entries(self, *, limit: int | None = None) -> list[dict[str, Any]]: ...
 
 
+class OpenCliWatchLaterSource:
+    def __init__(self, client: Any) -> None:
+        self.client = client
+
+    def list_entries(self, *, limit: int | None = None) -> list[dict[str, Any]]:
+        return self.client.watch_later(limit=limit)
+
+
 def normalize_watch_later_entries(
     rows: list[dict[str, Any]],
 ) -> list[WatchLaterEntry]:

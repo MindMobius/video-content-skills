@@ -10,7 +10,23 @@ from . import __version__
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
+from .core.automation_content import initialize_automated_content_project
+from .core.automation_handoff import (
+    bind_automation_handoff_receipt,
+    prepare_automation_handoff,
+)
+from .core.automation_job import (
+    get_automation_job,
+    list_automation_jobs,
+    transition_automation_job,
+)
+from .core.automation_profile import (
+    save_automation_profile,
+    save_draft_authorization,
+)
+from .core.automation_scan import scan_watch_later
 from .core.batch import get_batch, initialize_batch, update_batch_item
+from .core.canonical import get_canonical_subtitle, save_canonical_subtitle
 from .core.content import (
     finish_content_phase,
     get_content_project,
@@ -42,6 +58,7 @@ from .platforms.bilibili import (
     OpenCliError,
     OpenCliSettings,
 )
+from .platforms.watch_later import OpenCliWatchLaterSource
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -391,6 +408,97 @@ def build_parser() -> argparse.ArgumentParser:
     batch_update_parser.add_argument("--artifact")
     batch_update_parser.add_argument("--error")
 
+    automation_profile_parser = commands.add_parser(
+        "automation-profile-save",
+        help="Validate and save a Watch Later automation profile",
+    )
+    automation_profile_parser.add_argument("--document", type=Path, required=True)
+    automation_profile_parser.add_argument("--output", type=Path, required=True)
+
+    automation_authorize_parser = commands.add_parser(
+        "automation-authorize-drafts",
+        help="Create a revocable authorization limited to saving WeChat drafts",
+    )
+    automation_authorize_parser.add_argument("--document", type=Path, required=True)
+    automation_authorize_parser.add_argument("--output", type=Path, required=True)
+    automation_authorize_parser.add_argument(
+        "--confirm-draft-only-authorization", action="store_true", required=True
+    )
+
+    automation_scan_parser = commands.add_parser(
+        "automation-scan", help="Scan Bilibili Watch Later and enqueue new videos"
+    )
+    automation_scan_parser.add_argument("--profile", type=Path, required=True)
+    automation_scan_parser.add_argument("--store", type=Path, required=True)
+    automation_scan_parser.add_argument("--limit", type=_positive_int)
+
+    automation_jobs_parser = commands.add_parser(
+        "automation-jobs", help="List durable Watch Later automation jobs"
+    )
+    automation_jobs_parser.add_argument("--store", type=Path, required=True)
+    automation_jobs_parser.add_argument("--status")
+
+    automation_job_parser = commands.add_parser(
+        "automation-job", help="Read one Watch Later automation job"
+    )
+    automation_job_parser.add_argument("--job", type=Path, required=True)
+
+    automation_update_parser = commands.add_parser(
+        "automation-job-update", help="Apply one guarded automation job transition"
+    )
+    automation_update_parser.add_argument("--job", type=Path, required=True)
+    automation_update_parser.add_argument("--status", required=True)
+    automation_update_parser.add_argument("--stage")
+    automation_update_parser.add_argument("--artifact-kind")
+    automation_update_parser.add_argument("--artifact-path")
+    automation_update_parser.add_argument("--artifact-sha256")
+    automation_update_parser.add_argument("--artifact-status")
+    automation_update_parser.add_argument("--error-code")
+    automation_update_parser.add_argument("--error-message")
+    automation_update_parser.add_argument("--next-retry-at")
+
+    canonical_save_parser = commands.add_parser(
+        "canonical-save", help="Validate and save an Agent-authored canonical subtitle"
+    )
+    canonical_save_parser.add_argument("--manifest", type=Path, required=True)
+    canonical_save_parser.add_argument("--document", type=Path, required=True)
+
+    canonical_status_parser = commands.add_parser(
+        "canonical-status", help="Read the current canonical subtitle report"
+    )
+    canonical_status_parser.add_argument("--manifest", type=Path, required=True)
+
+    automation_content_parser = commands.add_parser(
+        "automation-content-init",
+        help="Initialize an automated content project from a usable canonical subtitle",
+    )
+    automation_content_parser.add_argument("--manifest", type=Path, required=True)
+    automation_content_parser.add_argument("--profile", type=Path, required=True)
+    automation_content_parser.add_argument("--job", type=Path, required=True)
+
+    automation_handoff_prepare_parser = commands.add_parser(
+        "automation-handoff-prepare",
+        help="Verify standing authorization before WeChat editor mutation",
+    )
+    automation_handoff_prepare_parser.add_argument("--job", type=Path, required=True)
+    automation_handoff_prepare_parser.add_argument(
+        "--profile", type=Path, required=True
+    )
+    automation_handoff_prepare_parser.add_argument(
+        "--authorization", type=Path, required=True
+    )
+
+    automation_handoff_bind_parser = commands.add_parser(
+        "automation-handoff-bind",
+        help="Bind a verified WeChat receipt to an automation job",
+    )
+    automation_handoff_bind_parser.add_argument("--job", type=Path, required=True)
+    automation_handoff_bind_parser.add_argument(
+        "--authorization", type=Path, required=True
+    )
+    automation_handoff_bind_parser.add_argument("--receipt", type=Path, required=True)
+    automation_handoff_bind_parser.add_argument("--output", type=Path, required=True)
+
     worker_parser = commands.add_parser("_worker", help=argparse.SUPPRESS)
     worker_parser.add_argument("--request-file", type=Path, required=True)
     return parser
@@ -732,6 +840,86 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             0,
         )
 
+    if args.command == "automation-profile-save":
+        document = read_json(args.document.resolve())
+        if not isinstance(document, dict):
+            raise TypeError("Automation profile document must be an object")
+        return save_automation_profile(args.output, document), 0
+
+    if args.command == "automation-authorize-drafts":
+        document = read_json(args.document.resolve())
+        if not isinstance(document, dict):
+            raise TypeError("Draft authorization document must be an object")
+        return save_draft_authorization(args.output, document), 0
+
+    if args.command == "automation-jobs":
+        return list_automation_jobs(args.store, status=args.status), 0
+
+    if args.command == "automation-job":
+        return get_automation_job(args.job), 0
+
+    if args.command == "automation-job-update":
+        error = None
+        if args.error_code or args.error_message:
+            error = {
+                "code": args.error_code or "AUTOMATION_ERROR",
+                "message": args.error_message or args.error_code or "Automation error",
+            }
+        return (
+            transition_automation_job(
+                args.job,
+                status=args.status,
+                stage=args.stage,
+                artifact_kind=args.artifact_kind,
+                artifact_path=args.artifact_path,
+                artifact_sha256=args.artifact_sha256,
+                artifact_status=args.artifact_status,
+                error=error,
+                next_retry_at=args.next_retry_at,
+            ),
+            0,
+        )
+
+    if args.command == "canonical-save":
+        document = read_json(args.document.resolve())
+        if not isinstance(document, dict):
+            raise TypeError("Canonical subtitle document must be an object")
+        return save_canonical_subtitle(args.manifest, document=document), 0
+
+    if args.command == "canonical-status":
+        return get_canonical_subtitle(args.manifest), 0
+
+    if args.command == "automation-content-init":
+        return (
+            initialize_automated_content_project(
+                manifest_path=args.manifest,
+                profile_path=args.profile,
+                job_path=args.job,
+            ),
+            0,
+        )
+
+    if args.command == "automation-handoff-prepare":
+        return (
+            prepare_automation_handoff(
+                job_path=args.job,
+                profile_path=args.profile,
+                authorization_path=args.authorization,
+            ),
+            0,
+        )
+
+    if args.command == "automation-handoff-bind":
+        return (
+            bind_automation_handoff_receipt(
+                job_path=args.job,
+                authorization_path=args.authorization,
+                receipt_path=args.receipt,
+                output_path=args.output,
+            ),
+            0,
+        )
+
     if args.command == "configure":
         result = update_configuration(
             _configuration_values_from_args(args),
@@ -767,6 +955,17 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             config_path=args.config,
         )
         return (result if args.command == "doctor" else result["setup"]), 0
+
+    if args.command == "automation-scan":
+        return (
+            scan_watch_later(
+                profile_path=args.profile,
+                source=OpenCliWatchLaterSource(client),
+                store=args.store,
+                limit=args.limit,
+            ),
+            0,
+        )
 
     if args.command == "inspect":
         metadata = client.video(args.url, page=args.page)
