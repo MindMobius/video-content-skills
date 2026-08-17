@@ -230,7 +230,7 @@ def test_package_versions_are_synchronized_semver() -> None:
         shrinkwrap["version"],
         shrinkwrap["packages"][""]["version"],
     }
-    assert versions == {"0.7.0"}
+    assert versions == {"0.8.0"}
     assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", project_version.group(1))
 
 
@@ -239,3 +239,4 @@ def test_mcp_smoke_reports_automation_tool_discovery() -> None:
     assert '"automation_tools_exposed"' in smoke
     assert "save_video_automation_profile" in smoke
     assert "save_canonical_subtitle" in smoke
+
