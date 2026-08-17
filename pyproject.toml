@@ -3,9 +3,9 @@ requires = ["setuptools==80.10.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "video-subtitle-skill"
-version = "0.8.0"
-description = "Agent-native video evidence and content production skills with auditable subtitle, automation, and draft handoff workflows."
+name = "video-content-skills"
+version = "1.0.0"
+description = "Agent-native video evidence and content transformation skills for auditable Bilibili-to-WeChat workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -21,14 +21,14 @@ mcp = ["mcp==2.0.0"]
 dev = ["jsonschema==4.26.0", "pytest==9.1.1", "ruff==0.16.1"]
 
 [project.scripts]
-video-subtitle = "video_subtitle.cli:main"
-video-subtitle-mcp = "video_subtitle.mcp_server:main"
+video-content = "video_content.cli:main"
+video-content-mcp = "video_content.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-video_subtitle = ["requirements.json"]
+video_content = ["requirements.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -36,7 +36,8 @@ addopts = "-q"
 
 [tool.ruff]
 target-version = "py310"
+
 [tool.ruff.lint.per-file-ignores]
-".agents/skills/wechat-draft-handoff/scripts/prepare_clipboard.py" = ["E402"]
+".agents/skills/wechat-draft/scripts/prepare_clipboard.py" = ["E402"]
 "scripts/render_wechat_article.py" = ["E402"]
 "scripts/repro_check.py" = ["E402"]

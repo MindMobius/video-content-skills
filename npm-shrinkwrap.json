@@ -1,12 +1,12 @@
 {
-  "name": "video-subtitle-skill",
-  "version": "0.8.0",
+  "name": "video-content-skills",
+  "version": "1.0.0",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
-      "name": "video-subtitle-skill",
-      "version": "0.8.0",
+      "name": "video-content-skills",
+      "version": "1.0.0",
       "license": "MIT",
       "engines": {
         "node": "^22.19 || >=24"
