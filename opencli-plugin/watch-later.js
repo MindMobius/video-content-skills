@@ -14,7 +14,7 @@ cli({
   args: [
     { name: 'limit', type: 'int', default: 100, help: 'Number of entries (max 100)' },
   ],
-  columns: ['bvid', 'page', 'title', 'url', 'position', 'addedAt'],
+  columns: ['bvid', 'page', 'title', 'url', 'coverUrl', 'position', 'addedAt'],
   func: async (page, kwargs) => {
     const payload = await page.evaluate(`
       async () => {

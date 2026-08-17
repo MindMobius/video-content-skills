@@ -29,9 +29,7 @@ def transcript_save(
     job = store.get_job(job_id)
     if job["stage"] not in {"evidence", "transcript", "content", "handoff"}:
         raise ValueError("Transcript requires completed evidence acquisition")
-    _require_product_ids(
-        store, job_id, kind="evidence", field="evidence_id", values=evidence_ids
-    )
+    _require_transcript_evidence_ready(store, job_id, evidence_ids)
     _validate_cues(cues)
     selected_quality = dict(quality or {})
     if selected_quality.get("status") not in {"usable", "verified"}:
@@ -292,6 +290,34 @@ def _validate_cues(cues: list[dict[str, Any]]) -> None:
         if start < previous_end:
             raise ValueError("Transcript cues must be time ordered and non-overlapping")
         previous_end = end
+
+
+def _require_transcript_evidence_ready(
+    store: Store, job_id: str, evidence_ids: list[str]
+) -> None:
+    documents: list[dict[str, Any]] = []
+    missing: list[str] = []
+    for evidence_id in evidence_ids:
+        document = _find_product(store, job_id, "evidence", "evidence_id", evidence_id)
+        if document is None:
+            missing.append(evidence_id)
+        else:
+            documents.append(document)
+    if missing:
+        raise FileNotFoundError(f"Missing evidence product(s): {', '.join(missing)}")
+    continuous = any(
+        item.get("decision", {}).get("hard_subtitle_visual_decision") == "continuous"
+        for item in documents
+    )
+    has_hard_ocr = any(
+        observation.get("kind") == "hard_ocr"
+        for item in documents
+        for observation in item.get("observations", [])
+    )
+    if continuous and not has_hard_ocr:
+        raise ValueError(
+            "Transcript cannot finalize continuous hard subtitles without full-video OCR evidence"
+        )
 
 
 def _require_product_ids(

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from video_content import evidence as evidence_module
 from video_content.evidence import evidence_start, source_inspect
 from video_content.store import Store
 
@@ -22,6 +25,11 @@ class FakeClient:
 
     def download(self, *args, **kwargs):
         raise AssertionError("download should not be needed")
+
+
+class FakeNoSubtitleClient(FakeClient):
+    def subtitles(self, url: str, *, lang="ai-zh", page=None):
+        return []
 
 
 def test_source_inspection_is_bilibili_only_and_stable() -> None:
@@ -61,6 +69,25 @@ def test_evidence_start_persists_independent_artifacts_and_requires_visual_decis
     assert result["job"]["status"] == "running"
 
 
+def test_evidence_records_agent_visual_assessment(tmp_path: Path) -> None:
+    result = evidence_start(
+        Store(tmp_path),
+        url="https://www.bilibili.com/video/BV1fake",
+        page=1,
+        ocr_backend="none",
+        hard_subtitle_visual_decision="not_continuous",
+        visual_assessment={
+            "method": "deterministic_scout",
+            "sample_count": 15,
+        },
+        client=FakeClient(),
+    )
+    decision = result["evidence"]["decision"]
+    assert decision["hard_subtitle_visual_decision"] == "not_continuous"
+    assert decision["visual_assessment"]["sample_count"] == 15
+    assert "no continuous hard subtitles" in decision["agent_action"]
+
+
 def test_evidence_start_is_idempotent_for_same_video(tmp_path: Path) -> None:
     store = Store(tmp_path)
     first = evidence_start(
@@ -72,3 +99,119 @@ def test_evidence_start_is_idempotent_for_same_video(tmp_path: Path) -> None:
     assert second["reused_existing_job"] is True
     assert second["job"]["job_id"] == first["job"]["job_id"]
     assert len(store.list_jobs()) == 1
+
+
+def test_missing_subtitle_with_disabled_backend_is_retryable(tmp_path: Path) -> None:
+    result = evidence_start(
+        Store(tmp_path),
+        url="https://www.bilibili.com/video/BV1fake",
+        page=1,
+        ocr_backend="none",
+        download_if_needed=False,
+        client=FakeNoSubtitleClient(),
+    )
+    assert result["evidence"] is None
+    assert result["manifest"]["status"] == "needs_ocr"
+    assert result["job"]["status"] == "retryable"
+    assert result["job"]["last_error"]["code"] == "ENABLE_OCR"
+
+
+def test_retryable_evidence_resume_increments_attempts(tmp_path: Path) -> None:
+    store = Store(tmp_path)
+    first = evidence_start(
+        store,
+        url="https://www.bilibili.com/video/BV1fake",
+        page=1,
+        ocr_backend="none",
+        download_if_needed=False,
+        client=FakeNoSubtitleClient(),
+    )
+    assert first["job"]["status"] == "retryable"
+    assert first["job"]["attempts"] == 1
+    resumed = evidence_start(
+        store,
+        url="https://www.bilibili.com/video/BV1fake",
+        page=1,
+        ocr_backend="none",
+        client=FakeClient(),
+    )
+    assert resumed["job"]["status"] == "running"
+    assert resumed["job"]["stage"] == "evidence"
+    assert resumed["job"]["attempts"] == 2
+
+
+class _CoverHeaders:
+    def __init__(self, media_type: str, length: int) -> None:
+        self.media_type = media_type
+        self.length = length
+
+    def get_content_type(self) -> str:
+        return self.media_type
+
+    def get(self, name: str):
+        if name.lower() == "content-length":
+            return str(self.length)
+        return None
+
+
+class _CoverResponse:
+    def __init__(self, *, url: str, payload: bytes, media_type: str) -> None:
+        self.url = url
+        self.payload = payload
+        self.headers = _CoverHeaders(media_type, len(payload))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        return None
+
+    def geturl(self) -> str:
+        return self.url
+
+    def read(self, limit: int) -> bytes:
+        return self.payload[:limit]
+
+
+def test_cover_download_accepts_only_raster_hdslb_redirects(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    response = _CoverResponse(
+        url="https://i1.hdslb.com/bfs/archive/cover.jpg",
+        payload=b"jpeg-fixture",
+        media_type="image/jpeg",
+    )
+    monkeypatch.setattr(evidence_module, "urlopen", lambda *args, **kwargs: response)
+    store = Store(tmp_path)
+    job, _ = store.create_job(
+        source={"platform": "bilibili"}, idempotency_key="cover_fixture"
+    )
+    reference = evidence_module._ensure_video_cover(
+        store,
+        job["job_id"],
+        "https://i0.hdslb.com/bfs/archive/cover.jpg",
+    )
+    assert reference["kind"] == "video_cover"
+    assert reference["media_type"] == "image/jpeg"
+    assert reference["metadata"]["source_host"] == "i1.hdslb.com"
+
+
+def test_cover_download_rejects_redirect_outside_bilibili(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    response = _CoverResponse(
+        url="https://example.com/cover.jpg",
+        payload=b"jpeg-fixture",
+        media_type="image/jpeg",
+    )
+    monkeypatch.setattr(evidence_module, "urlopen", lambda *args, **kwargs: response)
+    store = Store(tmp_path)
+    job, _ = store.create_job(
+        source={"platform": "bilibili"}, idempotency_key="redirect_fixture"
+    )
+    with pytest.raises(ValueError, match="redirect left"):
+        evidence_module._ensure_video_cover(
+            store,
+            job["job_id"],
+            "https://i0.hdslb.com/bfs/archive/cover.jpg",
+        )

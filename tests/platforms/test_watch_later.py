@@ -41,6 +41,13 @@ def test_normalization_deduplicates_and_rejects_secret_urls() -> None:
     assert len(normalized) == 2
     assert normalized[0].position == 1
 
+    rows[0]["coverUrl"] = "http://i1.hdslb.com/bfs/archive/cover.jpg"
+    normalized = normalize_watch_later_entries(rows[:2])
+    assert normalized[0].cover_url == "https://i1.hdslb.com/bfs/archive/cover.jpg"
+    rows[0]["coverUrl"] = "https://example.com/cover.jpg"
+    with pytest.raises(ValueError, match="Bilibili image"):
+        normalize_watch_later_entries(rows[:2])
+    rows[0].pop("coverUrl")
     rows[0]["url"] = "https://www.bilibili.com/video/BV1alpha/?token=secret"
     with pytest.raises(ValueError, match="canonical"):
         normalize_watch_later_entries(rows)

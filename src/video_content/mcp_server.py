@@ -70,6 +70,8 @@ def evidence_start(
     download_if_needed: bool = True,
     collect_all_sources: bool = False,
     media_execution: str = "auto",
+    hard_subtitle_visual_decision: str = "not_assessed",
+    visual_assessment: dict[str, Any] | None = None,
     config_path: str | None = None,
 ) -> dict[str, Any]:
     return api.evidence_start(
@@ -85,6 +87,8 @@ def evidence_start(
         download_if_needed=download_if_needed,
         collect_all_sources=collect_all_sources,
         media_execution=media_execution,
+        hard_subtitle_visual_decision=hard_subtitle_visual_decision,
+        visual_assessment=visual_assessment,
         config_path=config_path,
     )
 

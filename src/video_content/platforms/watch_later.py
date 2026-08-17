@@ -8,6 +8,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 from ..util import utc_now
 
@@ -22,6 +23,7 @@ class WatchLaterEntry:
     url: str
     position: int
     added_at: str | None = None
+    cover_url: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -59,6 +61,7 @@ def normalize_watch_later_entries(
             raise ValueError("Watch Later rows require a canonical Bilibili video URL")
         position = _positive_int(row.get("position", index), "position")
         added_at = _optional_timestamp(row.get("addedAt", row.get("added_at")))
+        cover_url = _optional_cover_url(row.get("coverUrl", row.get("cover_url")))
         entry = WatchLaterEntry(
             bvid=bvid,
             page=page,
@@ -66,6 +69,7 @@ def normalize_watch_later_entries(
             url=expected_url,
             position=position,
             added_at=added_at,
+            cover_url=cover_url,
         )
         unique.setdefault((bvid, page), entry)
     return sorted(
@@ -134,6 +138,24 @@ def _positive_int(value: Any, label: str) -> int:
     if result < 1:
         raise ValueError(f"Watch Later {label} must be a positive integer")
     return result
+
+
+def _optional_cover_url(value: Any) -> str | None:
+    if value in {None, ""}:
+        return None
+    selected = str(value).strip()
+    if selected.startswith("http://"):
+        selected = "https://" + selected[len("http://") :]
+    parsed = urlsplit(selected)
+    hostname = (parsed.hostname or "").lower()
+    if (
+        parsed.scheme != "https"
+        or parsed.username is not None
+        or parsed.password is not None
+        or not (hostname == "hdslb.com" or hostname.endswith(".hdslb.com"))
+    ):
+        raise ValueError("Watch Later cover URL must be a public Bilibili image")
+    return selected
 
 
 def _optional_timestamp(value: Any) -> str | None:

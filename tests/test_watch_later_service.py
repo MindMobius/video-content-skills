@@ -25,6 +25,14 @@ class FixtureSource:
         return rows[:limit] if limit else rows
 
 
+class RowsSource:
+    def __init__(self, rows: list[dict[str, object]]) -> None:
+        self.rows = rows
+
+    def list_entries(self, *, limit=None):
+        return self.rows[:limit] if limit else self.rows
+
+
 def test_scan_creates_jobs_only_for_new_stable_identities(tmp_path: Path) -> None:
     store = Store(tmp_path)
     save_watch_later_profile(
@@ -52,6 +60,63 @@ def test_scan_creates_jobs_only_for_new_stable_identities(tmp_path: Path) -> Non
     new_job = store.get_job(changed["created_jobs"][0])
     assert new_job["source"]["bvid"] == "BV1new"
     assert new_job["source"]["page"] == 2
+    assert changed["detection_mode"] == "timestamp_watermark"
+    assert changed["ignored_unseen_entry_count"] == 0
+
+
+def test_scan_does_not_backfill_older_unseen_rows_when_window_expands(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path)
+    save_watch_later_profile(
+        store,
+        profile_id="daily",
+        account_profile_alias="j6g376bb",
+    )
+    watch_later_scan(store, profile_id="daily", source=FixtureSource("first.json"))
+    expanded = watch_later_scan(
+        store,
+        profile_id="daily",
+        source=RowsSource(
+            [
+                {
+                    "bvid": "BV1new",
+                    "page": 1,
+                    "title": "New",
+                    "position": 1,
+                    "addedAt": "2026-08-16T00:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1beta",
+                    "page": 1,
+                    "title": "Beta",
+                    "position": 2,
+                    "addedAt": "2026-08-15T01:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1alpha",
+                    "page": 1,
+                    "title": "Alpha",
+                    "position": 3,
+                    "addedAt": "2026-08-15T00:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1older",
+                    "page": 1,
+                    "title": "Historical tail",
+                    "position": 4,
+                    "addedAt": "2026-08-14T00:00:00.000Z",
+                },
+            ]
+        ),
+    )
+    assert expanded["new_entry_count"] == 1
+    assert expanded["ignored_unseen_entry_count"] == 1
+    assert expanded["detection_mode"] == "timestamp_watermark"
+    assert len(store.list_jobs()) == 3
+    created = store.get_job(expanded["created_jobs"][0])
+    assert created["source"]["bvid"] == "BV1new"
+    assert "BV1older:p1" in store.get_profile("daily")["baseline"]["seen"]
 
 
 def test_empty_profile_can_initialize_baseline_without_backfill(tmp_path: Path) -> None:

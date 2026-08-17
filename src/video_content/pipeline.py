@@ -526,10 +526,18 @@ class ExtractionPipeline:
                 )
             )
 
+        resolved_ocr_options = (
+            ocr_backend.describe().get("options") or {}
+            if ocr_backend is not None
+            else {}
+        )
+        resolved_ocr_uses_gpu = bool(
+            resolved_ocr_options.get("use_gpu", request.videocr.use_gpu)
+        )
         shared_gpu = bool(
             ocr_backend is not None
             and asr_backend is not None
-            and request.videocr.use_gpu
+            and resolved_ocr_uses_gpu
         )
         resolved_execution = _resolve_media_execution(
             request.media_execution,

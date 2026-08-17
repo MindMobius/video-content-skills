@@ -57,11 +57,16 @@ export function normalizeWatchLaterPayload(payload, limit = 100) {
       throw new Error('Malformed Bilibili Watch Later page')
     }
     const addedSeconds = Number(item?.add_at ?? 0)
+    const rawCover = String(item?.pic ?? '').trim()
+    const coverUrl = /^https?:\/\/[^/]*\.hdslb\.com\//i.test(rawCover)
+      ? rawCover.replace(/^http:/i, 'https:')
+      : null
     return {
       bvid,
       page: pageValue,
       title: String(item?.title ?? ''),
       url: canonicalUrl(bvid),
+      coverUrl,
       position: index + 1,
       addedAt: Number.isFinite(addedSeconds) && addedSeconds > 0
         ? new Date(addedSeconds * 1000).toISOString()

@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -39,7 +39,7 @@ class OcrBackend(Protocol):
 class VideOcrOptions:
     executable: str | None = None
     language: str = "ch"
-    use_gpu: bool = False
+    use_gpu: bool | None = None
     full_frame: bool = False
     crop: tuple[int, int, int, int] | None = None
     time_start: str = "0:00"
@@ -77,7 +77,7 @@ class VideOcrOptions:
         return cls(
             executable=value.get("executable") or None,
             language=str(value.get("language") or "ch"),
-            use_gpu=bool(value.get("use_gpu", False)),
+            use_gpu=_optional_bool(value.get("use_gpu"), "use_gpu"),
             full_frame=bool(value.get("full_frame", False)),
             crop=crop,  # type: ignore[arg-type]
             time_start=str(value.get("time_start") or "0:00"),
@@ -351,7 +351,12 @@ def resolve_ocr_backend(
             "VideOCR CLI is not installed or configured. Set VIDEO_CONTENT_VIDEOCR "
             "or pass --ocr-executable with videocr-cli.exe."
         )
-    return VideOcrBackend(executable, options)
+    resolved_options = options
+    if resolved_options.use_gpu is None:
+        resolved_options = replace(
+            resolved_options, use_gpu=_infer_videocr_gpu_variant(executable)
+        )
+    return VideOcrBackend(executable, resolved_options)
 
 
 def ocr_doctor(options: VideOcrOptions) -> dict[str, Any]:
@@ -366,11 +371,31 @@ def ocr_doctor(options: VideOcrOptions) -> dict[str, Any]:
                 "to videocr-cli.exe."
             ),
         }
+    use_gpu = (
+        options.use_gpu
+        if options.use_gpu is not None
+        else _infer_videocr_gpu_variant(executable)
+    )
     return {
         "backend": "videocr",
         "available": True,
         "executable": str(executable),
+        "use_gpu": use_gpu,
+        "device": "gpu" if use_gpu else "cpu",
     }
+
+
+def _infer_videocr_gpu_variant(executable: Path) -> bool:
+    normalized = str(executable).replace("\\", "/").lower()
+    return "videocr-cli-gpu" in normalized or "cuda-" in normalized
+
+
+def _optional_bool(value: Any, label: str) -> bool | None:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise TypeError(f"{label} must be true, false, or null")
+    return value
 
 
 def _resolve_videocr_executable(value: str | None) -> Path | None:

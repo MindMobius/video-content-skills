@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from . import api
-from .config import CONFIG_ENVIRONMENT
+from .config import CONFIG_ENVIRONMENT, apply_configuration
 from .util import json_for_stdout
 
 COMMAND_SURFACE = {
@@ -61,6 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument(
         "--media-execution", choices=("auto", "serial", "parallel"), default="auto"
     )
+    start.add_argument(
+        "--hard-subtitle-visual-decision",
+        choices=("not_assessed", "continuous", "not_continuous", "uncertain"),
+        default="not_assessed",
+    )
+    start.add_argument("--visual-assessment-json", type=Path)
 
     job = groups.add_parser("job")
     job_actions = job.add_subparsers(dest="action", required=True)
@@ -149,6 +155,12 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             download_if_needed=not args.no_download,
             collect_all_sources=args.collect_all_sources,
             media_execution=args.media_execution,
+            hard_subtitle_visual_decision=args.hard_subtitle_visual_decision,
+            visual_assessment=(
+                _json_file(args.visual_assessment_json)
+                if args.visual_assessment_json
+                else None
+            ),
             config_path=args.config,
         )
     if args.group == "job":
@@ -214,6 +226,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.config is not None:
+            apply_configuration(args.config)
         result = dispatch(args)
         output = {"ok": True, "result": result}
         code = 0

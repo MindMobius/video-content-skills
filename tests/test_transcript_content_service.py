@@ -75,6 +75,44 @@ def test_transcript_requires_registered_evidence_and_is_idempotent(
     assert second["transcript"]["transcript_id"] == first["transcript"]["transcript_id"]
 
 
+def test_transcript_rejects_continuous_hard_subtitles_without_ocr(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path)
+    job, _ = store.create_job(
+        source={"platform": "bilibili", "bvid": "BV1fixture"},
+        idempotency_key="continuous_without_ocr",
+        initial_stage="evidence",
+        initial_status="retryable",
+    )
+    evidence_id = "evidence_without_ocr"
+    store.save_document(
+        job["job_id"],
+        kind="evidence",
+        document={
+            "schema_version": "video-content/evidence-v1",
+            "evidence_id": evidence_id,
+            "job_id": job["job_id"],
+            "source": {"platform": "bilibili"},
+            "observations": [{"kind": "audio_asr"}],
+            "artifact_refs": [],
+            "decision": {"hard_subtitle_visual_decision": "continuous"},
+            "created_at": "2026-08-17T00:00:00Z",
+        },
+        identifier_field="evidence_id",
+        identifier_prefix="evidence",
+    )
+    with pytest.raises(ValueError, match="without full-video OCR"):
+        transcript_save(
+            store,
+            job_id=job["job_id"],
+            evidence_ids=[evidence_id],
+            cues=[{"start_ms": 0, "end_ms": 1000, "text": "仅有 ASR"}],
+            text="仅有 ASR",
+            quality={"status": "usable"},
+        )
+
+
 def test_wechat_content_uses_only_cover_and_timestamped_frames(tmp_path: Path) -> None:
     store = Store(tmp_path / "home")
     job, _ = store.create_job(

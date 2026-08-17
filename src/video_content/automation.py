@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from .models import Profile
-from .platforms.watch_later import WatchLaterSource, normalize_watch_later_entries
+from .platforms.watch_later import (
+    WatchLaterEntry,
+    WatchLaterSource,
+    normalize_watch_later_entries,
+)
 from .store import Store
 from .util import new_id, utc_now
 
@@ -68,25 +72,32 @@ def watch_later_scan(
     seen = {str(value) for value in baseline.get("seen") or []}
     current = {_entry_key(entry.bvid, entry.page) for entry in entries}
     initialized = not seen and baseline_if_empty
-    new_entries = (
-        []
-        if initialized
-        else [
-            entry for entry in entries if _entry_key(entry.bvid, entry.page) not in seen
-        ]
-    )
+    if initialized:
+        new_entries: list[WatchLaterEntry] = []
+        ignored_unseen: list[WatchLaterEntry] = []
+        detection_mode = "baseline_initialization"
+        watermark = _latest_added_at(entries)
+    else:
+        new_entries, ignored_unseen, detection_mode, watermark = (
+            _detect_new_watch_later_entries(entries, seen, baseline)
+        )
     run_id = new_id("run")
     created: list[str] = []
     existing: list[str] = []
     for entry in new_entries:
         job, reused = store.create_job(
             source={
-                "platform": "bilibili",
-                "bvid": entry.bvid,
-                "page": entry.page,
-                "title": entry.title,
-                "url": entry.url,
-                "added_at": entry.added_at,
+                key: value
+                for key, value in {
+                    "platform": "bilibili",
+                    "bvid": entry.bvid,
+                    "page": entry.page,
+                    "title": entry.title,
+                    "url": entry.url,
+                    "added_at": entry.added_at,
+                    "cover_url": entry.cover_url,
+                }.items()
+                if value is not None
             },
             idempotency_key=f"bilibili_{entry.bvid}_p{entry.page}",
             run_id=run_id,
@@ -97,6 +108,9 @@ def watch_later_scan(
     baseline["last_scan_at"] = utc_now()
     baseline["last_entry_count"] = len(entries)
     baseline["last_run_id"] = run_id
+    latest_added_at = _latest_added_at(entries, baseline.get("latest_added_at"))
+    if latest_added_at is not None:
+        baseline["latest_added_at"] = latest_added_at
     profile["baseline"] = baseline
     saved_profile = store.save_profile(profile)
     return {
@@ -106,6 +120,9 @@ def watch_later_scan(
         "baseline_initialized": initialized,
         "entry_count": len(entries),
         "new_entry_count": len(new_entries),
+        "ignored_unseen_entry_count": len(ignored_unseen),
+        "detection_mode": detection_mode,
+        "detection_watermark": watermark,
         "created_jobs": created,
         "existing_jobs": existing,
         "profile": saved_profile,
@@ -114,3 +131,66 @@ def watch_later_scan(
 
 def _entry_key(bvid: str, page: int) -> str:
     return f"{bvid}:p{page}"
+
+
+def _detect_new_watch_later_entries(
+    entries: list[WatchLaterEntry],
+    seen: set[str],
+    baseline: dict[str, Any],
+) -> tuple[list[WatchLaterEntry], list[WatchLaterEntry], str, str | None]:
+    unseen = [
+        entry for entry in entries if _entry_key(entry.bvid, entry.page) not in seen
+    ]
+    if not seen:
+        return unseen, [], "empty_profile", _latest_added_at(entries)
+
+    overlap = [entry for entry in entries if _entry_key(entry.bvid, entry.page) in seen]
+    first_overlap_position = min(
+        (entry.position for entry in overlap),
+        default=None,
+    )
+    watermark = _latest_added_at(overlap, baseline.get("latest_added_at"))
+
+    if watermark is not None:
+        new_entries: list[WatchLaterEntry] = []
+        ignored: list[WatchLaterEntry] = []
+        for entry in unseen:
+            is_newer = entry.added_at is not None and entry.added_at > watermark
+            ties_front_anchor = (
+                entry.added_at == watermark
+                and first_overlap_position is not None
+                and entry.position < first_overlap_position
+            )
+            missing_timestamp_front_anchor = (
+                entry.added_at is None
+                and first_overlap_position is not None
+                and entry.position < first_overlap_position
+            )
+            if is_newer or ties_front_anchor or missing_timestamp_front_anchor:
+                new_entries.append(entry)
+            else:
+                ignored.append(entry)
+        return new_entries, ignored, "timestamp_watermark", watermark
+
+    if first_overlap_position is not None:
+        new_entries = [
+            entry for entry in unseen if entry.position < first_overlap_position
+        ]
+        ignored = [
+            entry for entry in unseen if entry.position >= first_overlap_position
+        ]
+        return new_entries, ignored, "ordered_anchor", None
+
+    raise ValueError(
+        "Watch Later scan cannot distinguish new entries from historical backfill: "
+        "the current window has no baseline overlap or added_at watermark"
+    )
+
+
+def _latest_added_at(
+    entries: list[WatchLaterEntry], previous: Any = None
+) -> str | None:
+    values = [entry.added_at for entry in entries if entry.added_at is not None]
+    if isinstance(previous, str) and previous:
+        values.append(previous)
+    return max(values, default=None)

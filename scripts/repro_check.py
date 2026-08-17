@@ -215,7 +215,13 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
             "evidence_id": evidence_id,
             "job_id": job["job_id"],
             "source": job["source"],
-            "observations": [{"kind": "fixture"}],
+            "observations": [
+                {
+                    "kind": "hard_ocr",
+                    "artifact_source": "authorized_fixture",
+                    "cue_count": 1,
+                }
+            ],
             "artifact_refs": [],
             "decision": {"hard_subtitle_visual_decision": "continuous"},
             "created_at": "2026-08-17T00:00:00Z",
