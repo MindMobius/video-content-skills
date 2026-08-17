@@ -1,7 +1,7 @@
 {
   "name": "video-subtitle-skill",
-  "version": "0.7.0",
-  "description": "Auditable video subtitle evidence and content transformation bundle for DeepSeek Harness.",
+  "version": "0.8.0",
+  "description": "Agent-native video evidence and content production skills with auditable subtitle, automation, and draft handoff workflows.",
   "license": "MIT",
   "type": "module",
   "main": "dsh/plugin.js",
@@ -33,14 +33,18 @@
   "keywords": [
     "dsh-plugin",
     "deepseek-harness",
+    "agent-skills",
+    "video-content",
     "bilibili",
     "subtitle",
     "ocr",
-    "asr"
+    "asr",
+    "automation",
+    "wechat"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MindMobius/video-subtitle-skill.git"
+    "url": "git+https://github.com/MindMobius/video-content-skills.git"
   },
   "engines": {
     "node": "^22.19 || >=24"

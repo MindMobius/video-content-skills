@@ -91,4 +91,3 @@ console.log(JSON.stringify({
     assert Path(result["runtime"]["root"]).resolve() == ROOT
     assert Path(result["runtime"]["python"]).resolve() == Path(sys.executable).resolve()
     assert result["runtime"]["ready"] is True
-

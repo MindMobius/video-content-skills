@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "video-subtitle-skill"
-version = "0.7.0"
-description = "Agent-first video subtitle evidence and traceable content transformation tools"
+version = "0.8.0"
+description = "Agent-native video evidence and content production skills with auditable subtitle, automation, and draft handoff workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -13,8 +13,8 @@ authors = [{ name = "MindMobius contributors" }]
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/MindMobius/video-subtitle-skill"
-Issues = "https://github.com/MindMobius/video-subtitle-skill/issues"
+Repository = "https://github.com/MindMobius/video-content-skills"
+Issues = "https://github.com/MindMobius/video-content-skills/issues"
 
 [project.optional-dependencies]
 mcp = ["mcp==2.0.0"]
@@ -40,4 +40,3 @@ target-version = "py310"
 ".agents/skills/wechat-draft-handoff/scripts/prepare_clipboard.py" = ["E402"]
 "scripts/render_wechat_article.py" = ["E402"]
 "scripts/repro_check.py" = ["E402"]
-

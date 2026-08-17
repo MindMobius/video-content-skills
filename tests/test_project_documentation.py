@@ -69,8 +69,15 @@ def test_distribution_name_stays_compatible_while_repository_is_rebranded() -> N
 
     assert package["name"] == "video-subtitle-skill"
     assert 'name = "video-subtitle-skill"' in pyproject
-    assert package["repository"]["url"].endswith(
-        "MindMobius/video-content-skills.git"
+    assert package["repository"]["url"].endswith("MindMobius/video-content-skills.git")
+    expected_description = (
+        "Agent-native video evidence and content production skills with auditable "
+        "subtitle, automation, and draft handoff workflows."
+    )
+    assert package["description"] == expected_description
+    assert f'description = "{expected_description}"' in pyproject
+    assert {"agent-skills", "video-content", "automation", "wechat"} <= set(
+        package["keywords"]
     )
     assert "https://github.com/MindMobius/video-content-skills" in pyproject
     assert 'video-subtitle = "video_subtitle.cli:main"' in pyproject

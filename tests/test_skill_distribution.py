@@ -239,4 +239,3 @@ def test_mcp_smoke_reports_automation_tool_discovery() -> None:
     assert '"automation_tools_exposed"' in smoke
     assert "save_video_automation_profile" in smoke
     assert "save_canonical_subtitle" in smoke
-
