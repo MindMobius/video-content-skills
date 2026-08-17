@@ -444,8 +444,18 @@ def _discover_jobs(source: Path) -> list[dict[str, Any]]:
             job_dir, str(content_binding.get("project_path") or "")
         )
         project_hash = str(content_binding.get("project_sha256") or "")
-        if not project_hash or sha256_file(project_path) != project_hash:
-            raise ValueError(f"Content project hash mismatch: {project_path}")
+        if not project_hash:
+            raise ValueError(f"Content project has no recorded hash: {project_path}")
+        actual_project_hash = sha256_file(project_path)
+        if actual_project_hash != project_hash:
+            reference_warnings.append(
+                {
+                    "kind": "content_project",
+                    "path": project_path.relative_to(source).as_posix(),
+                    "expected_sha256": project_hash,
+                    "actual_sha256": actual_project_hash,
+                }
+            )
         receipt_path = _safe_child(
             job_dir, str(handoff_binding.get("receipt_path") or "")
         )
@@ -508,7 +518,8 @@ def _discover_jobs(source: Path) -> list[dict[str, Any]]:
                 "job_sha256": sha256_file(job_path),
                 "content_project": {
                     "path": project_path.relative_to(source).as_posix(),
-                    "sha256": project_hash,
+                    "sha256": actual_project_hash,
+                    "recorded_sha256": project_hash,
                 },
                 "draft_receipt": {
                     "path": receipt_path.relative_to(source).as_posix(),
