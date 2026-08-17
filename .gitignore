@@ -2,9 +2,8 @@
 .pytest_cache/
 __pycache__/
 *.py[cod]
-.video-subtitle/
-.video-subtitle-local/
-.subtitle-agent/
+.video-content/
+.video-content-local/
 dist/
 build/
 *.egg-info/

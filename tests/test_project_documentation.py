@@ -5,80 +5,76 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_SKILLS = (
-    "video-subtitle",
+    "video-evidence",
     "video-to-content",
-    "video-watch-later-automation",
-    "wechat-draft-handoff",
+    "watch-later-to-wechat",
+    "wechat-draft",
 )
 
 
 def test_readme_is_a_concise_agent_router() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-
     assert readme.startswith("# Video Content Skills\n")
-    assert len(readme.splitlines()) <= 180
+    assert len(readme.splitlines()) <= 160
     assert "## Agent 任务路由" in readme
     assert "## 渐进式读取" in readme
     assert "docs/skill-maintenance.md" in readme
-    for skill_name in EXPECTED_SKILLS:
-        assert f".agents/skills/{skill_name}/SKILL.md" in readme
+    for skill in EXPECTED_SKILLS:
+        assert f".agents/skills/{skill}/SKILL.md" in readme
+    for removed_heading in ("## CLI", "## MCP", "## 多视频任务编排与耗时优化"):
+        assert removed_heading not in readme
 
-    for former_manual_heading in (
-        "## CLI",
-        "## MCP",
-        "## OCR / ASR 调度",
-        "## 多视频任务编排与耗时优化",
+
+def test_active_documents_define_the_six_product_clean_surface() -> None:
+    active = [
+        ROOT / "README.md",
+        ROOT / "AGENTS.md",
+        *sorted((ROOT / "docs").glob("*.md")),
+    ]
+    contract = "\n".join(path.read_text(encoding="utf-8") for path in active)
+    for product in (
+        "Profile",
+        "Job",
+        "Evidence",
+        "Transcript",
+        "Content",
+        "Draft Receipt",
     ):
-        assert former_manual_heading not in readme
-    assert readme.count("```") // 2 <= 2
-
-
-def test_skill_maintenance_contract_exists() -> None:
-    content = (ROOT / "docs" / "skill-maintenance.md").read_text(encoding="utf-8")
-
-    for expected in (
-        ".agents/skills/",
-        "SKILL.md",
-        "references/",
-        "agents/openai.yaml",
-        "兼容",
-        "python -m pytest",
-        "npm run pack:check",
+        assert product in contract
+    for removed in (
+        "video_subtitle",
+        "VIDEO_SUBTITLE_",
+        ".video-subtitle",
+        "video-watch-later-automation",
+        "wechat-draft-handoff",
+        "start_video_content_phase",
+        "initialize_video_batch",
+        "portable bundle",
     ):
-        assert expected in content
+        assert removed not in contract
 
 
-def test_active_documents_use_the_new_project_identity() -> None:
-    active_documents = [ROOT / "README.md", ROOT / "AGENTS.md"]
-    active_documents.extend(sorted((ROOT / "docs").glob("*.md")))
-    stale: list[str] = []
-
-    for path in active_documents:
-        content = path.read_text(encoding="utf-8")
-        if "Video Subtitle Skill" in content:
-            stale.append(f"{path.relative_to(ROOT)}: old project title")
-        if "MindMobius/video-subtitle-skill" in content:
-            stale.append(f"{path.relative_to(ROOT)}: old repository URL")
-
-    assert stale == []
-
-
-def test_distribution_name_stays_compatible_while_repository_is_rebranded() -> None:
+def test_metadata_uses_the_1_0_identity() -> None:
     package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert package["name"] == "video-content-skills"
+    assert package["version"] == "1.0.0"
+    assert package["private"] is True
+    assert 'name = "video-content-skills"' in pyproject
+    assert 'version = "1.0.0"' in pyproject
+    assert 'video-content = "video_content.cli:main"' in pyproject
+    assert 'video-content-mcp = "video_content.mcp_server:main"' in pyproject
 
-    assert package["name"] == "video-subtitle-skill"
-    assert 'name = "video-subtitle-skill"' in pyproject
-    assert package["repository"]["url"].endswith("MindMobius/video-content-skills.git")
-    expected_description = (
-        "Agent-native video evidence and content production skills with auditable "
-        "subtitle, automation, and draft handoff workflows."
-    )
-    assert package["description"] == expected_description
-    assert f'description = "{expected_description}"' in pyproject
-    assert {"agent-skills", "video-content", "automation", "wechat"} <= set(
-        package["keywords"]
-    )
-    assert "https://github.com/MindMobius/video-content-skills" in pyproject
-    assert 'video-subtitle = "video_subtitle.cli:main"' in pyproject
-    assert 'video-subtitle-mcp = "video_subtitle.mcp_server:main"' in pyproject
+
+def test_docs_are_progressive_not_historical_dump() -> None:
+    assert sorted(path.name for path in (ROOT / "docs").glob("*.md")) == [
+        "architecture.md",
+        "operations.md",
+        "skill-maintenance.md",
+    ]
+    plans = sorted(path.name for path in (ROOT / "docs" / "plans").glob("*.md"))
+    assert plans == [
+        "2026-08-17-video-content-clean-slate-design.md",
+        "2026-08-17-video-content-clean-slate.md",
+    ]
+    assert not (ROOT / "docs" / "cases").exists()
