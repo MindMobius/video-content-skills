@@ -8,6 +8,8 @@ from pathlib import Path
 
 import jsonschema
 
+from scripts.bootstrap import _parse_setup_result
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -65,3 +67,15 @@ def test_clean_checkout_ci_expects_capability_plan_not_host_runtime() -> None:
     assert "assert not report['ready']" in workflow
     assert "report['status']=='agent_action_required'" in workflow
     assert "report['setup']['requested_capabilities']==['hard_ocr_local']" in workflow
+
+
+def test_bootstrap_unwraps_the_current_cli_envelope() -> None:
+    setup = {
+        "schema_version": "video-content/setup-v1",
+        "status": "agent_action_required",
+        "ready": False,
+        "agent_actions": [{"dependency_id": "videocr"}],
+        "human_actions": [],
+        "next_step": "plan",
+    }
+    assert _parse_setup_result(json.dumps({"ok": True, "result": setup})) == setup
