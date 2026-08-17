@@ -550,7 +550,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--authorization", type=Path, required=True
     )
     automation_handoff_bind_parser.add_argument("--receipt", type=Path, required=True)
-    automation_handoff_bind_parser.add_argument("--output", type=Path, required=True)
+    automation_handoff_bind_parser.add_argument(
+        "--output",
+        type=Path,
+        help="Optional binding path under the job directory; defaults to handoff-binding.json",
+    )
 
     worker_parser = commands.add_parser("_worker", help=argparse.SUPPRESS)
     worker_parser.add_argument("--request-file", type=Path, required=True)

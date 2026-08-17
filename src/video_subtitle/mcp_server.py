@@ -785,14 +785,14 @@ def bind_video_automation_handoff(
     job_path: str,
     authorization_path: str,
     receipt_path: str,
-    output_path: str,
+    output_path: str | None = None,
 ) -> dict[str, Any]:
     """Bind one validated saved-draft receipt and complete the automation job."""
     return bind_automation_handoff_receipt(
         job_path=Path(job_path),
         authorization_path=Path(authorization_path),
         receipt_path=Path(receipt_path),
-        output_path=Path(output_path),
+        output_path=Path(output_path) if output_path else None,
     )
 
 

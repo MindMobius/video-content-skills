@@ -189,3 +189,19 @@ def test_mcp_exposes_composed_automation_actions() -> None:
     assert callable(mcp_server.complete_video_automation_evidence)
     assert callable(mcp_server.save_video_automation_canonical_subtitle)
     assert callable(mcp_server.audit_video_automation_store)
+
+
+def test_handoff_binding_output_defaults_to_job_root() -> None:
+    args = build_parser().parse_args(
+        [
+            "automation-handoff-bind",
+            "--job",
+            "job.json",
+            "--authorization",
+            "authorization.json",
+            "--receipt",
+            "receipt.json",
+        ]
+    )
+
+    assert args.output is None
