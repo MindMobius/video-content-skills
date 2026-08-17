@@ -106,3 +106,13 @@ def reject_secrets(value: Any, *, path: str = "root") -> None:
 
 def json_for_stdout(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+def local_job_id() -> str:
+    return new_id("job")
+
+
+def tail_text(path: Path, max_chars: int = 12_000) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8", errors="replace")[-max_chars:]

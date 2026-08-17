@@ -1,4 +1,4 @@
-from video_subtitle.backends.asr import (
+from video_content.backends.asr import (
     AsrUnavailable,
     Qwen3AsrOptions,
     resolve_asr_backend,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from video_subtitle.platforms.watch_later import (
+from video_content.platforms.watch_later import (
     build_watch_later_snapshot,
     normalize_watch_later_entries,
 )

@@ -1,4 +1,4 @@
-from video_subtitle.backends.ocr import VideOcrOptions
+from video_content.backends.ocr import VideOcrOptions
 
 
 def test_videocr_options_roundtrip_consensus_settings() -> None:

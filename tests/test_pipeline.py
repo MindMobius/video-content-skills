@@ -1,10 +1,10 @@
 from pathlib import Path
 from threading import Barrier
 
-from video_subtitle.backends.asr import Qwen3AsrOptions
-from video_subtitle.backends.ocr import OcrUnavailable, VideOcrOptions
-from video_subtitle.pipeline import ExtractionPipeline, ExtractionRequest
-from video_subtitle.platforms.bilibili import OpenCliError
+from video_content.backends.asr import Qwen3AsrOptions
+from video_content.backends.ocr import OcrUnavailable, VideOcrOptions
+from video_content.pipeline import ExtractionPipeline, ExtractionRequest
+from video_content.platforms.bilibili import OpenCliError
 
 
 class FakeClient:

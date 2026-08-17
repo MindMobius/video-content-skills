@@ -50,8 +50,8 @@ def update_job(
         raise ValueError("Completed stage requires completed status")
     if next_status == "retryable" and not error:
         raise ValueError("Retryable job requires an error")
-    if next_status == "paused_auth" and next_stage != "handoff":
-        raise ValueError("paused_auth is only valid at handoff stage")
+    if next_status == "paused_auth" and next_stage not in {"inspecting", "evidence", "handoff"}:
+        raise ValueError("paused_auth requires an authenticated platform stage")
     if next_status == "unprocessable" and not error:
         raise ValueError("unprocessable job requires a physical limitation")
     job["stage"] = next_stage

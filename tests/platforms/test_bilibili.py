@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from video_subtitle.platforms.bilibili import (
+from video_content.platforms.bilibili import (
     OpenCliClient,
     OpenCliError,
     OpenCliSettings,
@@ -30,7 +30,7 @@ def _client() -> OpenCliClient:
     )
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_video_rows_become_metadata(mock_run) -> None:
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -48,7 +48,7 @@ def test_video_rows_become_metadata(mock_run) -> None:
     assert mock_run.call_args.kwargs["env"]["OPENCLI_BROWSER_COMMAND_TIMEOUT"] == "180"
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_video_repairs_gb18030_text_decoded_as_latin1(mock_run) -> None:
     mojibake_title = "AI 味的克星竟是 1986 年的飞机维修手册".encode("gb18030").decode(
         "latin-1"
@@ -68,7 +68,7 @@ def test_video_repairs_gb18030_text_decoded_as_latin1(mock_run) -> None:
     assert result["title"] == "AI 味的克星竟是 1986 年的飞机维修手册"
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_video_preserves_valid_unicode_and_latin_text(mock_run) -> None:
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -85,7 +85,7 @@ def test_video_preserves_valid_unicode_and_latin_text(mock_run) -> None:
     assert result["title"] == "测试 Café Vusal"
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_yaml_error_envelope_is_structured(mock_run) -> None:
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -107,7 +107,7 @@ def test_yaml_error_envelope_is_structured(mock_run) -> None:
     assert caught.value.help_text == "no platform subtitle"
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_log_prefix_before_json_is_accepted(mock_run) -> None:
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -128,7 +128,7 @@ def test_auth_ready_requires_a_logged_in_bilibili_row() -> None:
     )
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_download_uses_persistent_cache_and_reports_actual_file_size(
     mock_run,
     tmp_path: Path,
@@ -174,8 +174,8 @@ def test_download_uses_persistent_cache_and_reports_actual_file_size(
     assert first["actual_mib"] == round(4096 / (1024 * 1024), 3)
 
 
-@patch("video_subtitle.platforms.bilibili.time.sleep")
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.time.sleep")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_download_retries_transient_timeout(
     mock_run,
     mock_sleep,
@@ -219,8 +219,8 @@ def test_download_retries_transient_timeout(
     assert result["attempt_count"] == 2
 
 
-@patch("video_subtitle.platforms.bilibili.time.sleep")
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.time.sleep")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_download_reuses_media_that_completed_after_unknown_result(
     mock_run,
     mock_sleep,
@@ -264,7 +264,7 @@ def test_download_reuses_media_that_completed_after_unknown_result(
     assert result["retry_index"] == 1
 
 
-@patch("video_subtitle.platforms.bilibili.subprocess.run")
+@patch("video_content.platforms.bilibili.subprocess.run")
 def test_watch_later_calls_verified_plugin_command(mock_run) -> None:
     mock_run.return_value = subprocess.CompletedProcess(
         args=[],
@@ -275,5 +275,5 @@ def test_watch_later_calls_verified_plugin_command(mock_run) -> None:
     result = _client().watch_later(limit=10)
     assert result[0]["bvid"] == "BV1alpha"
     command = mock_run.call_args.args[0]
-    assert command[3:6] == ["video-subtitle-watch-later", "list", "--limit"]
+    assert command[3:6] == ["video-content-watch-later", "list", "--limit"]
     assert command[6] == "10"

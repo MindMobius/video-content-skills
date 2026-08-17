@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from video_subtitle.core.srt import (
+from video_content.srt import (
     Cue,
     format_srt_time,
     parse_srt,

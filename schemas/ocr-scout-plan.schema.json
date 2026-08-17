@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/ocr-scout-plan-v1.json",
+  "$id": "https://video-content.local/schemas/ocr-scout-plan-v1.json",
   "title": "Hard Subtitle OCR Scout Plan v1",
   "type": "object",
   "required": [
@@ -18,7 +18,7 @@
     "decision_boundary"
   ],
   "properties": {
-    "schema_version": { "const": "video-subtitle/ocr-scout-plan-v1" },
+    "schema_version": { "const": "video-content/ocr-scout-plan-v1" },
     "duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
     "requested_window_seconds": { "type": "number", "exclusiveMinimum": 0 },
     "effective_window_seconds": { "type": "number", "exclusiveMinimum": 0 },

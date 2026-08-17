@@ -6,7 +6,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from video_subtitle.core.scout import plan_hard_subtitle_scout
+from video_content.scout import plan_hard_subtitle_scout
 
 SCHEMA_PATH = Path(__file__).parents[2] / "schemas" / "ocr-scout-plan.schema.json"
 
