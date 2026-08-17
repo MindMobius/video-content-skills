@@ -154,8 +154,8 @@ def main() -> None:
             exit_code=1,
         )
     try:
-        setup = json.loads(setup_process.stdout)
-    except json.JSONDecodeError as error:
+        setup = _parse_setup_result(setup_process.stdout)
+    except (json.JSONDecodeError, TypeError, ValueError) as error:
         _emit(
             _bootstrap_report(
                 root,
@@ -185,6 +185,21 @@ def main() -> None:
             next_step=str(setup["next_step"]),
         )
     )
+
+
+def _parse_setup_result(value: str) -> dict[str, Any]:
+    payload = json.loads(value)
+    if not isinstance(payload, dict):
+        raise TypeError("setup response must be an object")
+    if payload.get("ok") is not True:
+        raise ValueError("setup response did not report ok=true")
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        raise TypeError("setup response result must be an object")
+    for field in ("status", "ready", "next_step"):
+        if field not in result:
+            raise ValueError(f"setup response is missing {field}")
+    return result
 
 
 def _bootstrap_report(
