@@ -1,125 +1,55 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/wechat-editor-observation-v1.json",
-  "title": "WeChat Editor Observation v1",
+  "$id": "video-content/wechat-editor-observation-v1",
   "type": "object",
+  "additionalProperties": false,
   "required": [
-    "schema_version",
-    "started_at",
-    "saved_at",
-    "title",
-    "appmsgid",
-    "body_images",
-    "cover",
-    "summary",
-    "author",
-    "originality",
-    "content_checks",
-    "save"
+    "schema_version", "started_at", "saved_at", "title", "content_sha256",
+    "draft_identity", "body_images", "cover", "summary", "content_checks",
+    "save", "refresh_readback", "published"
   ],
   "properties": {
-    "schema_version": { "const": "video-content/wechat-editor-observation-v1" },
-    "started_at": { "type": "string", "format": "date-time" },
-    "saved_at": { "type": "string", "format": "date-time" },
-    "title": { "type": "string", "minLength": 1 },
-    "appmsgid": { "type": "string", "pattern": "^[0-9]+$" },
+    "schema_version": {"const": "video-content/wechat-editor-observation-v1"},
+    "started_at": {"type": "string", "minLength": 1},
+    "saved_at": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "draft_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appmsgid"],
+      "properties": {"appmsgid": {"type": "string", "pattern": "^[0-9]+$"}}
+    },
     "body_images": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["intended", "items", "local_path_markers_remaining"],
       "properties": {
-        "intended": { "type": "integer", "minimum": 0 },
+        "intended": {"type": "integer", "minimum": 0},
+        "local_path_markers_remaining": {"type": "integer", "minimum": 0},
         "items": {
           "type": "array",
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "required": ["visible", "complete", "natural_width", "width", "height", "host_class"],
             "properties": {
-              "visible": { "type": "boolean" },
-              "complete": { "type": "boolean" },
-              "natural_width": { "type": "number", "minimum": 0 },
-              "width": { "type": "number", "minimum": 0 },
-              "height": { "type": "number", "minimum": 0 },
-              "host_class": { "enum": ["wechat", "transient", "other", "empty"] }
-            },
-            "additionalProperties": false
+              "visible": {"type": "boolean"},
+              "complete": {"type": "boolean"},
+              "natural_width": {"type": "number", "minimum": 0},
+              "width": {"type": "number", "minimum": 0},
+              "height": {"type": "number", "minimum": 0},
+              "host_class": {"enum": ["wechat", "other", "unknown"]}
+            }
           }
-        },
-        "local_path_markers_remaining": { "type": "integer", "minimum": 0 }
-      },
-      "additionalProperties": false
+        }
+      }
     },
-    "cover": { "$ref": "#/$defs/cover" },
-    "summary": { "$ref": "#/$defs/summary" },
-    "author": { "$ref": "#/$defs/author" },
-    "originality": { "$ref": "#/$defs/originality" },
-    "content_checks": { "$ref": "#/$defs/contentChecks" },
-    "save": { "$ref": "#/$defs/save" }
-  },
-  "$defs": {
-    "cover": {
-      "type": "object",
-      "required": ["source", "asset", "selected", "crop_confirmed", "wechat_hosted_preview"],
-      "properties": {
-        "source": { "type": "string", "minLength": 1 },
-        "asset": { "type": "string", "minLength": 1 },
-        "selected": { "const": true },
-        "crop_confirmed": { "const": true },
-        "wechat_hosted_preview": { "const": true }
-      },
-      "additionalProperties": false
-    },
-    "summary": {
-      "type": "object",
-      "required": ["filled", "text"],
-      "properties": {
-        "filled": { "const": true },
-        "text": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
-    },
-    "author": {
-      "type": "object",
-      "required": ["value", "left_blank"],
-      "properties": {
-        "value": { "type": "string" },
-        "left_blank": { "type": "boolean" }
-      },
-      "additionalProperties": false
-    },
-    "originality": {
-      "type": "object",
-      "required": ["declared", "visible_state"],
-      "properties": {
-        "declared": { "const": false },
-        "visible_state": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
-    },
-    "contentChecks": {
-      "type": "object",
-      "required": ["source_disclosure_present", "ending_present", "underline_count", "stock_cta_present", "speaker_identity_preserved"],
-      "properties": {
-        "source_disclosure_present": { "const": true },
-        "ending_present": { "const": true },
-        "underline_count": { "type": "integer", "minimum": 0 },
-        "stock_cta_present": { "const": false },
-        "speaker_identity_preserved": { "const": true }
-      },
-      "additionalProperties": false
-    },
-    "save": {
-      "type": "object",
-      "required": ["saved", "channel", "mode", "history_record", "history_record_persisted", "saved_page_read_back"],
-      "properties": {
-        "saved": { "const": true },
-        "channel": { "type": "string", "minLength": 1 },
-        "mode": { "type": "string", "minLength": 1 },
-        "history_record": { "type": "string", "minLength": 1 },
-        "history_record_persisted": { "const": true },
-        "saved_page_read_back": { "const": true }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": false
+    "cover": {"type": "object", "required": ["selected"], "properties": {"selected": {"type": "boolean"}}, "additionalProperties": true},
+    "summary": {"type": "object", "required": ["filled"], "properties": {"filled": {"type": "boolean"}}, "additionalProperties": true},
+    "content_checks": {"type": "object"},
+    "save": {"type": "object", "required": ["saved", "mode"], "properties": {"saved": {"type": "boolean"}, "mode": {"const": "draft"}}, "additionalProperties": true},
+    "refresh_readback": {"type": "object", "required": ["performed", "same_draft", "content_present"], "properties": {"performed": {"type": "boolean"}, "same_draft": {"type": "boolean"}, "content_present": {"type": "boolean"}}, "additionalProperties": false},
+    "published": {"const": false}
+  }
 }
