@@ -80,7 +80,7 @@ def _build_source(root: Path, *, published: bool = False) -> list[dict[str, Any]
             "bvid": "BV1fixtureB",
             "page": 2,
             "title": "Fixture B",
-            "url": "https://www.bilibili.com/video/BV1fixtureB/?p=2",
+            "url": "https://www.bilibili.com/video/BV1fixtureB/",
             "position": 2,
         },
     ]
@@ -147,7 +147,7 @@ def _build_source(root: Path, *, published: bool = False) -> list[dict[str, Any]
                 "job_id": f"old-job-{index}",
                 "profile_id": "old-profile",
                 "idempotency_key": f"old-{index}",
-                "source": entry,
+                "source": {"platform": "bilibili", **entry},
                 "stage": "completed",
                 "status": "completed",
                 "timestamps": {
