@@ -82,14 +82,14 @@ def build_watch_later_snapshot(
 ) -> dict[str, Any]:
     profile_id = profile_id.strip()
     account_profile_alias = account_profile_alias.strip()
-    if not re.fullmatch(r"profile[-_][A-Za-z0-9_-]+", profile_id):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", profile_id):
         raise ValueError("Watch Later snapshot profile_id is invalid")
     if not account_profile_alias:
         raise ValueError("Watch Later snapshot requires an account profile alias")
     rows = [entry.as_dict() for entry in entries]
     previous_ids: set[tuple[str, int]] = set()
     if previous is not None:
-        if previous.get("schema_version") != "video-automation/watch-later-snapshot-v1":
+        if previous.get("schema_version") != "video-content/watch-later-snapshot-v1":
             raise ValueError("Unsupported previous Watch Later snapshot")
         previous_ids = {
             (str(item["bvid"]), int(item["page"]))
@@ -113,7 +113,7 @@ def build_watch_later_snapshot(
         json.dumps(identity, sort_keys=True).encode("utf-8")
     ).hexdigest()
     return {
-        "schema_version": "video-automation/watch-later-snapshot-v1",
+        "schema_version": "video-content/watch-later-snapshot-v1",
         "snapshot_id": f"snapshot_{snapshot_hash[:16]}",
         "captured_at": captured_at,
         "profile_id": profile_id,

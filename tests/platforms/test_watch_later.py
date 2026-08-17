@@ -23,12 +23,10 @@ def _rows(name: str) -> list[dict]:
 
 def test_snapshot_detects_new_identity_without_requeueing_reorders() -> None:
     first_entries = normalize_watch_later_entries(_rows("first.json"))
-    first = build_watch_later_snapshot(
-        "profile-watch-later", "bilibili-main", first_entries
-    )
+    first = build_watch_later_snapshot("watch-later", "bilibili-main", first_entries)
     second_entries = normalize_watch_later_entries(_rows("reordered-with-new.json"))
     second = build_watch_later_snapshot(
-        "profile-watch-later", "bilibili-main", second_entries, previous=first
+        "watch-later", "bilibili-main", second_entries, previous=first
     )
     assert [(item["bvid"], item["page"]) for item in second["new_entries"]] == [
         ("BV1new", 2)
@@ -50,8 +48,6 @@ def test_normalization_deduplicates_and_rejects_secret_urls() -> None:
 
 def test_snapshot_contains_no_raw_provider_payload() -> None:
     entries = normalize_watch_later_entries(_rows("first.json"))
-    snapshot = build_watch_later_snapshot(
-        "profile-watch-later", "bilibili-main", entries
-    )
+    snapshot = build_watch_later_snapshot("watch-later", "bilibili-main", entries)
     assert "raw" not in snapshot
     assert "cookie" not in json.dumps(snapshot).lower()
