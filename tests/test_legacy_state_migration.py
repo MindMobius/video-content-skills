@@ -203,6 +203,31 @@ def test_plan_is_a_non_mutating_integrity_check(tmp_path: Path) -> None:
     assert not target.exists()
 
 
+def test_plan_reports_stale_noncritical_references_without_losing_data(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source-state"
+    archive = tmp_path / "archive"
+    target = tmp_path / "target"
+    _build_source(source)
+    for job_path in source.rglob("job.json"):
+        job = json.loads(job_path.read_text(encoding="utf-8"))
+        manifest = job_path.parent / "evidence" / "manifest.json"
+        manifest.write_text("post-processed manifest\n", encoding="utf-8")
+        job["artifacts"]["subtitle_manifest"] = {
+            "path": manifest.relative_to(job_path.parent).as_posix(),
+            "sha256": "0" * 64,
+        }
+        _write_json(job_path, job)
+
+    plan = plan_migration(source, archive, target, expected_completed=2)
+
+    assert plan["ready"] is True
+    assert plan["validated"]["noncritical_reference_warnings"] == 2
+    assert len(plan["warnings"]) == 2
+    assert {item["kind"] for item in plan["warnings"]} == {"subtitle_manifest"}
+
+
 def test_apply_moves_archive_builds_store_and_prevents_duplicate_jobs(
     tmp_path: Path,
 ) -> None:
