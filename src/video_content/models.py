@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 PROFILE_SCHEMA = "video-content/profile-v1"
 JOB_SCHEMA = "video-content/job-v1"

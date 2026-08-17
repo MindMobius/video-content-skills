@@ -18,7 +18,9 @@ def test_job_follows_forward_only_state_machine(tmp_path: Path) -> None:
     current = update_job(store, current["job_id"], stage="transcript")
     current = update_job(store, current["job_id"], stage="content")
     current = update_job(store, current["job_id"], stage="handoff")
-    current = update_job(store, current["job_id"], stage="completed", status="completed")
+    current = update_job(
+        store, current["job_id"], stage="completed", status="completed"
+    )
     assert current["completed_at"]
     with pytest.raises(ValueError, match="Terminal"):
         update_job(store, current["job_id"], status="queued")

@@ -45,7 +45,9 @@ def test_six_core_schema_ids_are_stable() -> None:
 
 
 def test_draft_receipt_can_never_be_published() -> None:
-    schema = json.loads(Path("schemas/draft-receipt.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads(
+        Path("schemas/draft-receipt.schema.json").read_text(encoding="utf-8")
+    )
     document = {
         "schema_version": "video-content/draft-receipt-v1",
         "receipt_id": "receipt_1",

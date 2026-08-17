@@ -79,6 +79,7 @@ class ArtifactRef:
     sha256: str
     bytes: int
 
+
 @dataclass
 class Job:
     schema: str
@@ -473,10 +474,22 @@ wechat prepare|bind
 
 ```python
 {
- "system_setup", "system_configure", "system_doctor", "source_inspect",
- "evidence_start", "job_get", "artifact_list", "artifact_read",
- "transcript_save", "content_save", "content_validate", "watch_later_scan",
- "job_list", "job_update", "wechat_prepare", "wechat_bind",
+    "system_setup",
+    "system_configure",
+    "system_doctor",
+    "source_inspect",
+    "evidence_start",
+    "job_get",
+    "artifact_list",
+    "artifact_read",
+    "transcript_save",
+    "content_save",
+    "content_validate",
+    "watch_later_scan",
+    "job_list",
+    "job_update",
+    "wechat_prepare",
+    "wechat_bind",
 }
 ```
 

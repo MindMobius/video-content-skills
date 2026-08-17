@@ -22,7 +22,9 @@ def test_job_creation_is_idempotent_and_queryable(tmp_path: Path) -> None:
     assert reused is False
     assert reused_second is True
     assert second["job_id"] == first["job_id"]
-    assert [job["job_id"] for job in store.list_jobs(run_id="run_1")] == [first["job_id"]]
+    assert [job["job_id"] for job in store.list_jobs(run_id="run_1")] == [
+        first["job_id"]
+    ]
 
 
 def test_artifacts_are_immutable_and_integrity_checked(tmp_path: Path) -> None:

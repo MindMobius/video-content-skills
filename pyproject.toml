@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Agent-native video evidence and content transformation skills for auditable Bilibili-to-WeChat workflows."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "MindMobius contributors" }]
 dependencies = []
 

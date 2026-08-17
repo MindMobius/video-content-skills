@@ -43,14 +43,20 @@ def update_job(
     if next_status not in JOB_STATUSES:
         raise ValueError(f"Unknown job status: {next_status}")
     if _STAGE_ORDER[next_stage] < _STAGE_ORDER[old_stage]:
-        raise ValueError(f"Job stage cannot move backwards: {old_stage} -> {next_stage}")
+        raise ValueError(
+            f"Job stage cannot move backwards: {old_stage} -> {next_stage}"
+        )
     if next_status == "completed" and next_stage != "completed":
         raise ValueError("Completed status requires completed stage")
     if next_stage == "completed" and next_status != "completed":
         raise ValueError("Completed stage requires completed status")
     if next_status == "retryable" and not error:
         raise ValueError("Retryable job requires an error")
-    if next_status == "paused_auth" and next_stage not in {"inspecting", "evidence", "handoff"}:
+    if next_status == "paused_auth" and next_stage not in {
+        "inspecting",
+        "evidence",
+        "handoff",
+    }:
         raise ValueError("paused_auth requires an authenticated platform stage")
     if next_status == "unprocessable" and not error:
         raise ValueError("unprocessable job requires a physical limitation")

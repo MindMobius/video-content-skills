@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 from scripts.validate_wechat_package import validate_package
 from video_content.wechat_renderer import render_wechat_package
 

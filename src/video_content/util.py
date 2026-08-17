@@ -10,11 +10,15 @@ from pathlib import Path
 from typing import Any
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-_SECRET_KEY = re.compile(r"(?i)(cookie|token|password|passwd|secret|sessdata|authorization)")
+_SECRET_KEY = re.compile(
+    r"(?i)(cookie|token|password|passwd|secret|sessdata|authorization)"
+)
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    )
 
 
 def new_id(prefix: str) -> str:
@@ -91,7 +95,9 @@ def reject_secrets(value: Any, *, path: str = "root") -> None:
     if isinstance(value, dict):
         for key, item in value.items():
             if _SECRET_KEY.search(str(key)):
-                raise ValueError(f"Persistent document contains secret-like field: {path}.{key}")
+                raise ValueError(
+                    f"Persistent document contains secret-like field: {path}.{key}"
+                )
             reject_secrets(item, path=f"{path}.{key}")
     elif isinstance(value, list):
         for index, item in enumerate(value):
