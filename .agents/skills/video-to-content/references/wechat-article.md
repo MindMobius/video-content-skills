@@ -1,286 +1,38 @@
-# WeChat Article Delivery
+# WeChat article carrier
 
-Read this reference only when the selected medium is `article` and the requested
-handoff is a WeChat Official Account article or another rich-text editor with
-the same copy-and-paste constraints.
+Use `carrier=wechat_article` and a restrained manuscript:
 
-This is a delivery protocol, not a writing template. The content map, media
-plan, source evidence, and user instructions remain authoritative. A renderer
-may decide typography and component markup; it may not decide what the source
-means, add an editorial stance, or turn the article into marketing copy.
-
-## Responsibility split
-
-- `video-to-content` owns semantic reconstruction, source attribution,
-  narrative voice, public disclosure, deliberate omissions, and fidelity.
-- The first-party `restrained-editorial` renderer owns only deterministic
-  rich-text-safe markup, preview generation, local-image packaging, and package
-  validation. Another renderer may replace that presentation layer when the
-  approved media plan requires it.
-- The optional `wechat-draft-handoff` Skill may place an already audited package
-  into an already signed-in editor after explicit user authorization. It owns
-  transient clipboard assembly, image-ingestion verification, only the
-  specifically authorized draft save, and a validated live-state receipt.
-- The user owns the communication objective and any account signature, CTA,
-  originality declaration, or promotional framing.
-- The portable package owns a complete manual fallback for local-image import.
-- The Python/MCP content project stops before platform state. Scheduling,
-  publishing, mass sending, monetization, and account management remain outside this project.
-
-Renderer defaults never override the media plan or user preferences. Omit a
-stock author signature, follow prompt, QR-code block, “点赞 / 在看 / 转发” CTA,
-or other account-growth shell unless the source already contains it or the user
-explicitly requests it. Do not invent the source creator's endorsement or use
-the renderer's sample author as the article author.
-
-## Build the manuscript first
-
-Create the semantic article before styling it. The article may merge, split,
-reorder, or foreground source material to suit reading; it should not mirror
-the playback timeline. For `source_author`, the body speaks directly in the
-source author's voice. Do not add “这个视频认为”, “原视频称”, “视频里提到”, or
-similar narrator wrappers.
-
-For a public adaptation whose media plan requires attribution, use this order:
-
-1. a visible slot for the original cover when it is a local asset;
-2. a visually separate source and transformation disclosure block;
-3. the reconstructed article body.
-
-The disclosure names the source creator, original title, and canonical URL. It
-also states the actual transformations and any material uncertainty, including
-whether external facts were checked. This disclosure is provenance metadata,
-not part of the source author's argument. Scan the body separately from the
-disclosure when checking narrator wrappers.
-
-Keep a Markdown manuscript such as `article.md` in the delivery package. It is
-the canonical manuscript for that deliverable revision; the content map and
-media plan remain the semantic and provenance contracts. The rich-text HTML is
-a rendered derivative, not a replacement for either layer.
-
-## Render the restrained baseline in-repository
-
-After the semantic article and visual plan are stable, create a
-`video-content/wechat-manuscript-v1` JSON document. Use text blocks for the
-Agent-authored article structure and image blocks only for the original video
-cover or timestamped source-video frames. Then run:
-
-```powershell
-python scripts/render_wechat_article.py .\manuscript.json .\wechat-article
+```json
+{
+  "schema_version": "video-content/wechat-manuscript-v1",
+  "title": "...",
+  "summary": "...",
+  "source": {
+    "title": "...",
+    "creator": "...",
+    "canonical_url": "https://www.bilibili.com/video/..."
+  },
+  "blocks": [
+    {
+      "type": "image",
+      "artifact_id": "art_...",
+      "source_kind": "video_cover"
+    },
+    {"type": "lead", "text": "..."},
+    {"type": "heading", "text": "..."},
+    {"type": "paragraph", "text": "..."},
+    {
+      "type": "image",
+      "artifact_id": "art_...",
+      "source_kind": "video_frame",
+      "timestamp_ms": 42000
+    }
+  ]
+}
 ```
 
-The command uses the first-party `restrained-editorial` theme and immediately
-runs the package validator. It emits:
-
-- `article.md`, the editable semantic manuscript;
-- `article.html`, the clean rich-text body fragment;
-- `article-preview.html`, a local preview whose copy notice keeps the manual
-  image boundary explicit;
-- copied local assets and `image-import-checklist.md` in article order;
-- one visible relative-path line per image with a machine-readable
-  `data-local-image-slot`, without a card, icon, duplicated instruction, or
-  underline-heavy decoration.
-
-The renderer rejects non-video image provenance and does not invent prose,
-captions, timestamps, source attribution, or block order. Build those choices as
-Agent-authored manuscript input and audit the rendered result semantically.
-
-Use another installed renderer only when the user requests a distinct visual
-language or the approved media plan requires components the first-party baseline
-cannot express. `isjiamu/gzh-design-skill` remains a tested optional integration,
-but it is not a dependency of this repository. Read and validate any alternative
-renderer before use, remove stock signatures and CTAs, retain the one-line local-image contract,
-and never save a preview wrapper as the deliverable. Renderer validation proves markup compatibility, not semantic fidelity.
-Unsupported claims still fail the content audit.
-
-Before installing that optional integration, inspect its current Skill list with
-`npx -y skills@1.5.22 add isjiamu/gzh-design-skill --list`; install it only in the
-caller-approved scope and do not copy it into this repository.
-
-## Source article images from the video by default
-
-Visual sourcing is a semantic decision made before packaging. For an article
-derived from a video, default to the original video cover followed by frames
-actually extracted from that video. Choose frames after the manuscript is stable
-and place them beside the claim, example, speaker, object, chart, or
-demonstration they genuinely illustrate. Prefer frames whose timestamps overlap
-the relevant subtitle evidence.
-
-Record the source timestamp or bounded range in package metadata or the ordered
-image checklist. A practical filename such as `assets/02-frame-00m12s.jpg`
-helps human review but does not replace explicit provenance. Cropping for layout
-is allowed. Do not composite, redraw, or edit a frame in a way that implies
-content absent from the source.
-
-Generated diagrams, infographics, AI illustrations, stock images, and synthetic
-visual summaries are opt-in. A request for a WeChat article does not authorize
-them. Use one only after the user explicitly requests it or separately approves
-the proposed visual plan. Choosing `one_page` or another inherently designed
-visual carrier authorizes that carrier's composition, not synthetic supporting
-images in a separate article. When the source has no useful frame, use fewer
-images rather than filler. A renderer may style and place approved assets; it
-may not replace source frames with newly authored visuals.
-
-## Package local images explicitly
-
-A reusable handoff package should contain the smallest useful set of artifacts:
-
-```text
-wechat-article/
-├─ article.md
-├─ article.html
-├─ article-preview.html
-├─ cover.jpg                    # original video cover
-├─ assets/02-frame-00m12s.jpg   # source-video frame with timestamp provenance
-└─ image-import-checklist.md
-```
-
-Names may be localized, but their roles must remain obvious. Optional desktop
-or mobile QA screenshots may be included as inspection evidence; they are not
-part of the article body.
-
-For every local image, default to minimal-edit mode:
-
-1. keep the binary file in the package;
-2. put one human-visible line containing the relative asset path at the exact
-   article position, for example `assets/01-mission.jpg`;
-3. create any desired vertical space with margins on that same element;
-4. when the HTML format permits it, attach `data-local-image-slot` with the same
-   relative path for machine validation;
-5. list the same relative path in article order in
-   `image-import-checklist.md`;
-6. do not leave a relative, `file:`, `data:`, or `blob:` source in an `img`
-   element, and do not expose an absolute machine path.
-
-The human-visible marker should contain only the path. Do not add a border,
-background, icon, image title, repeated description, or a second deletion
-instruction. After manual insertion, the editor should delete at most one
-visible element: the path line itself. Machine-facing traceability belongs in
-attributes and validation, not in extra article UI.
-
-A descriptive slot is opt-in. Use it only when the user explicitly requests
-editor guidance or the filename is genuinely ambiguous. The checklist should
-state once that copied rich text does not contain local image bytes, then list
-relative paths in article order. Add a short description only where it resolves
-real ambiguity; do not repeat insertion and deletion instructions for every
-image. Do not upload an image to invent a transferable URL.
-
-If the preview has a copy button, use qualified wording such as “复制排版正文”.
-The success message must say that the formatted body was copied and local
-images still require manual insertion. The preview may render the same minimal
-path lines; it must not claim that an incomplete package is “ready to paste”.
-
-## Optional signed-in draft handoff
-
-The clean package above remains the canonical and portable boundary. Only after
-it has a current fidelity audit and `ready_for_delivery=true`, and only when the
-user explicitly asks for platform handoff, finish `video-to-content` and read
-[`../../wechat-draft-handoff/SKILL.md`](../../wechat-draft-handoff/SKILL.md).
-
-That downstream Skill may replace the path markers in a one-time clipboard
-payload with correctly typed Base64 `data:` images. The payload exists only in
-memory or the clipboard long enough to paste the whole article once. It must not
-be saved as `article.html`, committed, logged, or treated as a new deliverable.
-The signed-in WeChat editor can then upload the images and rewrite their sources
-to its own CDN.
-
-A successful handoff requires live verification that the intended image count
-is visible, all images have WeChat-hosted sources, no transient or local sources
-remain, metadata is correct, and the explicitly authorized draft save completed.
-If rich clipboard image transport is unavailable or verification fails, return
-to the path-marker package and report the exact manual insertion step. Platform
-success never changes the content fidelity audit.
-
-Start an external `wechat_handoff` content phase before the first editor
-mutation, and finish it only after save plus saved-page read-back. For a saved
-draft, persist `wechat-draft-receipt.json` beside the article package using
-`video-content/wechat-draft-receipt-v1`, then validate it against the current
-content project:
-
-```powershell
-python scripts/validate_wechat_draft_receipt.py `
-  <wechat-article-directory>\wechat-draft-receipt.json `
-  --project <content-project>\project.json
-```
-
-The receipt is an observation of platform state, not a new deliverable. It must
-bind the current project, deliverable, and fidelity audit; record stable
-`appmsgid`, image and metadata read-back, durable manual-save history, and the
-measured handoff timestamps; and state `published=false` with an empty
-`publish_actions_performed` array. Do not persist URL tokens, credentials,
-clipboard Base64, or hidden browser state. Require validator `valid=true` before
-reporting a saved-draft success.
-
-## Validate two independent layers
-
-Before saving the final deliverable, validate both layers:
-
-### Content and provenance
-
-- all required claim and caveat IDs are visibly represented;
-- the body follows the declared narrative voice;
-- the cover slot and disclosure precede the body when required;
-- article illustrations use the original cover and traceable source-video
-  frames by default; every generated or synthetic visual has explicit recorded
-  user authorization;
-- the disclosure states the real transformation and verification boundary;
-- renderer defaults did not add a new author identity, stance, CTA, or
-  promotional promise;
-- title, headings, and highlighted text do not strengthen the source claim.
-
-### Rendering and handoff
-
-- the clean HTML passes the chosen renderer's deterministic validator;
-- the clean HTML contains no document or preview shell when the renderer
-  requires a body fragment;
-- local image path markers, local files, and checklist entries match one-to-one
-  and in article order;
-- default markers use one visible relative-path line per image, expose no
-  absolute machine path, and require deletion of at most one visible element;
-- no local image is hidden behind an `img` reference that cannot survive copy
-  and paste;
-- the preview copy message describes the manual image boundary;
-- when browser inspection is available, check both a desktop width and a narrow
-  mobile width for overflow, illegible text, broken hierarchy, and accidental
-  empty space.
-- when signed-in draft handoff was explicitly requested, validate the separate
-  `wechat-draft-receipt.json` against the current project after live save and
-  read-back; do not fold platform state into the fidelity audit.
-
-When this repository is available, run the dependency-free package validator
-from the repository root before the final fidelity audit:
-
-```powershell
-python scripts/validate_wechat_package.py <wechat-article-directory>
-```
-
-Its `valid=true` result confirms the deterministic handoff contract: marker,
-checklist, and local-file order; clean versus preview HTML boundaries; absence of
-persisted Base64, local URI schemes, absolute paths, underline emphasis, and
-stock renderer shells; and qualified preview copy wording. It does not decide
-whether the article's claims, voice, or caveats are faithful.
-
-Save the clean human-visible article HTML with
-`save_video_content_deliverable`; do not save the preview wrapper. Perform a
-fresh fidelity audit against that saved revision, then call
-`validate_video_content_project`.
-
-A package with disclosed external-verification limits or a correctly declared
-manual image step may use `pass_with_warnings` if no semantic error remains. A
-missing required disclosure, hidden uncertainty, unsupported statement, wrong
-voice, or absent local-image handoff is a blocker and must be repaired before
-delivery.
-
-## Final handoff
-
-Report the clean HTML, preview, manuscript, local assets, and import checklist
-as separate files. By default, state the one remaining human action precisely:
-paste the formatted body, import each local image at its path line, and delete
-that one line.
-
-If the user separately requested signed-in draft handoff, complete and report
-the audited content artifact first, then route to `wechat-draft-handoff`. Report
-the validated receipt path, project/deliverable/audit IDs, visible loaded and
-WeChat-hosted image counts, stable `appmsgid`, durable save evidence, measured
-`wechat_handoff` duration, warnings, and the explicit fact that nothing was
-published. Do not continue from a saved draft into scheduling or publishing.
+Allowed image sources are `video_cover` and `video_frame`; a frame requires
+`timestamp_ms`. The first-party renderer copies source assets, emits clean body
+HTML without `<img>` elements, and leaves one-line relative markers for the
+handoff adapter. Renderer success is not fidelity approval and not draft-save
+authorization.

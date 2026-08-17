@@ -1,4 +1,4 @@
-export const ADAPTER_ID = 'video-subtitle/wechat-browser-adapter'
+export const ADAPTER_ID = 'video-content/wechat-browser-adapter'
 export const ADAPTER_VERSION = '1'
 
 const WECHAT_IMAGE_HOSTS = new Set(['mmbiz.qpic.cn', 'mmbiz.qlogo.cn'])
@@ -104,3 +104,4 @@ function isVisible(element) {
   const rect = element.getBoundingClientRect()
   return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity ?? 1) > 0 && rect.width > 0 && rect.height > 0
 }
+

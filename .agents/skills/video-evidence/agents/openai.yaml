@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Evidence"
+  short_description: "Collect and verify durable evidence from Bilibili or local media"
+  default_prompt: "Use $video-evidence to collect independent subtitle evidence and save a verified Transcript."

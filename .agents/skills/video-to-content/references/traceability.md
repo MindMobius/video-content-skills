@@ -1,35 +1,20 @@
-# Traceability Boundaries
+# Traceability and adaptation
 
-## Four different claims of confidence
+A carrier may reorganize information, but each factual section must remain
+traceable to the Transcript or a cited Evidence range.
 
-Keep these separate:
+Prefer:
 
-1. **Pixel or audio recognition:** OCR/ASR produced a string.
-2. **Publisher evidence:** the video displayed or spoke that meaning.
-3. **Agent synthesis:** several source passages jointly imply an interpretation.
-4. **External verification:** an independent authoritative source supports or
-   contradicts a factual assertion.
+- a clear thesis and reader-oriented structure;
+- faithful paraphrase over transcript dumping;
+- explicit source disclosure for adapted video content;
+- compact notes for unresolved uncertainty;
+- an audit that identifies material omissions or compression choices.
 
-Agreement between OCR scales supports level 1. Agreement between OCR and ASR
-may strengthen level 2. Neither automatically reaches level 4.
+Reject:
 
-## Evidence references
-
-An evidence reference identifies one immutable subtitle artifact and one time
-range. Its `text` is a source excerpt, not a cleaned-up quotation. Put translated
-or normalized meaning in claim text and retain the original excerpt.
-
-Use `relationship=conflicts` when evidence challenges a claim. Do not omit it
-from the map merely because another source was selected as primary.
-
-## Compression
-
-Compression is faithful when omitted material does not change the remaining
-claim's meaning, scope, attribution, confidence, or conditions. If it does, the
-material is a required caveat or the carrier is too small.
-
-## External sources
-
-When external fact-checking is requested, keep URLs, titles, access dates, and
-their conclusions separate from subtitle evidence. External research can change
-`external_verification`; it must not rewrite what the video itself said.
+- stronger certainty than the source;
+- composite quotes presented as literal quotes;
+- causal claims inferred only from sequence;
+- unattributed opinions;
+- decorative media without source provenance.

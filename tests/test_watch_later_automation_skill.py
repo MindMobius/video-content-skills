@@ -1,61 +1,30 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_ROOT = ROOT / ".agents" / "skills" / "watch-later-to-wechat"
 
 
-def test_watch_later_automation_skill_encodes_fail_closed_flow() -> None:
-    skill_path = (
-        ROOT / ".agents" / "skills" / "video-watch-later-automation" / "SKILL.md"
+def test_watch_later_skill_keeps_operational_failure_policy() -> None:
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    lifecycle = (SKILL_ROOT / "references" / "job-lifecycle.md").read_text(
+        encoding="utf-8"
     )
-    text = skill_path.read_text(encoding="utf-8")
-    assert "scan_bilibili_watch_later" in text
-    assert "save_video_automation_canonical_subtitle" in text
-    assert "audit_video_automation_store" in text
-    assert "repair_paths=true" in text
-    assert "unprocessable" in text
-    assert "paused_auth" in text
-    assert "save_wechat_draft" in text
-    assert "never publish" in text.lower()
-    assert "do not ask the user" in text.lower()
-    assert "baseline_if_empty=true" in text
-
-
-def test_agent_routing_and_dsh_register_automation_skill() -> None:
-    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-    plugin = (ROOT / "dsh" / "plugin.js").read_text(encoding="utf-8")
-    assert "video-watch-later-automation" in agents
-    assert "video-watch-later-automation" in plugin
-
-
-def test_public_docs_explain_the_one_shot_operator_contract() -> None:
-    guide_path = ROOT / "docs" / "watch-later-automation.md"
-    guide = guide_path.read_text(encoding="utf-8")
-    public_docs = [
-        (ROOT / "README.md").read_text(encoding="utf-8"),
-        (ROOT / "docs" / "environment.md").read_text(encoding="utf-8"),
-        (ROOT / "docs" / "reproducibility.md").read_text(encoding="utf-8"),
-    ]
-
+    contract = f"{skill}\n{lifecycle}"
     for token in (
-        "watch_later_monitor",
-        "automation-profile-save",
-        "automation-authorize-drafts",
-        "--confirm-draft-only-authorization",
-        "automation-scan",
-        "automation-evidence-begin",
-        "automation-evidence-complete",
-        "automation-canonical-save",
-        "automation-audit",
-        "--repair-paths",
-        "--baseline-if-empty",
-        "BILIBILI_RISK_CONTROL",
-        "--store",
-        "unprocessable",
+        "retryable",
         "paused_auth",
-        "manual_required",
+        "unprocessable",
+        "completed",
         "published=false",
+        "run_id",
+        "one validated Draft Receipt",
     ):
-        assert token in guide
-
-    for document in public_docs:
-        assert "watch-later-automation.md" in document
+        assert token in contract
+    for prohibited in (
+        "publish",
+        "schedule",
+        "mass send",
+        "originality",
+        "account management",
+    ):
+        assert prohibited in skill

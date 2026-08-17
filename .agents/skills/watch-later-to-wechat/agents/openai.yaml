@@ -1,0 +1,4 @@
+interface:
+  display_name: "Watch Later to WeChat"
+  short_description: "Turn new Bilibili Watch Later videos into audited WeChat drafts"
+  default_prompt: "Use $watch-later-to-wechat to scan, drain, retry, or resume my authorized Watch Later queue."

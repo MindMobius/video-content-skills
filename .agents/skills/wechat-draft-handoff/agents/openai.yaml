@@ -1,4 +1,0 @@
-interface:
-  display_name: "WeChat Draft Handoff"
-  short_description: "Place an audited article into a signed-in WeChat draft"
-  default_prompt: "Use $wechat-draft-handoff to place this audited article into my signed-in WeChat editor and save only a draft."

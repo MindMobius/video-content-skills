@@ -1,4 +1,0 @@
-interface:
-  display_name: "Watch Later to WeChat"
-  short_description: "Automate Bilibili Watch Later into audited WeChat drafts"
-  default_prompt: "Use $video-watch-later-automation to run or resume my authorized Watch Later-to-WeChat draft pipeline."

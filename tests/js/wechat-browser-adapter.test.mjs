@@ -6,7 +6,7 @@ import {
   classifyImageSource,
   parseAppmsgId,
   summarizeBodyImages,
-} from '../../.agents/skills/wechat-draft-handoff/scripts/browser-adapter.js'
+} from '../../.agents/skills/wechat-draft/scripts/browser-adapter.js'
 
 test('extracts only appmsgid from a token-bearing URL', () => {
   const value = 'https://mp.weixin.qq.com/cgi-bin/appmsg?action=edit&appmsgid=100000721&token=do-not-return'

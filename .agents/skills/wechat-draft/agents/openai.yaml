@@ -1,0 +1,4 @@
+interface:
+  display_name: "WeChat Draft"
+  short_description: "Place validated content in WeChat and save only one audited draft"
+  default_prompt: "Use $wechat-draft to place this validated article in my signed-in WeChat editor and save only a draft."
