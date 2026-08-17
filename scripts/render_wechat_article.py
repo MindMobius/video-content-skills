@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.validate_wechat_package import validate_package
-from video_subtitle.wechat_renderer import render_wechat_package
+from video_content.wechat_renderer import render_wechat_package
 
 
 def main() -> None:

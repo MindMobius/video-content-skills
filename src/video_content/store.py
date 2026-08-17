@@ -36,7 +36,9 @@ class Store:
 
     @classmethod
     def from_environment(cls, root: str | Path | None = None) -> Store:
-        selected = root or os.getenv("VIDEO_CONTENT_HOME") or Path.cwd() / ".video-content"
+        selected = (
+            root or os.getenv("VIDEO_CONTENT_HOME") or Path.cwd() / ".video-content"
+        )
         return cls(selected)
 
     def initialize(self) -> dict[str, Any]:
@@ -211,7 +213,8 @@ class Store:
             elif isinstance(data, (dict, list)):
                 reject_secrets(data)
                 payload = (
-                    json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
+                    json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+                    + b"\n"
                 )
             else:
                 payload = bytes(data or b"")
@@ -219,7 +222,8 @@ class Store:
             size = len(payload)
             original_name = filename or f"{kind}.bin"
         suffix = Path(original_name).suffix.lower()
-        artifact_id = f"art_{digest[:24]}"
+        artifact_key = sha256_bytes(f"{kind}\0{digest}".encode())
+        artifact_id = f"art_{artifact_key[:24]}"
         relative = Path("artifacts") / kind / f"{artifact_id}{suffix}"
         target = ensure_within(self.job_dir(job_id), self.job_dir(job_id) / relative)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -249,11 +253,16 @@ class Store:
             metadata=metadata,
         ).as_dict()
         refs = list(job.get("artifact_refs", []))
-        existing = next((item for item in refs if item["artifact_id"] == artifact_id), None)
+        existing = next(
+            (item for item in refs if item["artifact_id"] == artifact_id), None
+        )
         if existing is not None:
             if existing != reference:
                 # Creation timestamps may differ across an idempotent retry.
-                normalized_existing = {**existing, "created_at": reference.get("created_at")}
+                normalized_existing = {
+                    **existing,
+                    "created_at": reference.get("created_at"),
+                }
                 if normalized_existing != reference:
                     raise ValueError(f"Artifact reference mismatch: {artifact_id}")
             return existing
@@ -263,21 +272,31 @@ class Store:
         self.append_event(job_id, {"type": "artifact.saved", "artifact": reference})
         return reference
 
-    def list_artifacts(self, job_id: str, *, kind: str | None = None) -> list[dict[str, Any]]:
+    def list_artifacts(
+        self, job_id: str, *, kind: str | None = None
+    ) -> list[dict[str, Any]]:
         refs = list(self.get_job(job_id).get("artifact_refs", []))
         if kind is not None:
             refs = [item for item in refs if item.get("kind") == kind]
         return refs
 
-    def read_artifact(self, job_id: str, artifact_id: str) -> tuple[dict[str, Any], bytes]:
+    def read_artifact(
+        self, job_id: str, artifact_id: str
+    ) -> tuple[dict[str, Any], bytes]:
         safe_id(artifact_id, label="artifact id")
         reference = next(
-            (item for item in self.list_artifacts(job_id) if item["artifact_id"] == artifact_id),
+            (
+                item
+                for item in self.list_artifacts(job_id)
+                if item["artifact_id"] == artifact_id
+            ),
             None,
         )
         if reference is None:
             raise FileNotFoundError(f"Artifact not found: {artifact_id}")
-        path = ensure_within(self.job_dir(job_id), self.job_dir(job_id) / reference["path"])
+        path = ensure_within(
+            self.job_dir(job_id), self.job_dir(job_id) / reference["path"]
+        )
         if not path.is_file() or sha256_file(path) != reference["sha256"]:
             raise ValueError(f"Artifact integrity check failed: {artifact_id}")
         return reference, path.read_bytes()

@@ -8,7 +8,7 @@ from pathlib import Path
 import jsonschema
 
 from scripts.validate_wechat_package import validate_package
-from video_subtitle.wechat_renderer import render_wechat_package
+from video_content.wechat_renderer import render_wechat_package
 
 ROOT = Path(__file__).resolve().parents[1]
 
