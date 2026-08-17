@@ -57,3 +57,11 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
     assert report["mcp"]["env"] == {
         "VIDEO_CONTENT_CONFIG": str((tmp_path / "config.json").resolve())
     }
+
+
+def test_clean_checkout_ci_expects_capability_plan_not_host_runtime() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+    assert "--capability hard_ocr_local" in workflow
+    assert "assert not report['ready']" in workflow
+    assert "report['status']=='agent_action_required'" in workflow
+    assert "report['setup']['requested_capabilities']==['hard_ocr_local']" in workflow
