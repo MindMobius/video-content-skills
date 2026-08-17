@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
     environment = os.environ.copy()
     for name in tuple(environment):
-        if name.startswith(("VIDEO_SUBTITLE_", "SUBTITLE_AGENT_")):
+        if name.startswith("VIDEO_CONTENT_"):
             environment.pop(name)
 
     completed = subprocess.run(
@@ -41,12 +41,11 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
         (ROOT / "schemas" / "bootstrap.schema.json").read_text(encoding="utf-8")
     )
     jsonschema.validate(report, schema)
-    assert [item["name"] for item in report["skills"]["available"]] == [
-        "video-subtitle",
-        "video-to-content",
-        "video-watch-later-automation",
-        "wechat-draft-handoff",
-    ]
+    discovered = [item["name"] for item in report["skills"]["available"]]
+    expected = sorted(
+        path.parent.name for path in (ROOT / ".agents" / "skills").glob("*/SKILL.md")
+    )
+    assert discovered == expected
     assert report["mcp"]["transport"] == "stdio"
     assert report["mcp"]["registration_owner"] == "calling_agent"
     assert report["installation"]["lock"]["verified"] is True
@@ -56,5 +55,5 @@ def test_bootstrap_emits_one_machine_readable_contract(tmp_path: Path) -> None:
         str((tmp_path / "config.json").resolve()),
     ]
     assert report["mcp"]["env"] == {
-        "VIDEO_SUBTITLE_CONFIG": str((tmp_path / "config.json").resolve())
+        "VIDEO_CONTENT_CONFIG": str((tmp_path / "config.json").resolve())
     }

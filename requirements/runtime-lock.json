@@ -1,5 +1,5 @@
 {
-  "schema_version": "video-subtitle/runtime-lock-v1",
+  "schema_version": "video-content/runtime-lock-v1",
   "verified_at": "2026-08-16",
   "ffmpeg": {
     "minimum_major": 7,

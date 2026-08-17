@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/runtime-lock-v1.json",
-  "title": "Video Subtitle Runtime Lock v1",
+  "$id": "https://video-content.local/schemas/runtime-lock-v1.json",
+  "title": "Video Content Runtime Lock v1",
   "type": "object",
   "required": ["schema_version", "verified_at", "ffmpeg", "videocr", "asr", "models"],
   "properties": {
-    "schema_version": { "const": "video-subtitle/runtime-lock-v1" },
+    "schema_version": { "const": "video-content/runtime-lock-v1" },
     "verified_at": { "type": "string", "format": "date" },
     "ffmpeg": {
       "type": "object",

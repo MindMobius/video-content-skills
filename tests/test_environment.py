@@ -5,12 +5,12 @@ from pathlib import Path
 
 import jsonschema
 
-from video_subtitle.config import (
+from video_content.config import (
     apply_configuration,
     read_configuration,
     update_configuration,
 )
-from video_subtitle.environment import build_setup_report, read_requirements
+from video_content.environment import build_setup_report, read_requirements
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -24,8 +24,8 @@ def test_persisted_config_fills_missing_environment(
     monkeypatch,
 ) -> None:
     config_path = tmp_path / "config.json"
-    monkeypatch.delenv("VIDEO_SUBTITLE_OPENCLI", raising=False)
-    monkeypatch.setenv("VIDEO_SUBTITLE_FFMPEG", "environment-ffmpeg")
+    monkeypatch.delenv("VIDEO_CONTENT_OPENCLI", raising=False)
+    monkeypatch.setenv("VIDEO_CONTENT_FFMPEG", "environment-ffmpeg")
 
     update_configuration(
         {
@@ -66,7 +66,7 @@ def test_requirements_document_covers_agent_capabilities() -> None:
     document = read_requirements()
 
     jsonschema.validate(document, _schema("requirements.schema.json"))
-    assert document["schema_version"] == "video-subtitle/requirements-v1"
+    assert document["schema_version"] == "video-content/requirements-v1"
     assert "hard_ocr_url" in document["capabilities"]
     assert "audio_asr_url" in document["capabilities"]
     assert document["dependencies"]["browser_bridge"]["kind"] == "human_session"
@@ -82,13 +82,13 @@ def test_setup_report_separates_agent_and_human_actions(
     monkeypatch,
 ) -> None:
     for name in (
-        "VIDEO_SUBTITLE_ASR_PYTHON",
-        "VIDEO_SUBTITLE_QWEN_ASR_MODEL",
-        "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
+        "VIDEO_CONTENT_ASR_PYTHON",
+        "VIDEO_CONTENT_QWEN_ASR_MODEL",
+        "VIDEO_CONTENT_QWEN_ALIGNER_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda command: f"/tools/{command}" if command == "node" else None,
     )
     diagnostics = {
@@ -132,7 +132,7 @@ def test_opencli_waits_for_node_before_install_or_login(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda _command: None,
     )
     diagnostics = {
@@ -167,9 +167,9 @@ def test_cuda_waits_for_agent_installable_asr_prerequisites(
     monkeypatch,
 ) -> None:
     for name in (
-        "VIDEO_SUBTITLE_ASR_PYTHON",
-        "VIDEO_SUBTITLE_QWEN_ASR_MODEL",
-        "VIDEO_SUBTITLE_QWEN_ALIGNER_MODEL",
+        "VIDEO_CONTENT_ASR_PYTHON",
+        "VIDEO_CONTENT_QWEN_ASR_MODEL",
+        "VIDEO_CONTENT_QWEN_ALIGNER_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
     diagnostics = {
@@ -259,7 +259,7 @@ def test_deep_ready_report_starts_task_instead_of_rechecking(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda command: f"/tools/{command}",
     )
     diagnostics = {
@@ -325,7 +325,7 @@ def test_bundled_opencli_executable_does_not_require_node(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda _command: None,
     )
     diagnostics = {
@@ -359,7 +359,7 @@ def test_watch_later_capability_installs_adapter_before_requesting_login(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda command: f"/tools/{command}",
     )
     diagnostics = {
@@ -395,7 +395,7 @@ def test_watch_later_capability_requests_login_after_adapter_is_ready(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
-        "video_subtitle.environment.shutil.which",
+        "video_content.environment.shutil.which",
         lambda command: f"/tools/{command}",
     )
     diagnostics = {

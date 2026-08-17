@@ -22,8 +22,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOCK = ROOT / "requirements" / "runtime-lock.json"
-RECEIPT_NAME = ".video-subtitle-runtime.json"
-INSTALLING_NAME = ".video-subtitle-installing.json"
+RECEIPT_NAME = ".video-content-runtime.json"
+INSTALLING_NAME = ".video-content-installing.json"
 DEPENDENCIES = (
     "ffmpeg",
     "videocr",
@@ -83,7 +83,7 @@ def main() -> None:
             report = _install(lock, args)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         report = {
-            "schema_version": "video-subtitle/runtime-action-v1",
+            "schema_version": "video-content/runtime-action-v1",
             "action": args.command,
             "dependency": args.dependency,
             "ok": False,
@@ -100,7 +100,7 @@ def main() -> None:
 
 def _read_lock(path: Path) -> dict[str, Any]:
     document = json.loads(path.read_text(encoding="utf-8"))
-    if document.get("schema_version") != "video-subtitle/runtime-lock-v1":
+    if document.get("schema_version") != "video-content/runtime-lock-v1":
         raise ValueError("Unsupported runtime lock schema")
     return document
 
@@ -113,7 +113,7 @@ def _plan(
     profile: str,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
-        "schema_version": "video-subtitle/runtime-action-v1",
+        "schema_version": "video-content/runtime-action-v1",
         "action": "plan",
         "dependency": dependency,
         "ok": True,
@@ -148,7 +148,7 @@ def _plan(
                 ],
                 "post_install": (
                     "Extract the verified archive with 7-Zip, locate videocr-cli, "
-                    "persist its path, and run video-subtitle doctor."
+                    "persist its path, and run video-content system doctor."
                 ),
             }
         )
@@ -262,7 +262,7 @@ def _download_videocr(
         raise ValueError(f"Existing archive does not match the runtime lock: {archive}")
     partial = archive.with_suffix(archive.suffix + ".part")
     request = urllib.request.Request(
-        asset["url"], headers={"User-Agent": "video-subtitle-skill/0.8.0"}
+        asset["url"], headers={"User-Agent": "video-content-skills/1.0.0"}
     )
     digest = hashlib.sha256()
     downloaded = 0
@@ -282,7 +282,7 @@ def _download_videocr(
         if partial.exists():
             partial.unlink()
     receipt = {
-        "schema_version": "video-subtitle/runtime-install-receipt-v1",
+        "schema_version": "video-content/runtime-install-receipt-v1",
         "dependency": "videocr",
         "version": lock["videocr"]["version"],
         "variant": selected_variant,
@@ -335,7 +335,7 @@ def _install_asr(
     mode = _prepare_resumable_target(
         target,
         {
-            "schema_version": "video-subtitle/runtime-installing-v1",
+            "schema_version": "video-content/runtime-installing-v1",
             "dependency": "asr",
             "profile": profile_name,
             "python": lock["asr"]["python"],
@@ -379,7 +379,7 @@ def _install_asr(
     if not state.get("valid"):
         raise ValueError("Installed ASR environment failed the pinned version check")
     receipt = {
-        "schema_version": "video-subtitle/runtime-install-receipt-v1",
+        "schema_version": "video-content/runtime-install-receipt-v1",
         "dependency": "asr",
         "profile": profile_name,
         "state": state,
@@ -422,7 +422,7 @@ def _download_model(
     mode = _prepare_resumable_target(
         target,
         {
-            "schema_version": "video-subtitle/runtime-installing-v1",
+            "schema_version": "video-content/runtime-installing-v1",
             "dependency": dependency,
             "repo_id": model["repo_id"],
             "revision": model["revision"],
@@ -445,7 +445,7 @@ def _download_model(
         )
     files = _hash_tree(target)
     receipt = {
-        "schema_version": "video-subtitle/runtime-install-receipt-v1",
+        "schema_version": "video-content/runtime-install-receipt-v1",
         "dependency": dependency,
         "repo_id": model["repo_id"],
         "revision": model["revision"],
@@ -670,7 +670,7 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 def _result(action: str, dependency: str, ok: bool, **values: Any) -> dict[str, Any]:
     return {
-        "schema_version": "video-subtitle/runtime-action-v1",
+        "schema_version": "video-content/runtime-action-v1",
         "action": action,
         "dependency": dependency,
         "ok": ok,

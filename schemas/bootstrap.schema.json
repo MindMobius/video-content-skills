@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/bootstrap-v2.json",
-  "title": "Video Subtitle Bootstrap Report v2",
+  "$id": "https://video-content.local/schemas/bootstrap-v2.json",
+  "title": "Video Content Bootstrap Report v2",
   "type": "object",
   "required": [
     "schema_version",
@@ -18,7 +18,7 @@
     "next_step"
   ],
   "properties": {
-    "schema_version": { "const": "video-subtitle/bootstrap-v2" },
+    "schema_version": { "const": "video-content/bootstrap-v2" },
     "status": {
       "enum": ["ready", "agent_action_required", "human_action_required", "failed"]
     },
@@ -89,7 +89,7 @@
         "fallback_command"
       ],
       "properties": {
-        "server_name": { "const": "video_subtitle" },
+        "server_name": { "const": "video_content" },
         "transport": { "const": "stdio" },
         "command": { "type": "string", "minLength": 1 },
         "args": { "$ref": "#/$defs/command" },

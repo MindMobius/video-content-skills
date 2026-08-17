@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/setup-v1.json",
-  "title": "Video Subtitle Setup Report v1",
+  "$id": "https://video-content.local/schemas/setup-v1.json",
+  "title": "Video Content Setup Report v1",
   "type": "object",
   "required": [
     "schema_version",
@@ -16,7 +16,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "video-subtitle/setup-v1"
+      "const": "video-content/setup-v1"
     },
     "status": {
       "enum": ["ready", "agent_action_required", "human_action_required"]

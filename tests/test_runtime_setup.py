@@ -103,7 +103,7 @@ def test_interrupted_runtime_target_is_resumable_only_for_the_same_plan(
 ) -> None:
     target = tmp_path / "model"
     marker = {
-        "schema_version": "video-subtitle/runtime-installing-v1",
+        "schema_version": "video-content/runtime-installing-v1",
         "dependency": "qwen_asr_model",
         "revision": "fixture-revision",
     }

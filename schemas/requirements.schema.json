@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/requirements-v1.json",
-  "title": "Video Subtitle Capability Requirements v1",
+  "$id": "https://video-content.local/schemas/requirements-v1.json",
+  "title": "Video Content Capability Requirements v1",
   "type": "object",
   "required": ["schema_version", "verified_at", "capabilities", "dependencies"],
   "properties": {
     "schema_version": {
-      "const": "video-subtitle/requirements-v1"
+      "const": "video-content/requirements-v1"
     },
     "verified_at": {"type": "string", "format": "date"},
     "capabilities": {

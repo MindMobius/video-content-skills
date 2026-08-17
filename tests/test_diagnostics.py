@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from video_subtitle import diagnostics
+from video_content import diagnostics
 
 
 class FakeClient:

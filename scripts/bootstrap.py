@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--capability",
         action="append",
         default=[],
-        help="Capability forwarded to video-subtitle setup after bootstrap",
+        help="Capability forwarded to video-content setup after bootstrap",
     )
     parser.add_argument(
         "--config",
@@ -145,7 +145,7 @@ def main() -> None:
                 error={
                     "stage": "capability_setup",
                     "message": (
-                        "video-subtitle setup exited with code "
+                        "video-content setup exited with code "
                         f"{setup_process.returncode}"
                     ),
                     "details": _bounded_process_error(setup_process),
@@ -208,22 +208,22 @@ def _bootstrap_report(
         }
         for skill_path in sorted(skills_root.glob("*/SKILL.md"))
     ]
-    cli_command = [str(python), "-m", "video_subtitle.cli"]
+    cli_command = [str(python), "-m", "video_content.cli"]
     if config_path:
         cli_command += ["--config", config_path]
-    mcp_args = ["-m", "video_subtitle.mcp_server"]
-    mcp_environment = {"VIDEO_SUBTITLE_CONFIG": config_path} if config_path else {}
+    mcp_args = ["-m", "video_content.mcp_server"]
+    mcp_environment = {"VIDEO_CONTENT_CONFIG": config_path} if config_path else {}
     lock_path = root / "requirements" / "mcp-constraints.txt"
     lock_sha256 = _sha256_file(lock_path) if lock_path.is_file() else None
     report: dict[str, Any] = {
-        "schema_version": "video-subtitle/bootstrap-v2",
+        "schema_version": "video-content/bootstrap-v2",
         "status": status,
         "ready": bool(installed and setup and setup.get("ready")),
         "repo": str(root),
         "installation": {
             "ready": installed,
             "venv_python": str(python),
-            "requirements": str(root / "src" / "video_subtitle" / "requirements.json"),
+            "requirements": str(root / "src" / "video_content" / "requirements.json"),
             "lock": {
                 "path": str(lock_path),
                 "sha256": lock_sha256,
@@ -239,7 +239,7 @@ def _bootstrap_report(
             "command": cli_command,
         },
         "mcp": {
-            "server_name": "video_subtitle",
+            "server_name": "video_content",
             "transport": "stdio",
             "command": str(python),
             "args": mcp_args,
@@ -259,10 +259,10 @@ def _bootstrap_report(
 
 
 def _setup_command(python: Path, args: argparse.Namespace) -> list[str]:
-    command = [str(python), "-m", "video_subtitle.cli"]
+    command = [str(python), "-m", "video_content.cli"]
     if args.config:
         command += ["--config", args.config]
-    command.append("setup")
+    command += ["system", "setup"]
     for capability in args.capability:
         command += ["--capability", capability]
     if args.deep:
@@ -278,7 +278,7 @@ def _venv_python(venv_dir: Path) -> Path:
 
 def _package_available(python: Path) -> bool:
     completed = subprocess.run(
-        [str(python), "-c", "import video_subtitle"],
+        [str(python), "-c", "import video_content"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
