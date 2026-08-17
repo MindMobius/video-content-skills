@@ -19,6 +19,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.validate_wechat_package import validate_package
+from video_subtitle.core.automation_actions import (
+    begin_automation_evidence,
+    complete_automation_evidence,
+    save_automation_canonical_subtitle,
+)
 from video_subtitle.core.automation_content import (
     initialize_automated_content_project,
     record_automation_audit,
@@ -28,8 +33,8 @@ from video_subtitle.core.automation_handoff import (
     get_existing_handoff_binding,
     prepare_automation_handoff,
 )
+from video_subtitle.core.automation_integrity import audit_automation_store
 from video_subtitle.core.automation_job import (
-    get_automation_job,
     list_automation_jobs,
     transition_automation_job,
 )
@@ -39,7 +44,6 @@ from video_subtitle.core.automation_profile import (
 )
 from video_subtitle.core.automation_scan import scan_watch_later
 from video_subtitle.core.batch import initialize_batch, update_batch_item
-from video_subtitle.core.canonical import save_canonical_subtitle
 from video_subtitle.core.content import (
     get_content_project,
     initialize_content_project,
@@ -263,7 +267,7 @@ def _check_watch_later_to_draft_contract(
     if len(jobs) != 1:
         raise ValueError("Usable Watch Later fixture did not create exactly one job")
     job_path = Path(jobs[0]["job_path"])
-    transition_automation_job(job_path, status="evidence_running")
+    begin_automation_evidence(job_path)
 
     usable = fixture["usable"]
     subtitle_root = job_path.parent / "subtitle"
@@ -329,15 +333,7 @@ def _check_watch_later_to_draft_contract(
             "error": None,
         },
     )
-    transition_automation_job(
-        job_path,
-        status="evidence_ready",
-        artifact_kind="subtitle_manifest",
-        artifact_path=str(manifest_path),
-        artifact_sha256=_sha256(manifest_path),
-        artifact_status="completed",
-    )
-    transition_automation_job(job_path, status="canonicalizing")
+    complete_automation_evidence(job_path, manifest_path)
     evidence = list_subtitle_evidence_for_manifest(manifest_path)["evidence"]
     platform_evidence, ocr_evidence = evidence
     canonical_document = {
@@ -369,17 +365,10 @@ def _check_watch_later_to_draft_contract(
         "unresolved": [],
         "termination": None,
     }
-    canonical = save_canonical_subtitle(
-        manifest_path,
-        document=canonical_document,
-    )
-    transition_automation_job(
+    save_automation_canonical_subtitle(
         job_path,
-        status="canonical_ready",
-        artifact_kind="canonical_subtitle",
-        artifact_path=canonical["artifacts"]["report"],
-        artifact_sha256=_sha256(Path(canonical["artifacts"]["report"])),
-        artifact_status="usable",
+        manifest_path,
+        canonical_document,
     )
 
     project = initialize_automated_content_project(
@@ -451,18 +440,15 @@ def _check_watch_later_to_draft_contract(
         appmsgid=usable["appmsgid"],
     )
     write_json_atomic(receipt_path, receipt)
-    binding_path = job_path.parent / "automation-handoff-binding.json"
     first_binding = bind_automation_handoff_receipt(
         job_path=job_path,
         authorization_path=authorization_path,
         receipt_path=receipt_path,
-        output_path=binding_path,
     )
     second_binding = bind_automation_handoff_receipt(
         job_path=job_path,
         authorization_path=authorization_path,
         receipt_path=receipt_path,
-        output_path=binding_path,
     )
     completed_preparation = prepare_automation_handoff(
         job_path=job_path,
@@ -489,7 +475,7 @@ def _check_watch_later_to_draft_contract(
         raise ValueError("Unusable fixture did not create exactly one job")
     unusable_job = list_automation_jobs(unusable_store)["jobs"][0]
     unusable_job_path = Path(unusable_job["job_path"])
-    transition_automation_job(unusable_job_path, status="evidence_running")
+    begin_automation_evidence(unusable_job_path)
     unusable_subtitle_root = unusable_job_path.parent / "subtitle"
     unusable_subtitle_root.mkdir()
     unusable_srt = unusable_subtitle_root / "subtitle.platform.srt"
@@ -530,21 +516,14 @@ def _check_watch_later_to_draft_contract(
             ],
         },
     )
-    transition_automation_job(
-        unusable_job_path,
-        status="evidence_ready",
-        artifact_kind="subtitle_manifest",
-        artifact_path=str(unusable_manifest),
-        artifact_sha256=_sha256(unusable_manifest),
-        artifact_status="completed",
-    )
-    transition_automation_job(unusable_job_path, status="canonicalizing")
+    complete_automation_evidence(unusable_job_path, unusable_manifest)
     unusable_evidence = list_subtitle_evidence_for_manifest(unusable_manifest)[
         "evidence"
     ][0]
-    unusable_canonical = save_canonical_subtitle(
+    unusable_canonical_action = save_automation_canonical_subtitle(
+        unusable_job_path,
         unusable_manifest,
-        document={
+        {
             "manifest_sha256": _sha256(unusable_manifest),
             "status": "unusable",
             "evidence": [
@@ -566,21 +545,12 @@ def _check_watch_later_to_draft_contract(
             "termination": unusable["termination"],
         },
     )
-    transition_automation_job(
-        unusable_job_path,
-        status="unprocessable",
-        artifact_kind="canonical_subtitle",
-        artifact_path=unusable_canonical["artifacts"]["report"],
-        artifact_sha256=_sha256(Path(unusable_canonical["artifacts"]["report"])),
-        artifact_status="unusable",
-        error=unusable["termination"],
-    )
-    unusable_final = get_automation_job(unusable_job_path)
+    unusable_final = unusable_canonical_action["job"]
 
     duplicate_job_count = max(0, len(usable_jobs) - 1) + len(
         second_scan["created_jobs"]
     )
-    binding_files = list(job_path.parent.glob("automation-handoff-binding.json"))
+    binding_files = list(job_path.parent.glob("handoff-binding.json"))
     duplicate_drafts = 0
     if (
         first_binding["binding_id"] != second_binding["binding_id"]
@@ -596,6 +566,8 @@ def _check_watch_later_to_draft_contract(
         raise ValueError("Fixture authorization expanded beyond saving a draft")
     if receipt["published"] is not False or receipt["publish_actions_performed"]:
         raise ValueError("Automation fixture performed a forbidden publish action")
+    usable_integrity = audit_automation_store(usable_store)
+    unusable_integrity = audit_automation_store(unusable_store)
 
     return {
         "jobs_created": len(first_scan["created_jobs"]),
@@ -611,6 +583,9 @@ def _check_watch_later_to_draft_contract(
         "published": receipt["published"],
         "publish_actions_performed": receipt["publish_actions_performed"],
         "appmsgid": first_binding["appmsgid"],
+        "integrity_valid": (usable_integrity["valid"] and unusable_integrity["valid"]),
+        "artifact_paths_canonical": not usable_integrity["repairs"],
+        "duplicate_appmsgids": usable_integrity["duplicate_appmsgids"],
     }
 
 

@@ -23,3 +23,6 @@ def test_watch_later_to_draft_fixture_is_idempotent_and_fail_closed(
     assert result["raw_evidence_hashes_preserved"] is True
     assert result["published"] is False
     assert result["publish_actions_performed"] == []
+    assert result["integrity_valid"] is True
+    assert result["artifact_paths_canonical"] is True
+    assert result["duplicate_appmsgids"] == []

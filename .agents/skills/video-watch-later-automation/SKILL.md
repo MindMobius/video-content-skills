@@ -81,8 +81,10 @@ article, receipt, or handoff binding.
 
 ### 3. Build independent subtitle evidence
 
-For a queued job, move it through the guarded evidence states and follow
-`video-subtitle` completely:
+For a queued job, call `begin_video_automation_evidence`, follow
+`video-subtitle` completely, then call `complete_video_automation_evidence` with
+the completed manifest. Prefer these composed actions over manually combining
+state transitions and artifact paths:
 
 - preserve platform, OCR, ASR, and reviewed artifacts as separate immutable
   evidence;
@@ -104,11 +106,15 @@ Read the relevant evidence ranges and let the Agent reconcile them using timing,
 context, source independence, agreement, visual inspection, and confidence. Raw
 artifacts remain unchanged. Write a
 [`video-automation/canonical-subtitle-v1`](../../../schemas/canonical-subtitle.schema.json)
-document and call `save_canonical_subtitle`.
+document and call `save_video_automation_canonical_subtitle`. This composed
+action records `canonicalizing`, binds the report, and closes the job as either
+`canonical_ready` or `unprocessable`. Use the lower-level
+`save_canonical_subtitle` only outside automation or for compatibility.
 
 A canonical subtitle is usable only when its report says so. Preserve unresolved
 ambiguities explicitly. If the evidence cannot support a coherent, faithful
-subtitle, end as `unprocessable`; do not continue merely to produce output.
+subtitle, let the composed action end the job as `unprocessable`; do not continue
+merely to produce output.
 
 ### 5. Generate, audit, and render the article
 
@@ -149,6 +155,23 @@ numeric `appmsgid`, `published=false`, and
 `publish_actions_performed=[]`. Then call `bind_video_automation_handoff`.
 Completion requires that binding; a toast, uploaded images, or an unbound receipt
 is not enough. The binding is the idempotency guard that prevents a second draft.
+The default binding location is `<job>/handoff-binding.json`; do not construct a
+workspace-relative output path unless a compatibility caller requires one.
+
+### 7. Audit the cycle and stop
+
+Call `audit_video_automation_store` after draining eligible jobs. Completion may
+be reported only when completed jobs have valid bindings and receipts, saved
+`appmsgid` values are unique, artifact paths are canonical, and no hash check has
+failed. `subtitle_manifest` may carry a verified historical hash pin when the
+canonical report proves that the manifest advanced only by adding derived
+canonical metadata.
+
+If the audit reports a legacy path duplicated under the job directory, rerun it
+with `repair_paths=true`. That repair may update only hash-matched paths inside
+`job.json`; it must not move, delete, or rewrite evidence, content, receipts, or
+bindings. Ordinary integrity failures are technical work for the Agent, not
+questions for the user.
 
 ## Failure mapping
 

@@ -88,8 +88,9 @@ Bundle 默认使用仓库 `.venv` 中的 Python；可用 `VIDEO_SUBTITLE_DSH_PYT
   视觉素材、单行相对图片路径、预览与导入清单，并拒绝非视频来源配图；
 - 用户显式授权后的可选公众号草稿交接：剪贴板内临时装配本地图片、验证微信 CDN 接管、
   填写标题/摘要/封面、只保存草稿并生成与当前审计绑定的可校验回执；
-- Bilibili 稍后再看自动化：新增发现、BVID + 分 P + profile 版本幂等入队、最佳字幕、文章审计、
-  有界重试、`unprocessable` 失败关闭、`paused_auth` 登录暂停，以及单草稿 binding；
+- Bilibili 稍后再看自动化：新增发现、BVID + 分 P + profile 版本幂等入队、组合式证据/规范字幕
+  状态操作、最佳字幕、文章审计、有界重试、`unprocessable` 失败关闭、`paused_auth` 登录暂停、
+  单草稿 binding，以及可安全修复旧路径元数据的整库完整性审计；
 - 多视频任务的逐条批次台账、阶段前置条件、失败重试和恢复点，不合并每条视频的独立产物；
 - 项目 ZIP 导出、SHA-256 校验、秘密扫描、路径穿越防护和跨机器导入，默认排除原视频；
 - `core`、`agent`、`media`、`live` 四层复现验收，其中 live 服务永远保持显式人工验证；
@@ -103,7 +104,8 @@ YouTube 与抖音平台适配器尚未实现。OCR、ASR、证据和审阅核心
 当用户已经明确选择长期工作流并授予仅限 `save_wechat_draft` 的可撤销授权后，可以把
 Bilibili“稍后再看”作为任务入口。仓库每次只执行一次扫描和一次队列推进；周期由调用方的
 Codex automation 或其他调度器负责，不创建隐藏 daemon。证据不足会记录为
-`unprocessable`，登录失效会记录为 `paused_auth`，任何路径都不会发布。
+`unprocessable`，登录失效会记录为 `paused_auth`，任何路径都不会发布。Agent 优先使用
+组合式 evidence/canonical 动作，并在每轮结束运行 `automation-audit`，用户只看最终摘要。
 
 完整的 profile、授权、CLI/MCP、状态机、幂等规则和 live acceptance 说明见
 [`docs/watch-later-automation.md`](docs/watch-later-automation.md)。

@@ -163,28 +163,37 @@ video-subtitle automation-jobs `
   --store .\.video-subtitle-automation
 ```
 
-`--baseline-if-empty` ????????????????????????????????
-??????????????`new_entries` ??????????????????????????
-?????????????
+`--baseline-if-empty` 只在全新 store 第一次运行时建立基线，不会为当时已经存在的条目创建任务。之后扫描会把真正新增的 `new_entries` 幂等加入队列。
 
-可用 `automation-job --job <job.json>` 查看单条任务。周期调度器随后让 Agent 处理可运行任务；不要用固定脚本替代以下语义步骤：
+可用 `automation-job --job <job.json>` 查看单条任务。确定性状态操作优先使用组合命令：
+
+```powershell
+video-subtitle automation-evidence-begin `
+  --job .\jobs\auto_x\job.json
+
+video-subtitle automation-evidence-complete `
+  --job .\jobs\auto_x\job.json `
+  --manifest .\jobs\auto_x\evidence\manifest.json
+
+video-subtitle automation-canonical-save `
+  --job .\jobs\auto_x\job.json `
+  --manifest .\jobs\auto_x\evidence\manifest.json `
+  --document .\canonical-input.json
+```
+
+组合命令负责状态转换、路径规范化、artifact 绑定和不可用结果的失败关闭。Agent 仍负责：
 
 - 独立判断连续硬字幕是否存在；
-- 对平台字幕、OCR、ASR 和人工审阅证据做多重校验；
-- 调用 `save_canonical_subtitle` 保存 Agent 编写的最佳字幕；
-- 调用 `initialize_automated_video_content`，再由 `video-to-content` 生成并审计文章；
-- 调用 `prepare_video_automation_handoff` 检查授权和既有 binding；
-- 仅在需要时进入微信编辑器，生成已验证回执后调用 `bind_video_automation_handoff`。
+- 对平台字幕、OCR、ASR 和 reviewed 证据做多重校验；
+- 编写规范字幕及未解决歧义；
+- 通过 `video-to-content` 生成、修复和审计文章；
+- 在可见微信编辑器中语义操作并核验保存结果。
+
+文章项目通过审计后调用 `prepare_video_automation_handoff`。已有 binding 时跳过浏览器；没有 binding 时只执行授权范围内的 `save_wechat_draft`，生成已验证回执后调用 `bind_video_automation_handoff`。binding 默认保存为 `<job>/handoff-binding.json`，调用方通常不需要构造 output 路径。
 
 相同条目再次扫描时不会产生新任务。已有有效 handoff binding 时不会再次触碰微信编辑器，也不会创建第二份草稿。
 
-The latest Watch Later snapshot is an incremental checkpoint. It is updated only
-after every newly observed job has been durably created and queued. If queueing
-is interrupted, the next scan compares against the previous snapshot and
-recovers any existing `discovered` job before committing the new checkpoint.
-Bilibili API code `-352`, voucher challenges, HTTP 403, and HTTP 412 are
-classified as `BILIBILI_RISK_CONTROL` and enter technical retry instead of
-`paused_auth`.
+latest Watch Later snapshot 是增量检查点。只有当全部新增任务都已持久创建并进入队列后才更新；中断后的下一次扫描会基于旧检查点恢复已有 `discovered` 任务。Bilibili API `-352`、voucher challenge、HTTP 403 和 HTTP 412 统一分类为 `BILIBILI_RISK_CONTROL`，进入技术重试而不是 `paused_auth`。
 
 ## 状态与失败处理
 
@@ -197,7 +206,35 @@ classified as `BILIBILI_RISK_CONTROL` and enter technical retry instead of
 | `failed_retry_exhausted` | 技术重试次数耗尽 | 记录最终技术错误 |
 | `completed` | 草稿回执和 automation binding 均已验证 | 后续周期直接复用，不重复保存 |
 
-原始平台、OCR、ASR 和 reviewed 证据保持不可变；canonical subtitle 是派生证据，不会覆盖原始文件。
+原始平台、OCR、ASR 和 reviewed 证据保持不可变；canonical subtitle 是派生证据，不会覆盖原始文件。subtitle manifest 是持续追加派生元数据的 ledger，因此审计允许由 canonical report 证明的历史 hash pin，不会把合法的 canonical 写入误判为原始证据漂移。
+
+## 完整性审计
+
+每轮队列处理结束后运行：
+
+```powershell
+video-subtitle automation-audit `
+  --store .\.video-subtitle-automation
+```
+
+审计会统一检查：
+
+- job artifact 是否仍位于对应 job 目录；
+- 文件是否存在、SHA-256 是否匹配；
+- completed job 是否拥有有效 binding 和 receipt；
+- receipt 是否保持 `published=false` 且没有发布动作；
+- `appmsgid` 是否跨任务唯一；
+- 是否存在旧调用方式产生的重复嵌套路径。
+
+只有旧路径元数据且 job 目录内存在哈希完全一致的规范文件时，才可以运行：
+
+```powershell
+video-subtitle automation-audit `
+  --store .\.video-subtitle-automation `
+  --repair-paths
+```
+
+修复只更新 `job.json` 中的相对路径，不移动、不删除、不覆盖任何 artifact。
 
 ## MCP 对应工具
 
@@ -207,8 +244,12 @@ MCP 暴露与 CLI 同一套持久契约：
 - `authorize_video_automation_drafts`
 - `scan_bilibili_watch_later`
 - `list_video_automation_jobs` / `get_video_automation_job`
-- `update_video_automation_job`
-- `save_canonical_subtitle` / `get_canonical_subtitle`
+- `begin_video_automation_evidence`
+- `complete_video_automation_evidence`
+- `save_video_automation_canonical_subtitle`
+- `audit_video_automation_store`
+- `update_video_automation_job`（兼容和特殊失败转换）
+- `save_canonical_subtitle` / `get_canonical_subtitle`（非自动化或兼容调用）
 - `initialize_automated_video_content`
 - `prepare_video_automation_handoff`
 - `bind_video_automation_handoff`
@@ -219,10 +260,11 @@ MCP 暴露与 CLI 同一套持久契约：
 
 1. `automation-scan`；
 2. 列出非终态任务；
-3. 按任务逐条恢复到下一个安全状态；
-4. 保存所有状态后退出。
+3. 使用组合动作推进确定性阶段，Agent 处理语义阶段；
+4. 运行 `automation-audit`；
+5. 保存状态并退出。
 
-不要并发运行两个写入同一 `--store` 的周期。仓库已有文件锁和幂等键，但调度器仍应避免无意义的重复工作。不要根据列表移除来取消已提交任务；取消必须是单独、明确的用户操作。
+不要并发运行两个写入同一 `--store` 的周期。OCR 与 ASR 共用 GPU 时严格串行，内容写作可以与非 GPU 任务并行，微信编辑器交接保持串行。不要根据列表移除来取消已提交任务；取消必须是单独、明确的用户操作。
 
 ## 确定性与真实验收
 
@@ -232,6 +274,6 @@ MCP 暴露与 CLI 同一套持久契约：
 python scripts/repro_check.py --require-tier core --require-tier agent
 ```
 
-Agent tier 中的 `watch_later_to_draft_contract` 会验证：一个新增条目只生成一个任务；可用证据生成 canonical、内容和一个 binding；第二周期没有重复任务或草稿；不可用证据在内容阶段之前结束；原始证据哈希不变；所有发布字段为 false。
+Agent tier 中的 `watch_later_to_draft_contract` 会验证：一个新增条目只生成一个任务；组合动作生成 canonical、内容和一个 binding；第二周期没有重复任务或草稿；不可用证据在内容阶段之前结束；原始证据哈希不变；artifact 路径规范；整库审计通过；所有发布字段为 false。
 
 真实 Bilibili、OCR/ASR 和微信草稿交接始终属于 live tier，状态为 `manual_required`。只有在当前登录态、代表性视频和单独授权都存在时才能做 live acceptance。实现代码本身不会注册真实周期任务，也不会修改稍后再看列表。

@@ -9,7 +9,9 @@ def test_watch_later_automation_skill_encodes_fail_closed_flow() -> None:
     )
     text = skill_path.read_text(encoding="utf-8")
     assert "scan_bilibili_watch_later" in text
-    assert "save_canonical_subtitle" in text
+    assert "save_video_automation_canonical_subtitle" in text
+    assert "audit_video_automation_store" in text
+    assert "repair_paths=true" in text
     assert "unprocessable" in text
     assert "paused_auth" in text
     assert "save_wechat_draft" in text
@@ -40,6 +42,11 @@ def test_public_docs_explain_the_one_shot_operator_contract() -> None:
         "automation-authorize-drafts",
         "--confirm-draft-only-authorization",
         "automation-scan",
+        "automation-evidence-begin",
+        "automation-evidence-complete",
+        "automation-canonical-save",
+        "automation-audit",
+        "--repair-paths",
         "--baseline-if-empty",
         "BILIBILI_RISK_CONTROL",
         "--store",

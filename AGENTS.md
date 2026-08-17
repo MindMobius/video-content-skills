@@ -110,9 +110,12 @@ work.
   log in to publishing platforms, upload files, or change platform state.
 - Watch Later automation exposes one-shot scan and job operations. The calling
   Agent or Codex automation owns recurrence; this repository must not create a
-  hidden daemon. Retry technical failures, record physically insufficient
-  evidence or content as `unprocessable` without asking the user, and use
-  `paused_auth` only for a real authentication boundary.
+  hidden daemon. Prefer the composed evidence and canonical actions over manual
+  state/artifact updates, and finish each drain with the store integrity audit.
+  `repair_paths` may change only hash-matched artifact paths in `job.json`; it
+  must never move or rewrite evidence. Retry technical failures, record
+  physically insufficient evidence or content as `unprocessable` without asking
+  the user, and use `paused_auth` only for a real authentication boundary.
 - For a multi-input request, initialize one `video-content/batch-v1` ledger with
   `initialize_video_batch` or `batch-init`. Keep one subtitle manifest, content
   project, deliverable, audit, and optional handoff receipt per item. The ledger

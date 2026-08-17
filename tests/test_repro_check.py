@@ -42,6 +42,9 @@ def test_repro_check_agent_tier_includes_watch_later_contract() -> None:
     assert automation["details"]["jobs_created"] == 1
     assert automation["details"]["draft_bindings"] == 1
     assert automation["details"]["duplicate_drafts"] == 0
+    assert automation["details"]["integrity_valid"] is True
+    assert automation["details"]["artifact_paths_canonical"] is True
+    assert automation["details"]["duplicate_appmsgids"] == []
     assert automation["details"]["published"] is False
 
 
