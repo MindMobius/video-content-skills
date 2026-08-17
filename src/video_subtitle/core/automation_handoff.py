@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .automation_job import get_automation_job, transition_automation_job
+from .automation_paths import resolve_job_artifact_path
 from .automation_profile import (
     read_automation_profile,
     read_draft_authorization,
@@ -59,7 +60,7 @@ def bind_automation_handoff_receipt(
     job_path: Path,
     authorization_path: Path,
     receipt_path: Path,
-    output_path: Path,
+    output_path: Path | None = None,
 ) -> dict[str, Any]:
     job = get_automation_job(job_path)
     existing = get_existing_handoff_binding(job_path)
@@ -76,7 +77,12 @@ def bind_automation_handoff_receipt(
         raise ValueError("Automation authorization may only save a draft")
 
     job_path = Path(job["job_path"])
-    receipt_path = _require_within_file(job_path.parent, receipt_path, "Draft receipt")
+    receipt_path = resolve_job_artifact_path(
+        job_path,
+        receipt_path,
+        must_exist=True,
+        label="Draft receipt",
+    )
     receipt = read_json(receipt_path)
     if receipt.get("published") is not False:
         raise ValueError("Automation draft receipt contains a forbidden publish state")
@@ -88,10 +94,11 @@ def bind_automation_handoff_receipt(
 
     content_binding = _job_artifact(job_path, job, "content_binding")
     content = read_json(content_binding)
-    project_path = _require_within_file(
-        job_path.parent,
-        job_path.parent / str(content.get("project_path") or ""),
-        "Content project",
+    project_path = resolve_job_artifact_path(
+        job_path,
+        str(content.get("project_path") or ""),
+        must_exist=True,
+        label="Content project",
     )
     validation = validate_wechat_draft_receipt(
         receipt_path,
@@ -104,16 +111,12 @@ def bind_automation_handoff_receipt(
     if receipt.get("project_id") != project_id:
         raise ValueError("Draft receipt targets a different content project")
 
-    output_path = output_path.expanduser()
-    if not output_path.is_absolute():
-        output_path = job_path.parent / output_path
-    output_path = output_path.resolve()
-    try:
-        output_path.relative_to(job_path.parent)
-    except ValueError as error:
-        raise ValueError(
-            "Automation handoff binding must stay under the job directory"
-        ) from error
+    output_path = resolve_job_artifact_path(
+        job_path,
+        output_path or "handoff-binding.json",
+        must_exist=False,
+        label="Automation handoff binding",
+    )
     receipt_sha256 = _sha256_file(receipt_path)
     identity = {
         "job_id": job["job_id"],
@@ -154,8 +157,12 @@ def get_existing_handoff_binding(job_path: Path) -> dict[str, Any] | None:
     metadata = job.get("artifacts", {}).get("handoff_binding")
     if not isinstance(metadata, dict):
         return None
-    path = Path(job["job_path"]).parent / str(metadata.get("path") or "")
-    path = _require_within_file(Path(job["job_path"]).parent, path, "Handoff binding")
+    path = resolve_job_artifact_path(
+        Path(job["job_path"]),
+        str(metadata.get("path") or ""),
+        must_exist=True,
+        label="Handoff binding",
+    )
     expected = metadata.get("sha256")
     if expected and _sha256_file(path) != expected:
         raise ValueError("Automation handoff binding hash changed")
@@ -171,25 +178,12 @@ def _job_artifact(job_path: Path, job: dict[str, Any], kind: str) -> Path:
     metadata = job.get("artifacts", {}).get(kind)
     if not isinstance(metadata, dict):
         raise TypeError(f"Automation job artifact {kind} must be an object")
-    return _require_within_file(
-        job_path.parent,
-        job_path.parent / str(metadata.get("path") or ""),
-        kind,
+    return resolve_job_artifact_path(
+        job_path,
+        str(metadata.get("path") or ""),
+        must_exist=True,
+        label=kind,
     )
-
-
-def _require_within_file(root: Path, value: Path, label: str) -> Path:
-    root = root.resolve()
-    value = value.expanduser().resolve()
-    try:
-        value.relative_to(root)
-    except ValueError as error:
-        raise ValueError(
-            f"{label} must stay under the automation job directory"
-        ) from error
-    if not value.is_file():
-        raise FileNotFoundError(f"{label} does not exist: {value}")
-    return value
 
 
 def _sha256_file(path: Path) -> str:

@@ -204,9 +204,13 @@ def test_binding_completes_job_and_prevents_duplicate_handoff(
         job_path=job_path,
         authorization_path=authorization_path,
         receipt_path=receipt_path,
-        output_path=job_path.parent / "automation-handoff-binding.json",
     )
     assert result["appmsgid"] == "123456789"
+    assert (job_path.parent / "handoff-binding.json").is_file()
+    assert (
+        get_automation_job(job_path)["artifacts"]["handoff_binding"]["path"]
+        == "handoff-binding.json"
+    )
     assert get_automation_job(job_path)["status"] == "completed"
     assert get_existing_handoff_binding(job_path)["binding_id"] == result["binding_id"]
     assert (

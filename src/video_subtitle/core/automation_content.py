@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .automation_job import get_automation_job, transition_automation_job
+from .automation_paths import resolve_job_artifact_path
 from .automation_profile import read_automation_profile
 from .canonical import require_usable_canonical_subtitle
 from .content import initialize_content_project
@@ -81,6 +82,12 @@ def initialize_automated_content_project(
 
 
 def record_automation_audit(*, job_path: Path, project_path: Path) -> dict[str, Any]:
+    project_path = resolve_job_artifact_path(
+        job_path,
+        project_path,
+        must_exist=True,
+        label="Content project",
+    )
     project = read_json(project_path)
     current_id = project.get("current", {}).get("fidelity_audit_id")
     audit = next(

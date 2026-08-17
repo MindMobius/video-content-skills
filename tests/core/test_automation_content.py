@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from video_subtitle.core.automation_content import initialize_automated_content_project
+from video_subtitle.core.automation_content import (
+    initialize_automated_content_project,
+    record_automation_audit,
+)
 from video_subtitle.core.automation_job import (
     initialize_automation_job,
     transition_automation_job,
@@ -176,3 +179,50 @@ def test_automated_content_uses_profile_and_canonical_evidence(tmp_path: Path) -
         item["source_kind"] == "canonical_subtitle"
         for item in result["source"]["evidence"]
     )
+
+
+def test_record_audit_resolves_workspace_relative_project_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workspace = tmp_path / "workspace"
+    project_dir = workspace / "jobs" / "auto_fixture" / "content"
+    audit_dir = project_dir / "audits"
+    audit_dir.mkdir(parents=True)
+    audit_path = audit_dir / "audit.json"
+    audit_path.write_text("{}", encoding="utf-8")
+    project_path = project_dir / "project.json"
+    write_json_atomic(
+        project_path,
+        {
+            "current": {"fidelity_audit_id": "audit-001"},
+            "artifacts": {
+                "fidelity_audits": [
+                    {
+                        "artifact_id": "audit-001",
+                        "audit_status": "pass",
+                        "path": "audits/audit.json",
+                        "sha256": "a" * 64,
+                    }
+                ]
+            },
+        },
+    )
+    monkeypatch.chdir(workspace)
+    captured: dict = {}
+
+    def fake_transition(_job_path: Path, **kwargs: object) -> dict:
+        captured.update(kwargs)
+        return captured
+
+    monkeypatch.setattr(
+        "video_subtitle.core.automation_content.transition_automation_job",
+        fake_transition,
+    )
+
+    record_automation_audit(
+        job_path=Path("jobs/auto_fixture/job.json"),
+        project_path=project_path.relative_to(workspace),
+    )
+
+    assert Path(str(captured["artifact_path"])).is_absolute()
+    assert Path(str(captured["artifact_path"])) == audit_path.resolve()

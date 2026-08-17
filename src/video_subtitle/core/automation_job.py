@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .automation_paths import job_relative_artifact_path
 from .locking import exclusive_file_lock
 from .util import read_json, utc_now, write_json_atomic
 
@@ -290,16 +291,12 @@ def _artifact(
     sha256: str | None,
     status: str | None,
 ) -> dict[str, Any]:
-    candidate = Path(value).expanduser()
-    if not candidate.is_absolute():
-        candidate = job_path.parent / candidate
-    candidate = candidate.resolve()
-    try:
-        relative = candidate.relative_to(job_path.parent).as_posix()
-    except ValueError as error:
-        raise ValueError(
-            "Automation artifacts must stay under the job directory"
-        ) from error
+    relative = job_relative_artifact_path(
+        job_path,
+        value,
+        must_exist=True,
+        label="Automation artifact",
+    )
     result: dict[str, Any] = {"path": relative}
     if sha256 is not None:
         if not re.fullmatch(r"[a-f0-9]{64}", sha256):
