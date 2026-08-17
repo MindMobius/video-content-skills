@@ -18,6 +18,7 @@ from .core.automation_handoff import (
     bind_automation_handoff_receipt,
     prepare_automation_handoff,
 )
+from .core.automation_integrity import audit_automation_store
 from .core.automation_job import (
     get_automation_job,
     list_automation_jobs,
@@ -733,6 +734,14 @@ def save_video_automation_canonical_subtitle(
     )
 
 
+def audit_video_automation_store(
+    store_path: str,
+    repair_paths: bool = False,
+) -> dict[str, Any]:
+    """Audit job artifacts and draft identity, optionally repairing legacy paths."""
+    return audit_automation_store(Path(store_path), repair_paths=repair_paths)
+
+
 def save_canonical_subtitle(
     manifest_path: str,
     document: dict[str, Any],
@@ -850,6 +859,7 @@ if McpServer is not None:
     mcp.tool(name="save_video_automation_canonical_subtitle")(
         save_video_automation_canonical_subtitle
     )
+    mcp.tool(name="audit_video_automation_store")(audit_video_automation_store)
     mcp.tool(name="save_canonical_subtitle")(save_canonical_subtitle)
     mcp.tool(name="get_canonical_subtitle")(get_canonical_subtitle)
     mcp.tool(name="initialize_automated_video_content")(

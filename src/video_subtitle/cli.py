@@ -20,6 +20,7 @@ from .core.automation_handoff import (
     bind_automation_handoff_receipt,
     prepare_automation_handoff,
 )
+from .core.automation_integrity import audit_automation_store
 from .core.automation_job import (
     get_automation_job,
     list_automation_jobs,
@@ -496,6 +497,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--document", type=Path, required=True
     )
 
+    automation_audit_parser = commands.add_parser(
+        "automation-audit",
+        help="Audit automation artifacts, draft identity, and terminal outcomes",
+    )
+    automation_audit_parser.add_argument("--store", type=Path, required=True)
+    automation_audit_parser.add_argument(
+        "--repair-paths",
+        action="store_true",
+        help="Repair only hash-matched legacy artifact metadata paths",
+    )
+
     canonical_save_parser = commands.add_parser(
         "canonical-save", help="Validate and save an Agent-authored canonical subtitle"
     )
@@ -937,6 +949,15 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 args.job,
                 args.manifest,
                 document,
+            ),
+            0,
+        )
+
+    if args.command == "automation-audit":
+        return (
+            audit_automation_store(
+                args.store,
+                repair_paths=args.repair_paths,
             ),
             0,
         )

@@ -188,3 +188,4 @@ def test_mcp_exposes_composed_automation_actions() -> None:
     assert callable(mcp_server.begin_video_automation_evidence)
     assert callable(mcp_server.complete_video_automation_evidence)
     assert callable(mcp_server.save_video_automation_canonical_subtitle)
+    assert callable(mcp_server.audit_video_automation_store)
