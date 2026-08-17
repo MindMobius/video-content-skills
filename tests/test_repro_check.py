@@ -28,6 +28,14 @@ def test_repro_check_core_tier_passes() -> None:
         "content": 1,
         "draft_receipt": 1,
     }
+    assert flow["details"]["idempotency"] == {
+        "reused_job": True,
+        "reused_content": True,
+        "second_draft_blocked": True,
+        "jobs": 1,
+        "content": 1,
+        "draft_receipt": 1,
+    }
     assert report["boundaries"]["published"] is False
 
 
