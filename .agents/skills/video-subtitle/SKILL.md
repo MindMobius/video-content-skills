@@ -13,6 +13,10 @@ needed, which source and time range to inspect, how to compare meanings, and
 when the evidence is sufficient. Do not turn semantic judgment into a fixed
 script.
 
+Architecture and environment details are available on demand in
+[`docs/workflow.md`](../../../docs/workflow.md) and
+[`docs/environment.md`](../../../docs/environment.md).
+
 ## Mandatory environment loop
 
 Run this loop before the first extraction on a machine and whenever a requested

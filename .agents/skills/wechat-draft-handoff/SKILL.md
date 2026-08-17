@@ -10,6 +10,10 @@ validated WeChat article package. It moves an existing audited artifact into a
 visible, already signed-in WeChat Official Account editor. It does not rewrite
 the article, replace the content audit, or extend the core Python/MCP pipeline.
 
+The broader content and receipt contracts are documented in
+[`docs/content-workflow.md`](../../../docs/content-workflow.md) and
+[`docs/reproducibility.md`](../../../docs/reproducibility.md).
+
 The browser page is live external state. Read the current page, act from
 semantic controls and visible status, and verify the result. Do not turn a
 successful run into a fixed coordinate script.

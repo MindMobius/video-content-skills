@@ -12,6 +12,10 @@ WeChat draft", or asks to run or resume one cycle of that workflow. It composes
 [`../video-to-content/SKILL.md`](../video-to-content/SKILL.md), and
 [`../wechat-draft-handoff/SKILL.md`](../wechat-draft-handoff/SKILL.md).
 
+Profile setup and operator commands live in
+[`docs/watch-later-automation.md`](../../../docs/watch-later-automation.md); read
+that guide only when configuring or diagnosing the automation.
+
 The repository exposes durable one-shot operations. The calling Agent or an
 external Codex automation owns recurrence: wake up, scan once, drain eligible
 jobs, persist every transition, and stop. Do not create a hidden daemon.

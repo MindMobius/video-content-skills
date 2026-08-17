@@ -8,6 +8,10 @@ description: Transform verified video subtitle evidence into traceable, user-aut
 Use this Skill after a video has at least one readable subtitle evidence source.
 The default goal is faithful information transfer, not engagement optimization.
 
+Read the deeper project model in
+[`docs/content-workflow.md`](../../../docs/content-workflow.md) only when
+architecture, portable handoff, or carrier contracts need explanation.
+
 The tools preserve state, validate references, version artifacts, and detect
 stale sources. You perform semantic reconstruction, carrier analysis, writing,
 visual planning, and fidelity judgment. The user owns the carrier decision

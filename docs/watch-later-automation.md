@@ -1,5 +1,7 @@
 # Bilibili 稍后再看到微信公众号草稿自动化
 
+> **阅读时机**：配置 profile、授权草稿、运行一次扫描或排查自动化状态时阅读。
+
 本文说明如何运行仓库提供的“稍后再看 -> 最佳字幕 -> 微信公众号文章 -> 已保存草稿”自动化能力。
 详细的 Agent 决策规则以
 [`.agents/skills/video-watch-later-automation/SKILL.md`](../.agents/skills/video-watch-later-automation/SKILL.md)

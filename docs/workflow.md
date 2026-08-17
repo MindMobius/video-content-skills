@@ -1,4 +1,7 @@
-# Video Subtitle Skill 工具架构
+# Video Content Skills 字幕证据架构
+
+> **阅读时机**：需要理解字幕证据模型、OCR/ASR 边界或工具组合时阅读。执行具体任务以
+> [`video-subtitle` Skill](../.agents/skills/video-subtitle/SKILL.md) 为准。
 
 ## 目标
 
