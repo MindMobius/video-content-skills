@@ -10,6 +10,11 @@ from . import __version__
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import CONFIG_ENVIRONMENT, apply_configuration, update_configuration
+from .core.automation_actions import (
+    begin_automation_evidence,
+    complete_automation_evidence,
+    save_automation_canonical_subtitle,
+)
 from .core.automation_content import initialize_automated_content_project
 from .core.automation_handoff import (
     bind_automation_handoff_receipt,
@@ -464,6 +469,33 @@ def build_parser() -> argparse.ArgumentParser:
     automation_update_parser.add_argument("--error-message")
     automation_update_parser.add_argument("--next-retry-at")
 
+    automation_evidence_begin_parser = commands.add_parser(
+        "automation-evidence-begin",
+        help="Begin evidence processing for one queued automation job",
+    )
+    automation_evidence_begin_parser.add_argument("--job", type=Path, required=True)
+
+    automation_evidence_complete_parser = commands.add_parser(
+        "automation-evidence-complete",
+        help="Validate and bind one completed subtitle manifest",
+    )
+    automation_evidence_complete_parser.add_argument("--job", type=Path, required=True)
+    automation_evidence_complete_parser.add_argument(
+        "--manifest", type=Path, required=True
+    )
+
+    automation_canonical_save_parser = commands.add_parser(
+        "automation-canonical-save",
+        help="Save a canonical subtitle and close the guarded automation stage",
+    )
+    automation_canonical_save_parser.add_argument("--job", type=Path, required=True)
+    automation_canonical_save_parser.add_argument(
+        "--manifest", type=Path, required=True
+    )
+    automation_canonical_save_parser.add_argument(
+        "--document", type=Path, required=True
+    )
+
     canonical_save_parser = commands.add_parser(
         "canonical-save", help="Validate and save an Agent-authored canonical subtitle"
     )
@@ -886,6 +918,25 @@ def dispatch(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 artifact_status=args.artifact_status,
                 error=error,
                 next_retry_at=args.next_retry_at,
+            ),
+            0,
+        )
+
+    if args.command == "automation-evidence-begin":
+        return begin_automation_evidence(args.job), 0
+
+    if args.command == "automation-evidence-complete":
+        return complete_automation_evidence(args.job, args.manifest), 0
+
+    if args.command == "automation-canonical-save":
+        document = read_json(args.document.resolve())
+        if not isinstance(document, dict):
+            raise TypeError("Canonical subtitle document must be an object")
+        return (
+            save_automation_canonical_subtitle(
+                args.job,
+                args.manifest,
+                document,
             ),
             0,
         )

@@ -180,3 +180,11 @@ def test_authorization_cli_requires_explicit_draft_only_confirmation(
     )
     assert completed.returncode != 0
     assert "confirm" in completed.stderr.lower()
+
+
+def test_mcp_exposes_composed_automation_actions() -> None:
+    from video_subtitle import mcp_server
+
+    assert callable(mcp_server.begin_video_automation_evidence)
+    assert callable(mcp_server.complete_video_automation_evidence)
+    assert callable(mcp_server.save_video_automation_canonical_subtitle)

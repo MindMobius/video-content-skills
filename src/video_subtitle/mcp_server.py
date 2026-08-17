@@ -8,6 +8,11 @@ from typing import Any, Literal
 from .backends.asr import Qwen3AsrOptions
 from .backends.ocr import VideOcrOptions
 from .config import apply_configuration, update_configuration
+from .core.automation_actions import (
+    begin_automation_evidence,
+    complete_automation_evidence,
+    save_automation_canonical_subtitle,
+)
 from .core.automation_content import initialize_automated_content_project
 from .core.automation_handoff import (
     bind_automation_handoff_receipt,
@@ -702,6 +707,32 @@ def update_video_automation_job(
     )
 
 
+def begin_video_automation_evidence(job_path: str) -> dict[str, Any]:
+    """Begin evidence processing for one queued Watch Later job."""
+    return begin_automation_evidence(Path(job_path))
+
+
+def complete_video_automation_evidence(
+    job_path: str,
+    manifest_path: str,
+) -> dict[str, Any]:
+    """Validate and bind a completed subtitle manifest to its automation job."""
+    return complete_automation_evidence(Path(job_path), Path(manifest_path))
+
+
+def save_video_automation_canonical_subtitle(
+    job_path: str,
+    manifest_path: str,
+    document: dict[str, Any],
+) -> dict[str, Any]:
+    """Save the Agent-authored canonical subtitle and close the job stage."""
+    return save_automation_canonical_subtitle(
+        Path(job_path),
+        Path(manifest_path),
+        document,
+    )
+
+
 def save_canonical_subtitle(
     manifest_path: str,
     document: dict[str, Any],
@@ -812,6 +843,13 @@ if McpServer is not None:
     mcp.tool(name="list_video_automation_jobs")(list_video_automation_jobs)
     mcp.tool(name="get_video_automation_job")(get_video_automation_job)
     mcp.tool(name="update_video_automation_job")(update_video_automation_job)
+    mcp.tool(name="begin_video_automation_evidence")(begin_video_automation_evidence)
+    mcp.tool(name="complete_video_automation_evidence")(
+        complete_video_automation_evidence
+    )
+    mcp.tool(name="save_video_automation_canonical_subtitle")(
+        save_video_automation_canonical_subtitle
+    )
     mcp.tool(name="save_canonical_subtitle")(save_canonical_subtitle)
     mcp.tool(name="get_canonical_subtitle")(get_canonical_subtitle)
     mcp.tool(name="initialize_automated_video_content")(
