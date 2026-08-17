@@ -59,8 +59,13 @@ def main() -> None:
     )
     if completed.returncode:
         raise SystemExit(completed.stderr or completed.stdout)
+    expected_subtitle = output_dir / "expected.srt"
+    expected_subtitle.write_text(
+        "1\n00:00:00,000 --> 00:00:03,000\nAUTHORIZED TEST SUBTITLE\n",
+        encoding="utf-8",
+    )
     fixture = {
-        "schema_version": "video-subtitle/authorized-media-fixture-v1",
+        "schema_version": "video-content/authorized-media-fixture-v1",
         "license": "CC0-1.0",
         "generated": True,
         "duration_seconds": 3,
@@ -72,6 +77,11 @@ def main() -> None:
             "height": 360,
             "has_audio": True,
             "hard_subtitle": "AUTHORIZED TEST SUBTITLE",
+        },
+        "expected_subtitle": {
+            "path": expected_subtitle.name,
+            "bytes": expected_subtitle.stat().st_size,
+            "sha256": _sha256(expected_subtitle),
         },
         "generator": {
             "script": "scripts/generate_media_fixture.py",

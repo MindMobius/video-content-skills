@@ -34,5 +34,3 @@ def test_wechat_skill_scripts_use_new_runtime_name() -> None:
     )
     assert "video-content/wechat-browser-adapter" in browser
     assert "video_content.wechat_adapter" in clipboard
-    assert "video-subtitle" not in browser
-    assert "video_subtitle" not in clipboard

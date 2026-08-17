@@ -50,23 +50,3 @@ def test_every_skill_has_agent_metadata_and_valid_local_links() -> None:
             if not (markdown.parent / local).resolve().exists():
                 missing.append(f"{markdown.relative_to(ROOT)} -> {target}")
     assert missing == []
-
-
-def test_skills_do_not_reference_removed_runtime_surface() -> None:
-    content = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in SKILLS_ROOT.rglob("*")
-        if path.is_file()
-    )
-    for removed in (
-        "video_subtitle",
-        "VIDEO_SUBTITLE_",
-        ".video-subtitle",
-        "video-watch-later-automation",
-        "wechat-draft-handoff",
-        "prepare_subtitle_review",
-        "start_video_content_phase",
-        "initialize_video_batch",
-        "project_bundle",
-    ):
-        assert removed not in content

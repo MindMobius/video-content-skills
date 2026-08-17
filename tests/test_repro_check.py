@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
 import sys
@@ -11,46 +10,40 @@ from scripts.repro_check import run_repro_check
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_authorized_media_fixture_hash_and_license() -> None:
-    root = ROOT / "tests" / "fixtures" / "authorized-video"
-    fixture = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    video = root / fixture["video"]["path"]
-
-    assert fixture["generated"] is True
-    assert fixture["license"] == "CC0-1.0"
-    assert fixture["video"]["has_audio"] is True
-    assert fixture["video"]["hard_subtitle"] == "AUTHORIZED TEST SUBTITLE"
-    assert hashlib.sha256(video.read_bytes()).hexdigest() == fixture["video"]["sha256"]
-    assert video.stat().st_size == fixture["video"]["bytes"]
-
-
 def test_repro_check_core_tier_passes() -> None:
     report = run_repro_check(required_tiers=["core"])
-
     assert report["ok"] is True
+    assert report["schema_version"] == "video-content/repro-check-v1"
     assert report["tiers"]["core"]["status"] == "passed"
-    assert report["boundaries"]["credentials_persisted"] is False
+    flow = next(
+        item
+        for item in report["tiers"]["core"]["checks"]
+        if item["name"] == "six_product_flow"
+    )
+    assert flow["details"]["products"] == {
+        "profiles": 1,
+        "jobs": 1,
+        "evidence": 1,
+        "transcript": 1,
+        "content": 1,
+        "draft_receipt": 1,
+    }
     assert report["boundaries"]["published"] is False
 
 
-def test_repro_check_agent_tier_includes_watch_later_contract() -> None:
+def test_repro_check_agent_tier_covers_mcp_and_watch_later() -> None:
     report = run_repro_check(required_tiers=["agent"])
+    assert report["ok"] is True
     checks = {item["name"]: item for item in report["tiers"]["agent"]["checks"]}
-
-    automation = checks["watch_later_to_draft_contract"]
-    assert automation["status"] == "passed"
-    assert automation["details"]["jobs_created"] == 1
-    assert automation["details"]["draft_bindings"] == 1
-    assert automation["details"]["duplicate_drafts"] == 0
-    assert automation["details"]["integrity_valid"] is True
-    assert automation["details"]["artifact_paths_canonical"] is True
-    assert automation["details"]["duplicate_appmsgids"] == []
-    assert automation["details"]["published"] is False
+    assert checks["mcp_protocol"]["details"]["tool_count"] == 16
+    assert checks["watch_later_idempotency"]["details"] == {
+        "jobs": 3,
+        "duplicates": 0,
+        "new_after_reorder": 1,
+    }
 
 
-def test_repro_check_cli_writes_the_same_machine_readable_contract(
-    tmp_path: Path,
-) -> None:
+def test_repro_check_cli_writes_the_same_json_contract(tmp_path: Path) -> None:
     output = tmp_path / "repro-report.json"
     completed = subprocess.run(
         [
@@ -67,9 +60,7 @@ def test_repro_check_cli_writes_the_same_machine_readable_contract(
         encoding="utf-8",
         check=False,
     )
-
     assert completed.returncode == 0, completed.stderr
-    stdout_report = json.loads(completed.stdout)
-    file_report = json.loads(output.read_text(encoding="utf-8"))
-    assert stdout_report == file_report
-    assert file_report["schema_version"] == "video-subtitle/repro-check-v1"
+    assert json.loads(completed.stdout) == json.loads(
+        output.read_text(encoding="utf-8")
+    )

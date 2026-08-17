@@ -1,5 +1,5 @@
 {
-  "schema_version": "video-subtitle/authorized-media-fixture-v1",
+  "schema_version": "video-content/authorized-media-fixture-v1",
   "license": "CC0-1.0",
   "generated": true,
   "duration_seconds": 3,
@@ -15,5 +15,10 @@
   "generator": {
     "script": "scripts/generate_media_fixture.py",
     "ffmpeg_version": "ffmpeg version 7.1-essentials_build-www.gyan.dev Copyright (c) 2000-2024 the FFmpeg developers"
+  },
+  "expected_subtitle": {
+    "path": "expected.srt",
+    "bytes": 62,
+    "sha256": "9e49793538d0195ff7f69dfa4fc59e7db9b9be3bbdeab047f5cb3c1713a8aa1f"
   }
 }

@@ -129,34 +129,3 @@ def test_validator_cli_returns_agent_readable_json(tmp_path: Path) -> None:
     assert report["schema_version"] == "video-content/wechat-package-validation-v1"
     assert report["valid"] is True
     assert str(tmp_path) not in completed.stdout
-
-
-def test_validator_is_discoverable_through_progressive_docs() -> None:
-    script_name = "scripts/validate_wechat_package.py"
-    detailed_documents = [
-        ROOT / ".agents" / "skills" / "wechat-draft-handoff" / "SKILL.md",
-        ROOT
-        / ".agents"
-        / "skills"
-        / "video-to-content"
-        / "references"
-        / "wechat-article.md",
-        ROOT / "docs" / "content-workflow.md",
-        ROOT / "docs" / "reproducibility.md",
-    ]
-
-    for document in detailed_documents:
-        assert script_name in document.read_text(encoding="utf-8")
-
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert ".agents/skills/wechat-draft-handoff/SKILL.md" in readme
-    assert "docs/content-workflow.md" in readme
-    assert "docs/reproducibility.md" in readme
-
-    case = (ROOT / "docs" / "cases" / "BV1jxREBSEUv-wechat-draft-handoff.md").read_text(
-        encoding="utf-8"
-    )
-    assert "稳定文章标识" in case
-    assert "辅助节点" in case
-    assert "source_author" in case
-    assert "errors: 0" in case

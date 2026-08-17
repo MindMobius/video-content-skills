@@ -4,7 +4,7 @@ import { cli, Strategy } from '@jackwener/opencli/registry'
 import { normalizeWatchLaterPayload } from './lib/normalize-watch-later.mjs'
 
 cli({
-  site: 'video-subtitle-watch-later',
+  site: 'video-content-watch-later',
   name: 'list',
   access: 'read',
   description: 'Read the current Bilibili Watch Later list without modifying it',

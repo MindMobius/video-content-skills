@@ -1,5 +1,5 @@
 {
-  "name": "video-subtitle-watch-later",
+  "name": "video-content-watch-later",
   "version": "0.1.0",
   "description": "Read Bilibili Watch Later for Video Content Skills automation",
   "opencli": ">=1.8.6"

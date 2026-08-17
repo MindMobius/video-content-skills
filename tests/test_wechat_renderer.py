@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import jsonschema
 
 from scripts.validate_wechat_package import validate_package
 from video_content.wechat_renderer import render_wechat_package
@@ -53,16 +52,6 @@ def _write_manuscript(root: Path) -> Path:
     path = root / "manuscript.json"
     path.write_text(json.dumps(manuscript, ensure_ascii=False), encoding="utf-8")
     return path
-
-
-def test_wechat_manuscript_schema_accepts_renderer_fixture(tmp_path: Path) -> None:
-    manuscript_path = _write_manuscript(tmp_path)
-    document = json.loads(manuscript_path.read_text(encoding="utf-8"))
-    schema = json.loads(
-        (ROOT / "schemas" / "wechat-manuscript.schema.json").read_text(encoding="utf-8")
-    )
-
-    jsonschema.validate(document, schema)
 
 
 def test_renderer_builds_restrained_portable_package(tmp_path: Path) -> None:

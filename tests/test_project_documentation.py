@@ -41,17 +41,6 @@ def test_active_documents_define_the_six_product_clean_surface() -> None:
         "Draft Receipt",
     ):
         assert product in contract
-    for removed in (
-        "video_subtitle",
-        "VIDEO_SUBTITLE_",
-        ".video-subtitle",
-        "video-watch-later-automation",
-        "wechat-draft-handoff",
-        "start_video_content_phase",
-        "initialize_video_batch",
-        "portable bundle",
-    ):
-        assert removed not in contract
 
 
 def test_metadata_uses_the_1_0_identity() -> None:

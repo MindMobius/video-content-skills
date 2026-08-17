@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://video-subtitle.local/schemas/wechat-browser-snapshot-v1.json",
+  "$id": "https://video-content.local/schemas/wechat-browser-snapshot-v1.json",
   "title": "WeChat Browser Snapshot v1",
   "type": "object",
   "required": ["schema_version", "adapter", "ready", "appmsgid"],
@@ -10,7 +10,7 @@
       "type": "object",
       "required": ["id", "version"],
       "properties": {
-        "id": { "const": "video-subtitle/wechat-browser-adapter" },
+        "id": { "const": "video-content/wechat-browser-adapter" },
         "version": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false

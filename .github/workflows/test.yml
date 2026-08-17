@@ -57,7 +57,7 @@ jobs:
       - name: Install Node development contract
         run: npm ci --ignore-scripts
 
-      - name: Test browser adapter and bundle packaging
+      - name: Test browser adapter and package surface
         run: |
           npm test
           npm run pack:check
@@ -68,20 +68,21 @@ jobs:
       - name: Bootstrap clean checkout
         run: >-
           python scripts/bootstrap.py --apply
-          --config .video-subtitle-local/config.json
-          --capability hard_ocr_local > bootstrap.json
+          --config .video-content-local/config.json > bootstrap.json
 
       - name: Validate Agent invocation contract
         run: >-
           python -c "import json, pathlib;
           report=json.loads(pathlib.Path('bootstrap.json').read_text());
-          assert report['schema_version']=='video-subtitle/bootstrap-v2';
+          assert report['schema_version']=='video-content/bootstrap-v2';
+          assert report['ready'];
           assert report['installation']['ready'];
           assert [item['name'] for item in report['skills']['available']]
-          == ['video-subtitle', 'video-to-content', 'wechat-draft-handoff'];
+          == ['video-evidence', 'video-to-content', 'watch-later-to-wechat', 'wechat-draft'];
           assert report['installation']['lock']['verified'];
+          assert report['mcp']['server_name']=='video_content';
           assert report['mcp']['transport']=='stdio';
-          assert report['mcp']['env']['VIDEO_SUBTITLE_CONFIG']
+          assert report['mcp']['env']['VIDEO_CONTENT_CONFIG']
           == report['setup']['configuration']['path']"
 
       - name: Reproduce deterministic Agent contract
