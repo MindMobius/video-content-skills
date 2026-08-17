@@ -42,6 +42,11 @@ def test_active_documents_define_the_six_product_clean_surface() -> None:
     ):
         assert product in contract
 
+    operations = (ROOT / "docs" / "operations.md").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "scripts/migrate_legacy_state.py" in operations
+    assert "scripts/migrate_legacy_state.py" in agents
+
 
 def test_metadata_uses_the_1_0_identity() -> None:
     package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))

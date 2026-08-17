@@ -29,6 +29,11 @@ python scripts/bootstrap.py
 python scripts/bootstrap.py --apply --config <config-path> --capability <required-capability>
 ```
 
+For a one-time move from a previous local state, dry-run
+`scripts/migrate_legacy_state.py` before `--apply`; it archives the source,
+verifies hashes, seeds idempotent completed Jobs, and creates no compatibility
+runtime.
+
 Treat `video-content/bootstrap-v2` as the environment contract:
 
 1. execute safe `agent_actions`;

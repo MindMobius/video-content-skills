@@ -20,6 +20,20 @@ python scripts/runtime_setup.py install <dependency> <reported-options>
 python scripts/runtime_setup.py verify <dependency> <reported-options>
 ```
 
+## 一次性状态迁移
+
+从先前本机状态切换到 1.0 时，先 dry-run，再执行：
+
+```powershell
+python scripts/migrate_legacy_state.py --source <source> --archive <archive> --target <state> --expect-completed <count>
+python scripts/migrate_legacy_state.py --source <source> --archive <archive> --target <state> --expect-completed <count> --apply
+```
+
+迁移要求三个绝对路径互不包含，源与归档位于同一卷，归档和新状态目标均不存在。执行时会为
+全部源文件建立 SHA-256 清单、原子移动归档、复制并复核媒体缓存、建立 Profile 与已完成的
+幂等 Job，最后把归档文件设为只读。历史引用漂移必须明确记录为 warning；实际归档哈希才是
+迁移后的事实。该工具是一次性切换，不是兼容运行层。
+
 ## 缓存与资源
 
 - `VIDEO_CONTENT_HOME/cache/media` 跨重试复用；
