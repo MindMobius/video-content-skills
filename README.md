@@ -6,7 +6,7 @@ Agent-native 视频证据与内容生产 Skill 集：从字幕校验、内容转
 项目面向 Agent，而不是把所有步骤暴露给用户。工具负责可复现的采集、状态、产物和
 安全边界；Agent 根据任务选择证据、处理冲突、组织内容并决定是否升级取证。
 
-> 项目已经从 `Video Subtitle Skill` 演化为 `Video Content Skills`。为保持现有安装和
+> 项目已经从单一字幕 Skill 演化为 `Video Content Skills`。为保持现有安装和
 > 自动化兼容，CLI、Python 模块、schema 和分发包等运行标识暂时继续使用
 > `video-subtitle` / `video-subtitle-skill`。
 
@@ -94,7 +94,7 @@ python scripts/bootstrap.py --apply --config <config-path> --capability <require
 - 当前 URL 平台支持范围是 Bilibili；
 - 平台字幕与画面连续硬字幕是两个独立事实；
 - 原始平台、OCR、ASR 和人工校订证据分别保存，不互相覆盖；
-- 视频文章默认只使用原封面和时间戳帧，不生成填充图片；
+- 公众号文章配图默认使用原视频封面和带时间点的可追溯截帧；渲染交接使用单行相对图片路径标记，不生成填充图片；
 - OCR 与 ASR 共用 GPU 时严格串行，媒体下载缓存跨重试复用；
 - 自动化只提供一次扫描和任务操作，周期由调用方管理，不启动隐藏 daemon；
 - 微信交接只使用已有可见登录态，只保存明确授权的草稿；

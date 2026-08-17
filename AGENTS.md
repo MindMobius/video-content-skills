@@ -1,154 +1,105 @@
 # Repository Instructions
 
-This repository is an Agent-first subtitle evidence and content-transformation
-project. Read this file before choosing tools or changing the environment.
+This repository is the canonical source for **Video Content Skills**, an Agent-native
+video evidence and content-production toolkit. Keep the default context small: route
+to the relevant Skill first, then read deeper references only when the task requires
+them.
+
+## Progressive context
+
+1. Use this file for repository-wide invariants and routing.
+2. Read exactly one primary `SKILL.md` for the current task.
+3. Follow links from that Skill into `references/`, scripts, or topic documents only
+   when the current step needs them.
+4. Read `docs/plans/` and `docs/cases/` only for history or comparison; they are not
+   current execution contracts.
+5. For repository changes, read [`docs/skill-maintenance.md`](docs/skill-maintenance.md).
 
 ## Skill routing
 
-- For an authorized Bilibili Watch Later-to-WeChat draft cycle, queue drain,
-  retry, or resume, read
-  [`.agents/skills/video-watch-later-automation/SKILL.md`](.agents/skills/video-watch-later-automation/SKILL.md)
-  completely before acting. It orchestrates the other Skills, uses the selected
-  WeChat carrier from the standing profile, and never publishes.
-- For a video URL, local video, audio, subtitle file, subtitle retrieval, OCR,
-  ASR, or evidence correction, read
+- Bilibili URL, local video/audio, subtitle retrieval, OCR, ASR, evidence review, or
+  canonical subtitle work: read
   [`.agents/skills/video-subtitle/SKILL.md`](.agents/skills/video-subtitle/SKILL.md)
   completely before acting.
-- After verified subtitle evidence exists, use
-  [`.agents/skills/video-to-content/SKILL.md`](.agents/skills/video-to-content/SKILL.md)
-  only when the user requested a transformed deliverable.
-- After an audited WeChat article exists, use
-  [`.agents/skills/wechat-draft-handoff/SKILL.md`](.agents/skills/wechat-draft-handoff/SKILL.md)
-  only when the user explicitly asks to place it in an already signed-in
-  WeChat editor. Saving the draft must also be explicitly in scope. This Skill
-  never publishes.
-- Outside an active Watch Later automation profile, if the user supplied only
-  an input, finish the subtitle evidence first and ask whether they want only
-  subtitles or a specific carrier. Do not choose a carrier unless the user
-  explicitly delegates that decision.
+- Transform already verified video evidence into an article or another carrier: read
+  [`.agents/skills/video-to-content/SKILL.md`](.agents/skills/video-to-content/SKILL.md).
+- Run, resume, retry, or drain an authorized Bilibili Watch Later-to-WeChat cycle:
+  read
+  [`.agents/skills/video-watch-later-automation/SKILL.md`](.agents/skills/video-watch-later-automation/SKILL.md).
+- Place an audited article into an already signed-in WeChat editor and save a draft:
+  read
+  [`.agents/skills/wechat-draft-handoff/SKILL.md`](.agents/skills/wechat-draft-handoff/SKILL.md).
 
-The directories under `.agents/skills/` are the canonical Skill sources. Do
-not create a second copy under another Agent-specific directory. Consumers that
-need personal or project installation should use a Skill installer so it can
-link or copy the canonical source without creating an untracked fork.
+Outside an active Watch Later profile, an input alone authorizes evidence work only.
+Do not choose a carrier unless the user requested one or explicitly delegated that
+decision.
 
-## Fresh-machine entry
+## Global evidence boundaries
 
-If the MCP tools and `video-subtitle` CLI are unavailable, run from the
-repository root:
+- Current URL support is Bilibili only. Do not claim unsupported platform adapters.
+- Platform subtitle availability and continuous visual hard subtitles are independent
+  facts. Use `plan_hard_subtitle_scout` whenever continuity is uncertain. Apply this
+  decision whether or not platform subtitles exist. Full-video OCR is required when
+  continuous hard subtitles are present.
+- Preserve raw platform, OCR, ASR, and reviewed evidence as separate immutable
+  artifacts. Never silently replace one source with another.
+- Tools establish reproducible evidence and state; the Agent resolves semantic
+  conflicts and records the canonical result.
+- For video-derived articles, default supporting images are the original cover and
+  timestamped frames from the source video. Use fewer images rather than generated,
+  stock, or filler visuals unless the user explicitly approved another policy.
 
-```text
-python scripts/bootstrap.py
-python scripts/bootstrap.py --apply --config <config-path> --capability <required-capability>
-```
+## Environment and resource boundaries
 
-Treat the single `video-subtitle/bootstrap-v2` JSON output as the environment
-contract. It reports the canonical Skill paths, the JSON CLI command, the stdio
-MCP launch contract, and the nested capability setup result:
+- Prefer registered repository MCP tools; otherwise use the equivalent JSON CLI.
+- On a fresh machine, start with `python scripts/bootstrap.py`, then follow the
+  capability-specific actions returned by the bootstrap contract. Detailed setup is
+  in [`docs/environment.md`](docs/environment.md) and the active Skill.
+- Do not infer readiness from paths. Require `setup.ready=true`; run deep `doctor`
+  checks before ASR or explicitly shared-GPU work.
+- Heavy runtimes and models must use `requirements/runtime-lock.json` through
+  `scripts/runtime_setup.py`. Large downloads require the confirmation defined by
+  the setup contract.
+- Preserve `download_cache` across retries and related jobs. Treat manifest
+  `actual_bytes` and `actual_mib` as authoritative.
+- OCR and ASR sharing one GPU must run serially. Parallelize only independent work
+  that cannot exhaust the same constrained resource.
+- Never request cookies, passwords, tokens, or browser storage. Login, hardware,
+  privilege prompts, and confirmed large downloads are legitimate human boundaries;
+  ordinary installation, path discovery, retry, and fallback are Agent work.
 
-1. Execute safe `agent_actions` yourself.
-2. Persist discovered non-secret paths with `video-subtitle configure`.
-3. Rerun setup after every environment change.
-4. Ask the user only for remaining `human_actions`.
-5. Obtain confirmation before any action with
-   `confirmation_required=true`.
-6. Run a deep doctor check before ASR or explicit shared-GPU parallelism.
+## Automation and carrier boundaries
 
-Bootstrap installs only the repository Python/MCP layer. For FFmpeg, VideOCR,
-the isolated ASR environment, or model directories, follow the action returned
-by setup and use the pinned heavy-runtime helper:
+- Multi-input work uses one `video-content/batch-v1` ledger with independent evidence,
+  content, audit, and optional handoff artifacts per item.
+- Watch Later operations are one-shot primitives. The caller owns recurrence; this
+  repository must not start a hidden daemon.
+- Retry technical failures, record physically insufficient evidence as
+  `unprocessable`, and use `paused_auth` only for a real authentication boundary.
+  One failed item must not block the rest of a batch.
+- Preserve source media cache and task state so interrupted work resumes instead of
+  downloading, transcribing, or saving a draft again.
+- The Python/MCP content project stops at an audited deliverable. Browser state
+  changes require the explicit `wechat-draft-handoff` authorization.
+- WeChat handoff may use an existing visible login only. Persist no credentials,
+  cookies, URL tokens, clipboard payloads, or browser storage.
+- A draft is complete only after a validated
+  `video-content/wechat-draft-receipt-v1` receipt states `published=false` and no
+  publish actions occurred.
+- Publishing, scheduling, mass sending, originality declarations, monetization, and
+  account management are outside every Skill.
 
-```text
-python scripts/runtime_setup.py plan <dependency>
-python scripts/runtime_setup.py install <dependency> <reported-options>
-python scripts/runtime_setup.py verify <dependency> <reported-options>
-```
+## Skill maintenance
 
-Read `requirements/runtime-lock.json` through the helper instead of inventing a
-release URL or silently selecting `latest`. VideOCR, ASR, and model installation
-require `--confirm-large-download`; show the selected variant, bytes when known,
-revision, destination, and lock SHA-256 before asking for that confirmation.
-ASR and model installation leave `.video-subtitle-installing.json` in an
-incomplete target. Rerun the same locked plan against that target to resume; a
-different plan is rejected. A verified successful install removes the marker.
+`.agents/skills/` is the only canonical Skill source. Do not create another
+Agent-specific copy. Keep task contracts in `SKILL.md`, conditional depth in
+`references/`, deterministic behavior in code/schema, and maintenance rules in
+[`docs/skill-maintenance.md`](docs/skill-maintenance.md).
 
-For URL-backed OCR or ASR, preserve the download cache across retries and
-related jobs. Background jobs default to `<VIDEO_SUBTITLE_HOME>/cache/media`;
-synchronous runs should use the persisted `download_cache` setting or an
-explicit `--download-cache`. Treat the downloaded file's `actual_bytes` and
-`actual_mib` in the manifest as authoritative, not a provider's display string.
-
-Never request cookies, passwords, or tokens. Browser login, hardware absence,
-OS privilege prompts, and confirmed large downloads are legitimate human
-boundaries; ordinary dependency installation and path discovery are Agent
-work.
-
-## Tool boundary
-
-- Prefer the repository MCP tools when they are already registered.
-- Otherwise use the JSON CLI; it exposes the same durable evidence and content
-  contracts.
-- Do not infer successful setup from a path alone. Require `setup.ready=true`
-  for the requested capabilities and verify heavy runtimes with `doctor`.
-- Current URL support is Bilibili only. Do not claim YouTube or Douyin support
-  until their adapters exist.
-- Treat platform subtitle availability and visual hard-subtitle presence as
-  independent facts. A platform track may be machine-generated and never proves
-  that full-video hard-subtitle OCR can be skipped.
-- For video-derived articles, use the original cover and timestamped frames from
-  the source video as the default supporting images. Do not generate diagrams,
-  AI illustrations, stock images, or synthetic visual summaries unless the user
-  explicitly requested or separately approved them; use fewer images instead of
-  filler when the source has no useful frame.
-- When continuous hard subtitles are uncertain, use
-  `plan_hard_subtitle_scout` before a full-video OCR pass, whether or not platform
-  subtitles exist. Sparse OCR cues do not prove that hard subtitles are absent;
-  the Agent must inspect sampled frames, text role, density, and continuity. If
-  continuous hard subtitles exist, full-video OCR is required; skip it only after
-  the independent visual decision establishes that they do not.
-- The Python/MCP content project stops at an audited deliverable. It does not
-  log in to publishing platforms, upload files, or change platform state.
-- Watch Later automation exposes one-shot scan and job operations. The calling
-  Agent or Codex automation owns recurrence; this repository must not create a
-  hidden daemon. Prefer the composed evidence and canonical actions over manual
-  state/artifact updates, and finish each drain with the store integrity audit.
-  `repair_paths` may change only hash-matched artifact paths in `job.json`; it
-  must never move or rewrite evidence. Retry technical failures, record
-  physically insufficient evidence or content as `unprocessable` without asking
-  the user, and use `paused_auth` only for a real authentication boundary.
-- For a multi-input request, initialize one `video-content/batch-v1` ledger with
-  `initialize_video_batch` or `batch-init`. Keep one subtitle manifest, content
-  project, deliverable, audit, and optional handoff receipt per item. The ledger
-  records guarded stage transitions and resume points; it never merges evidence
-  or authorizes a carrier or platform action that the user did not request.
-- For a WeChat article, prefer the repository's first-party
-  `scripts/render_wechat_article.py` renderer when its restrained contract fits.
-  It accepts a `video-content/wechat-manuscript-v1` document, permits only the
-  original video cover and timestamped source frames, and emits clean body HTML,
-  a preview, local assets, and one-line relative image markers. Use another
-  renderer only when the user asks for a different presentation or this renderer
-  cannot express the approved media plan.
-- To move an audited project to another machine or Agent, use
-  `scripts/project_bundle.py export|verify|import`. Verify the ZIP before import.
-  The portable bundle records hashes and provenance, scans text for secrets and
-  persisted Base64 image data, rejects path traversal, and excludes source video
-  by default. It does not move browser login state or prove live services ready.
-- Measure substantial content work with explicit Agent-named phases through
-  `start_video_content_phase` and `finish_video_content_phase`. Timing is
-  operational metadata, not a semantic workflow or an authorization signal.
-- The optional `wechat-draft-handoff` Skill may use an existing visible browser
-  login to place an audited article and save it as a draft only after explicit
-  user authorization. It must not read credentials or browser secrets.
-- During WeChat handoff, use the bundled clipboard helper only for transient rich
-  HTML and use `browser-adapter.js` to observe visible editor state. Persist only
-  the no-secret observation contract and the validated receipt; never persist the
-  clipboard payload, cookies, URL tokens, or browser storage.
-- A saved WeChat draft is complete only after a
-  `video-content/wechat-draft-receipt-v1` receipt is validated against the
-  current project with `scripts/validate_wechat_draft_receipt.py`. The receipt
-  must state `published=false` and contain no publish actions.
-- Scheduling, publishing, mass sending, originality declarations, monetization,
-  and channel-account management remain outside every Skill in this repository.
+Preserve compatibility identifiers unless a separately approved migration includes a
+compatibility layer. The project brand is `Video Content Skills`; existing runtime
+names such as `video-subtitle`, `video_subtitle`, `.video-subtitle-local`, schema IDs,
+and the `video-subtitle-skill` distribution remain stable in this release.
 
 ## Verification
 
@@ -164,13 +115,8 @@ npm run pack:check
 python scripts/repro_check.py --require-tier core --require-tier agent
 ```
 
-Require the `media` tier only when FFmpeg or FFprobe is available and pass its
-explicit path when it is not on `PATH`. The `live` tier is intentionally manual:
-it requires current Bilibili/Browser Bridge state, representative OCR/ASR on the
-current machine, and separately authorized WeChat editor interaction.
+Require the `media` tier only when FFmpeg or FFprobe is available. The `live` tier is
+manual because it depends on current Bilibili, Browser Bridge, OCR/ASR hardware, and
+separately authorized WeChat state.
 
-Preserve raw platform, OCR, ASR, and reviewed evidence as separate immutable
-artifacts. Do not silently replace one source with another.
-
-Commit messages must be written in Chinese and describe the actual change
-precisely without being unnecessarily long.
+Commit messages must be written in Chinese and describe the actual change precisely.
