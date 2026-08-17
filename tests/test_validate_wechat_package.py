@@ -131,9 +131,9 @@ def test_validator_cli_returns_agent_readable_json(tmp_path: Path) -> None:
     assert str(tmp_path) not in completed.stdout
 
 
-def test_validator_is_discoverable_from_skills_and_public_docs() -> None:
+def test_validator_is_discoverable_through_progressive_docs() -> None:
     script_name = "scripts/validate_wechat_package.py"
-    documents = [
+    detailed_documents = [
         ROOT / ".agents" / "skills" / "wechat-draft-handoff" / "SKILL.md",
         ROOT
         / ".agents"
@@ -141,13 +141,17 @@ def test_validator_is_discoverable_from_skills_and_public_docs() -> None:
         / "video-to-content"
         / "references"
         / "wechat-article.md",
-        ROOT / "README.md",
         ROOT / "docs" / "content-workflow.md",
         ROOT / "docs" / "reproducibility.md",
     ]
 
-    for document in documents:
+    for document in detailed_documents:
         assert script_name in document.read_text(encoding="utf-8")
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert ".agents/skills/wechat-draft-handoff/SKILL.md" in readme
+    assert "docs/content-workflow.md" in readme
+    assert "docs/reproducibility.md" in readme
 
     case = (ROOT / "docs" / "cases" / "BV1jxREBSEUv-wechat-draft-handoff.md").read_text(
         encoding="utf-8"
