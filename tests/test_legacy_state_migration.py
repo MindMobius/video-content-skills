@@ -228,6 +228,25 @@ def test_plan_reports_stale_noncritical_references_without_losing_data(
     assert {item["kind"] for item in plan["warnings"]} == {"subtitle_manifest"}
 
 
+def test_plan_reports_content_project_hash_drift_after_handoff(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source-state"
+    archive = tmp_path / "archive"
+    target = tmp_path / "target"
+    _build_source(source)
+    for project in source.rglob("project.json"):
+        project.write_text(
+            project.read_text(encoding="utf-8") + "handoff update\n", encoding="utf-8"
+        )
+
+    plan = plan_migration(source, archive, target, expected_completed=2)
+
+    assert plan["ready"] is True
+    assert plan["validated"]["noncritical_reference_warnings"] == 2
+    assert {item["kind"] for item in plan["warnings"]} == {"content_project"}
+
+
 def test_apply_moves_archive_builds_store_and_prevents_duplicate_jobs(
     tmp_path: Path,
 ) -> None:
