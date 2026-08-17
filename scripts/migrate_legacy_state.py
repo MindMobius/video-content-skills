@@ -95,6 +95,7 @@ def plan_migration(
         "profile": state["profile"],
         "sources": [_public_source(item) for item in state["jobs"]],
         "validated": state["validated"],
+        "warnings": state["warnings"],
         "configuration_fields": sorted(state["configuration"]),
         "actions": [
             "hash every source file",
@@ -206,6 +207,7 @@ def apply_migration(
             "draft_receipt": item["draft_receipt"],
             "appmsgid": item["appmsgid"],
             "published": False,
+            "integrity_warnings": item["warnings"],
             "migrated_at": utc_now(),
         }
         record_ref = store.put_artifact(
@@ -255,6 +257,7 @@ def apply_migration(
         "profile_id": profile["profile_id"],
         "sources": migrated_sources,
         "validated": state["validated"],
+        "warnings": state["warnings"],
         "cache": cache_result,
         "archive_read_only": protect_archive,
         "published": False,
@@ -348,6 +351,11 @@ def _inspect_source(source: Path, *, expected_completed: int | None) -> dict[str
             f"Completed sources are missing from the Watch Later snapshot: {missing}"
         )
     cache_root = _cache_root(source, configuration)
+    warnings = [
+        {"bvid": item["bvid"], "page": item["page"], **warning}
+        for item in jobs
+        for warning in item["warnings"]
+    ]
     validated = {
         "completed_jobs": len(jobs),
         "draft_receipts": len(jobs),
@@ -355,6 +363,8 @@ def _inspect_source(source: Path, *, expected_completed: int | None) -> dict[str
         "unique_appmsgids": len(set(appmsgids)),
         "wechat_hosted_images": sum(item["wechat_hosted_images"] for item in jobs),
     }
+    if warnings:
+        validated["noncritical_reference_warnings"] = len(warnings)
     return {
         "configuration": configuration,
         "jobs": jobs,
@@ -367,6 +377,7 @@ def _inspect_source(source: Path, *, expected_completed: int | None) -> dict[str
         },
         "cache_root": cache_root,
         "validated": validated,
+        "warnings": warnings,
     }
 
 
@@ -394,13 +405,29 @@ def _discover_jobs(source: Path) -> list[dict[str, Any]]:
         artifacts = document.get("artifacts")
         if not isinstance(artifacts, dict):
             raise TypeError(f"Completed job has no artifact map: {job_path}")
-        for reference in artifacts.values():
-            if (
+        reference_warnings: list[dict[str, Any]] = []
+        for kind, reference in artifacts.items():
+            if not (
                 isinstance(reference, dict)
                 and reference.get("path")
                 and reference.get("sha256")
             ):
-                _validate_reference(job_dir, reference)
+                continue
+            path = _safe_child(job_dir, str(reference["path"]))
+            expected_hash = str(reference["sha256"])
+            actual_hash = sha256_file(path)
+            if actual_hash == expected_hash:
+                continue
+            if kind in {"content_binding", "handoff_binding"}:
+                raise ValueError(f"Artifact hash mismatch: {path}")
+            reference_warnings.append(
+                {
+                    "kind": str(kind),
+                    "path": path.relative_to(source).as_posix(),
+                    "expected_sha256": expected_hash,
+                    "actual_sha256": actual_hash,
+                }
+            )
         content_binding_path = _reference_path(
             job_dir,
             artifacts.get("content_binding"),
@@ -493,6 +520,7 @@ def _discover_jobs(source: Path) -> list[dict[str, Any]]:
                 "created_at": timestamps.get("created_at"),
                 "completed_at": timestamps.get("finished_at")
                 or timestamps.get("updated_at"),
+                "warnings": reference_warnings,
             }
         )
     return jobs
