@@ -237,31 +237,34 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
-    content = content_save(
+    content_document = {
+        "schema_version": "video-content/wechat-manuscript-v1",
+        "title": "可复现视频内容文章",
+        "summary": "离线合同检查",
+        "source": {
+            "title": "授权测试视频",
+            "creator": "fixture",
+            "canonical_url": "https://www.bilibili.com/video/BV1repro",
+        },
+        "blocks": [
+            {
+                "type": "image",
+                "artifact_id": cover["artifact_id"],
+                "source_kind": "video_cover",
+            },
+            {"type": "paragraph", "text": "可复现内容"},
+        ],
+    }
+    content_audit = {"status": "passed", "reviewed_by": "repro"}
+    content_result = content_save(
         store,
         job_id=job["job_id"],
         transcript_id=transcript["transcript_id"],
         carrier="wechat_article",
-        document={
-            "schema_version": "video-content/wechat-manuscript-v1",
-            "title": "可复现视频内容文章",
-            "summary": "离线合同检查",
-            "source": {
-                "title": "授权测试视频",
-                "creator": "fixture",
-                "canonical_url": "https://www.bilibili.com/video/BV1repro",
-            },
-            "blocks": [
-                {
-                    "type": "image",
-                    "artifact_id": cover["artifact_id"],
-                    "source_kind": "video_cover",
-                },
-                {"type": "paragraph", "text": "可复现内容"},
-            ],
-        },
-        audit={"status": "passed", "reviewed_by": "repro"},
-    )["content"]
+        document=content_document,
+        audit=content_audit,
+    )
+    content = content_result["content"]
     prepared = wechat_prepare(
         store,
         job_id=job["job_id"],
@@ -269,43 +272,70 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         authorized=True,
         save_draft=True,
     )
+    observation = {
+        "schema_version": "video-content/wechat-editor-observation-v1",
+        "started_at": "2026-08-17T00:01:00Z",
+        "saved_at": "2026-08-17T00:02:00Z",
+        "title": "可复现视频内容文章",
+        "content_sha256": prepared["content_sha256"],
+        "draft_identity": {"appmsgid": "100000001"},
+        "body_images": {
+            "intended": 1,
+            "items": [
+                {
+                    "visible": True,
+                    "complete": True,
+                    "natural_width": 100,
+                    "width": 100,
+                    "height": 100,
+                    "host_class": "wechat",
+                }
+            ],
+            "local_path_markers_remaining": 0,
+        },
+        "cover": {"selected": True},
+        "summary": {"filled": True},
+        "content_checks": {"source_disclosure_present": True},
+        "save": {"saved": True, "mode": "draft"},
+        "refresh_readback": {
+            "performed": True,
+            "same_draft": True,
+            "content_present": True,
+        },
+        "published": False,
+    }
     receipt = wechat_bind(
         store,
         job_id=job["job_id"],
         content_id=content["content_id"],
-        observation={
-            "schema_version": "video-content/wechat-editor-observation-v1",
-            "started_at": "2026-08-17T00:01:00Z",
-            "saved_at": "2026-08-17T00:02:00Z",
-            "title": "可复现视频内容文章",
-            "content_sha256": prepared["content_sha256"],
-            "draft_identity": {"appmsgid": "100000001"},
-            "body_images": {
-                "intended": 1,
-                "items": [
-                    {
-                        "visible": True,
-                        "complete": True,
-                        "natural_width": 100,
-                        "width": 100,
-                        "height": 100,
-                        "host_class": "wechat",
-                    }
-                ],
-                "local_path_markers_remaining": 0,
-            },
-            "cover": {"selected": True},
-            "summary": {"filled": True},
-            "content_checks": {"source_disclosure_present": True},
-            "save": {"saved": True, "mode": "draft"},
-            "refresh_readback": {
-                "performed": True,
-                "same_draft": True,
-                "content_present": True,
-            },
-            "published": False,
-        },
+        observation=observation,
     )
+    repeated_job, reused_job = store.create_job(
+        source={"platform": "bilibili", "bvid": "BV1repro", "page": 1},
+        idempotency_key="bilibili_BV1repro_p1",
+        profile_id=profile["profile_id"],
+    )
+    repeated_content = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript["transcript_id"],
+        carrier="wechat_article",
+        document=content_document,
+        audit=content_audit,
+    )
+    second_draft_blocked = False
+    try:
+        wechat_bind(
+            store,
+            job_id=job["job_id"],
+            content_id=content["content_id"],
+            observation=observation,
+        )
+    except ValueError as error:
+        if "already has a validated WeChat draft receipt" not in str(error):
+            raise
+        second_draft_blocked = True
+    assert repeated_job["job_id"] == job["job_id"]
     products = {
         "profiles": len(store.list_profiles()),
         "jobs": len(store.list_jobs()),
@@ -317,8 +347,25 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
     assert all(value == 1 for value in products.values())
     assert receipt["validation"]["valid"] is True
     assert receipt["receipt"]["published"] is False
+    idempotency = {
+        "reused_job": reused_job,
+        "reused_content": repeated_content["reused"],
+        "second_draft_blocked": second_draft_blocked,
+        "jobs": len(store.list_jobs()),
+        "content": len(store.list_artifacts(job["job_id"], kind="content")),
+        "draft_receipt": len(store.list_artifacts(job["job_id"], kind="draft_receipt")),
+    }
+    assert idempotency == {
+        "reused_job": True,
+        "reused_content": True,
+        "second_draft_blocked": True,
+        "jobs": 1,
+        "content": 1,
+        "draft_receipt": 1,
+    }
     return {
         "products": products,
+        "idempotency": idempotency,
         "job_status": receipt["job"]["status"],
         "published": False,
     }
