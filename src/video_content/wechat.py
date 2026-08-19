@@ -106,9 +106,10 @@ def wechat_bind(
         identifier_prefix="receipt",
     )
     current = store.get_job(job_id)
-    if current["stage"] != "handoff":
-        current = update_job(store, job_id, stage="handoff", status="running")
-    current = update_job(store, job_id, stage="completed", status="completed")
+    if not (current["stage"] == "completed" and current["status"] == "completed"):
+        if current["stage"] != "handoff":
+            current = update_job(store, job_id, stage="handoff", status="running")
+        current = update_job(store, job_id, stage="completed", status="completed")
     return {
         "receipt": saved,
         "artifact": reference,

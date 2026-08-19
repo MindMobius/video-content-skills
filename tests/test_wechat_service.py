@@ -190,6 +190,35 @@ def test_wechat_bind_requires_refresh_readback_and_creates_one_receipt(
         )
 
 
+def test_wechat_bind_can_backfill_receipt_for_completed_content_job(
+    tmp_path: Path,
+) -> None:
+    store, job_id, content_id = _ready_content(tmp_path)
+    prepared = wechat_prepare(
+        store,
+        job_id=job_id,
+        content_id=content_id,
+        authorized=True,
+        save_draft=True,
+    )
+    completed = store.get_job(job_id)
+    completed["stage"] = "completed"
+    completed["status"] = "completed"
+    store.write_job(completed)
+
+    result = wechat_bind(
+        store,
+        job_id=job_id,
+        content_id=content_id,
+        observation=_observation(prepared["content_sha256"]),
+    )
+
+    assert result["validation"]["valid"] is True
+    assert result["receipt"]["published"] is False
+    assert result["job"]["stage"] == "completed"
+    assert result["job"]["status"] == "completed"
+
+
 def test_wechat_bind_rejects_secret_fields_publish_and_missing_refresh(
     tmp_path: Path,
 ) -> None:
