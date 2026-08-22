@@ -9,9 +9,7 @@ CONTENT_SKILL = SKILLS / "video-to-content"
 
 def test_video_to_content_defaults_to_source_faithful_adaptation() -> None:
     skill = (CONTENT_SKILL / "SKILL.md").read_text(encoding="utf-8")
-    prompt = (CONTENT_SKILL / "agents" / "openai.yaml").read_text(
-        encoding="utf-8"
-    )
+    prompt = (CONTENT_SKILL / "agents" / "openai.yaml").read_text(encoding="utf-8")
     normalized = " ".join(skill.split())
 
     assert "references/source-faithful-adaptation.md" in skill
