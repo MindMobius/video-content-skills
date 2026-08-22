@@ -1,20 +1,26 @@
-# Traceability and adaptation
+# 可追溯性与适配
 
-A carrier may reorganize information, but each factual section must remain
-traceable to the Transcript or a cited Evidence range.
+载体可以改变阅读形式，但默认不得改变作者、来源顺序和论证权重。每个实质段落都应能映射到
+Transcript 或明确的 Evidence 时间范围；映射保存在 Content audit 中，不必打断正文阅读。
 
-Prefer:
+优先：
 
-- a clear thesis and reader-oriented structure;
-- faithful paraphrase over transcript dumping;
-- explicit source disclosure for adapted video content;
-- compact notes for unresolved uncertainty;
-- an audit that identifies material omissions or compression choices.
+- 保留来源的问题、章节推进、人物身份、观点归属和反例；
+- 保留专业术语、数字方法、条件、不确定性和原有表达强度；
+- 使用忠实转述，而不是堆叠逐字稿；
+- 将口语噪声、平台操作语和转写错误与有意义的重复区分开；
+- 对重要省略、压缩、重排和用户授权的新增编辑作出说明；
+- 对改编自视频的内容保留明确来源披露。
 
-Reject:
+拒绝：
 
-- stronger certainty than the source;
-- composite quotes presented as literal quotes;
-- causal claims inferred only from sequence;
-- unattributed opinions;
-- decorative media without source provenance.
+- 比来源更强的确定性、因果性或结论；
+- 将组合转述呈现为直接引语；
+- 新增来源没有的比喻、场景、观点或总结；
+- 合并不同说话者，或删除其专业角色和立场差异；
+- 把次要细节提升为标题、中心论点或结尾判断；
+- 为追求公众号节奏而改变来源顺序、专业密度或语气；
+- 没有来源 provenance 的装饰性媒体。
+
+当用户明确要求摘要、受众改写或特定文风时，审计必须分别列出保留内容、实质省略、结构调整
+和新增编辑，不能把授权改写伪装成来源原意。

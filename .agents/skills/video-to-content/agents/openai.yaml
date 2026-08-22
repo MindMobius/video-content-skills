@@ -1,4 +1,4 @@
 interface:
   display_name: "Video to Content"
-  short_description: "Turn a verified Transcript into an audited carrier"
-  default_prompt: "Use $video-to-content to transform this verified Transcript into the requested content format."
+  short_description: "Create a source-faithful carrier edition"
+  default_prompt: "Use $video-to-content to create a source-faithful written edition of this verified Transcript in the requested carrier."
