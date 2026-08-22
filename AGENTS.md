@@ -84,9 +84,16 @@ login boundary.
 
 ## Content and platform boundary
 
-Content uses a saved Transcript. Video-derived images default to the original
-cover and timestamped source frames; do not generate or source filler visuals
-without separate user approval.
+Content uses a saved Transcript. The default editorial policy is 来源忠实
+(source-faithful): repair transcription, translation, oral noise, paragraphing,
+and visual references while preserving source structure, speaker roles,
+professional density, examples, uncertainty, and voice. Summary, audience
+rewrite, style imitation, a new thesis, a new analogy, or material reorder
+requires an explicit user request.
+
+Video-derived images default to the original cover and timestamped source
+frames; do not generate or source filler visuals without separate user
+approval.
 
 The Python/MCP layer stops at an audited Content object. WeChat mutation is
 optional, visible, and separately authorized. The clipboard payload is

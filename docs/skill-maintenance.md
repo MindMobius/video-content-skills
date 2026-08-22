@@ -6,7 +6,7 @@
 ## 四个 Skill
 
 - `video-evidence`：来源、下载、平台字幕、OCR、ASR、证据判断和 Transcript；
-- `video-to-content`：从 Transcript 到载体 Content 和审计；
+- `video-to-content`：从 Transcript 到来源忠实的载体 Content 和审计；
 - `watch-later-to-wechat`：Profile、扫描、队列、重试与三段 Skill 编排；
 - `wechat-draft`：可见编辑器交接、保存、刷新回读和 Draft Receipt。
 
@@ -22,6 +22,7 @@
 - 何时触发、何时不要使用；
 - 主流程和完成标准；
 - Agent 与工具的责任分工；
+- 默认来源忠实以及需要用户明确授权的编辑越界；
 - 授权、幂等、错误和安全边界；
 - 当前步骤才需要读取的相对链接。
 
@@ -49,7 +50,7 @@ JSON 合同，不写秘密，不静默改变平台状态。
 | CLI/MCP 工具 | `api.py`、CLI、MCP smoke、相关 Skill |
 | 环境能力 | requirements、bootstrap/setup、doctor、`video-evidence` reference |
 | 证据决策 | evidence/pipeline、`video-evidence`、fixture |
-| 内容载体 | content/renderer、`video-to-content`、审计测试 |
+| 内容载体 | content/renderer、`video-to-content`、来源忠实 reference、审计测试 |
 | 微信交接 | adapter、observation/receipt、`wechat-draft`、Node/Python 测试 |
 | 自动化状态 | Profile/Job、`watch-later-to-wechat`、幂等测试 |
 

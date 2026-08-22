@@ -3,20 +3,20 @@
 面向 Agent 的视频证据与内容生产 Skill 集。
 
 用户可以只给一个 Bilibili 视频链接，或把视频加入“稍后再看”。Agent 负责取得多来源字幕
-证据、判断哪份更可靠、生成可追溯 Transcript、转换成指定内容，并在明确授权后保存到微信
-公众号草稿箱。项目永不发布。
+证据、判断哪份更可靠、生成可追溯 Transcript，并把创作者原有的结构、专业程度和语气高保真
+迁移到指定载体；在明确授权后可保存到微信公众号草稿箱。项目永不发布。
 
 ## 项目解决什么
 
 - 获取 Bilibili 元数据、平台字幕和持久视频缓存；
 - 用硬字幕侦察、VideOCR 和 ASR 补充或交叉校验证据；
 - 保留原始证据，由 Agent 形成规范 Transcript；
-- 把 Transcript 转成经过审计的文章或其他载体；
+- 把 Transcript 转成经过审计的来源忠实书面版或其他载体；
 - 扫描 Bilibili 稍后再看，幂等创建和恢复任务；
 - 复用可见的微信登录状态，保存且验证一份草稿收据。
 
-工具只负责确定性采集、持久化、校验和平台边界；语义判断、视觉判断和内容组织由 Agent
-完成。
+工具只负责确定性采集、持久化、校验和平台边界；Agent 负责语义修复、视觉判断和必要的
+口语转书面语，但默认不替创作者重新选题、增加观点或套用固定公众号文风。
 
 ## Agent 任务路由
 
@@ -25,7 +25,7 @@
 | 需求 | Skill |
 | --- | --- |
 | 视频链接、本地媒体、字幕、OCR、ASR、证据校正 | [video-evidence](.agents/skills/video-evidence/SKILL.md) |
-| 已有可信 Transcript，需要文章或其他内容 | [video-to-content](.agents/skills/video-to-content/SKILL.md) |
+| 已有可信 Transcript，需要来源忠实的文章或其他载体 | [video-to-content](.agents/skills/video-to-content/SKILL.md) |
 | 扫描、排空、重试或恢复稍后再看队列 | [watch-later-to-wechat](.agents/skills/watch-later-to-wechat/SKILL.md) |
 | 把已审计文章保存到已登录微信编辑器 | [wechat-draft](.agents/skills/wechat-draft/SKILL.md) |
 
@@ -42,7 +42,7 @@ Profile -> Job -> Evidence -> Transcript -> Content -> Draft Receipt
 - **Job**：一个视频的状态、重试、恢复和幂等身份；
 - **Evidence**：平台、OCR、ASR、封面、截帧等不可变观察；
 - **Transcript**：Agent 基于 Evidence 形成的规范字幕；
-- **Content**：按载体转换并审计后的内容；
+- **Content**：将来源表达高保真迁移到指定载体并审计后的内容；
 - **Draft Receipt**：微信草稿的可验证平台状态，固定 `published=false`。
 
 多视频通过 `run_id` 查询 Job，不维护独立 batch/project/phase 协议。

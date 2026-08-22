@@ -70,5 +70,7 @@ def test_docs_are_progressive_not_historical_dump() -> None:
     assert plans == [
         "2026-08-17-video-content-clean-slate-design.md",
         "2026-08-17-video-content-clean-slate.md",
+        "2026-08-22-source-faithful-adaptation-design.md",
+        "2026-08-22-source-faithful-adaptation.md",
     ]
     assert not (ROOT / "docs" / "cases").exists()
