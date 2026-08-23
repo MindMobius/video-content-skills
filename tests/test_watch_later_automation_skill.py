@@ -17,7 +17,11 @@ def test_watch_later_skill_keeps_operational_failure_policy() -> None:
         "completed",
         "published=false",
         "run_id",
-        "one validated Draft Receipt",
+        "one current validated Draft Receipt",
+        "source_faithful_full",
+        "minimum_source_frames",
+        "内容由AI生成",
+        "supersede",
     ):
         assert token in contract
     for prohibited in (

@@ -91,6 +91,15 @@ professional density, examples, uncertainty, and voice. Summary, audience
 rewrite, style imitation, a new thesis, a new analogy, or material reorder
 requires an explicit user request.
 
+For Watch Later Profiles, `source_faithful_full` is the default contract. The
+Content audit must map every material section from Transcript cues to output
+blocks, list omissions, and include a per-frame visual plan whose block index
+points to the actual body image. Content media must exactly match ordered document
+image blocks. The Profile frame minimum is only a floor; select and inspect frames
+at real visual or argument transitions rather than
+using evenly spaced screenshots. A scout-proven static source may use an audited
+`visual_exception`; never duplicate meaningless frames to satisfy the minimum.
+
 Video-derived images default to the original cover and timestamped source
 frames; do not generate or source filler visuals without separate user
 approval.
@@ -98,7 +107,9 @@ approval.
 The Python/MCP layer stops at an audited Content object. WeChat mutation is
 optional, visible, and separately authorized. The clipboard payload is
 transient. Persist only no-secret visible observations and a validated
-`video-content/draft-receipt-v1` with `published=false`.
+`video-content/draft-receipt-v1` with `published=false`. When the Profile
+requires it, select and refresh-read-back the WeChat creation-source disclosure
+“内容由AI生成”; this is not an originality declaration.
 
 Never publish, mass send, schedule, declare originality, monetize, or manage an
 account.
@@ -108,7 +119,9 @@ account.
 Watch Later operations are one-shot. Codex automation or the calling Agent owns
 recurrence; this repository must not create a daemon. Jobs are idempotent by
 stable source identity. Do not create a second draft for a Job with a validated
-Draft Receipt.
+Draft Receipt. An explicitly authorized correction may update only the same
+numeric `appmsgid`; save a new Receipt with `supersedes_receipt_id` and retain the
+older immutable Receipt as history.
 
 ## Verification
 

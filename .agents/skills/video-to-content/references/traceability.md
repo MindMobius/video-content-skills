@@ -22,5 +22,19 @@ Transcript 或明确的 Evidence 时间范围；映射保存在 Content audit �
 - 为追求公众号节奏而改变来源顺序、专业密度或语气；
 - 没有来源 provenance 的装饰性媒体。
 
+## 完整性审计合同
+
+`source_faithful_full` 不能只写“共 5 节，保留 5 节”。数量本身不能证明 Agent 真的读完
+并映射了来源。`material_sections.items` 中的每一项至少记录：
+
+- 唯一 `section_id` 和可读的 `label`；
+- 对应 Transcript 的 `source_cue_indices`；
+- 对应成稿的 `output_block_indices`；
+- `status=preserved`。
+
+`total` 必须等于 items 数量，`preserved` 必须等于全部 preserved 项数量。输出索引必须实际
+指向包含书面内容的 block，不能用封面、截图或空段落冒充章节保留。Agent 仍负责判断哪些内容
+属于实质章节；程序负责阻止“只有自报数量、没有来源到成稿映射”的假完成。
+
 当用户明确要求摘要、受众改写或特定文风时，审计必须分别列出保留内容、实质省略、结构调整
 和新增编辑，不能把授权改写伪装成来源原意。

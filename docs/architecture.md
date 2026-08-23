@@ -34,14 +34,18 @@ Agent 对 Evidence 的规范化结果，包含证据选择、校正、未解决�
 
 ### Content
 
-默认将 Transcript 的来源结构、人物关系、专业密度和语气高保真迁移到用户指定载体，同时
-保存媒体计划、渲染结果和来源忠实审计。只有用户明确要求时才进行摘要、受众改写、文风模仿
+默认将 Transcript 的来源结构、人物关系、案例、限定、专业密度和语气高保真迁移到用户
+指定载体，同时保存媒体计划、渲染结果和来源忠实审计。Watch Later Profile 的审计还要求
+`material_sections.items` 的 cue-to-block 全量映射、显式 `omissions` 和带 `block_index` 的逐帧
+`visual_plan`。Content media 必须与正文 image block 按顺序一致。最低截图数只是防止遗漏，Agent
+仍按真实论述和视觉转场决定数量。只有用户明确要求时才进行摘要、受众改写、文风模仿
 或重新组织论证。Content 不代表平台状态，也不授权保存。
 
 ### Draft Receipt
 
-微信草稿的可验证状态：当前 Content 哈希、稳定 `appmsgid`、图片/封面/摘要、刷新回读和
-`published=false`。一个 Job 最多一份有效收据。
+微信草稿的可验证状态：当前 Content 哈希、稳定 `appmsgid`、图片/封面/摘要、创作来源、
+刷新回读和 `published=false`。一个 Job 同时最多一份当前有效收据；原位修订保留旧 Receipt，
+新 Receipt 用 `supersedes_receipt_id` 接续，并强制保持同一 `appmsgid`。
 
 ## Store
 

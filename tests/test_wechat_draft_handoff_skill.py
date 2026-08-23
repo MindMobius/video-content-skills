@@ -19,6 +19,11 @@ def test_wechat_skill_requires_visible_state_and_validated_receipt() -> None:
         "published=false",
         "zero local-path markers",
         "Never save a second draft",
+        "内容由AI生成",
+        "video-content/wechat-editor-observation-v2",
+        "supersedes_receipt_id",
+        "creationSourceSelector",
+        "post-refresh snapshot",
     ):
         assert token in contract
     for secret in ("cookies", "tokens", "browser storage", "clipboard"):

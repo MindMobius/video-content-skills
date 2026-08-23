@@ -19,6 +19,7 @@ video.
 - Default editorial boundary: [source-faithful-adaptation.md](references/source-faithful-adaptation.md)
 - Traceability and omission rules: [traceability.md](references/traceability.md)
 - WeChat article manuscript and renderer: [wechat-article.md](references/wechat-article.md)
+- Selecting and checking source frames: [source-frame-selection.md](references/source-frame-selection.md)
 
 ## Preconditions
 
@@ -45,12 +46,26 @@ video.
    material reorder are allowed only when explicitly requested. Record every
    such departure in the audit.
 6. For video-derived imagery, use only the original cover and timestamped source
-   frames by default. Place them where the source uses the corresponding visual
-   evidence; use fewer images rather than filler.
-7. Build the carrier document and an explicit source-fidelity audit.
+   frames by default. Identify material visual or argument transitions, extract
+   nearby candidates, inspect them, and place the selected frame at the matching
+   passage. A Profile minimum is a floor, not a target; long or visually dense
+   videos normally require more frames. Never satisfy the contract with evenly
+   spaced filler screenshots. If scout evidence proves a static source with no
+   material visual transitions, record an approved `visual_exception` with the
+   scout Artifact IDs instead of duplicating meaningless frames.
+7. Build the carrier document and an explicit source-fidelity audit. When the
+   active Profile selects `source_faithful_full`, include `adaptation_mode`,
+   `visual_policy`, `material_sections.items`, `omissions`, and a per-frame
+   `visual_plan`. Every material section maps Transcript cue indices to output
+   block indices; every frame records `artifact_id`, `timestamp_ms`,
+   `block_index`, and placement reason.
 8. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
    clean HTML, preview, local assets, and one-line relative image markers.
 9. Save Content with `content_save`, then require `content_validate.valid=true`.
+
+A render result, article length, media Artifact list, or valid HTML is not Content
+completion. A source frame counts only when it is an actual ordered image block in
+the carrier document and its audit points to that exact block.
 
 ## Audit
 
@@ -70,7 +85,15 @@ checking:
 - title and summary do not overclaim or promote a minor detail into the main
   claim;
 - every image is an original cover or timestamped source frame;
+- every material section has an explicit source-to-output mapping, all are
+  preserved, and omissions are explicit;
+- every source frame is tied to a meaningful passage, visually inspected, and
+  present at the audited document block;
 - the output contains no persisted Base64 image or secret-bearing URL.
+
+Do not use article-to-Transcript character ratio as a mechanical pass/fail gate.
+It is only a diagnostic signal; the Agent must judge whether material examples,
+questions, limits, disagreements, and professional detail remain.
 
 ## Boundaries
 

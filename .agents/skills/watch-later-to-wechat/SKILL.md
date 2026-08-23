@@ -23,6 +23,10 @@ A Profile selects:
 - carrier, normally `wechat_article`;
 - baseline of seen `BVID:page` identities;
 - retry limits and non-secret runtime preferences;
+- `adaptation_mode=source_faithful_full` and
+  `visual_policy=source_frames_at_material_transitions`;
+- a positive `minimum_source_frames` floor and
+  `wechat_creation_source=ai_generated`;
 - `gpu_parallelism=1` and `publish=false`.
 
 The Profile is standing permission to process newly discovered items and, only
@@ -38,8 +42,10 @@ It never authorizes publishing or unrelated account actions.
 3. Query queued/retryable Jobs with `job_list`.
 4. For each Job, acquire Evidence and save a Transcript using `$video-evidence`.
 5. Use the carrier stored in the Profile with `$video-to-content`; require a
-   passing Content audit and validation.
-6. If draft saving is within the standing authorization, use `$wechat-draft`.
+   passing full-fidelity Content audit, explicit material-section coverage, and
+   inspected source frames placed at real content transitions.
+6. If draft saving is within the standing authorization, use `$wechat-draft` and
+   select the required WeChat creation-source disclosure “内容由AI生成”.
 7. Continue until the queue has no actionable Job. Record physical failures as
    `unprocessable` without asking the user.
 
@@ -58,13 +64,18 @@ to Codex automation or the calling Agent; do not create a hidden daemon.
 ## Completion
 
 A Job is complete only when it has Evidence, Transcript, validated Content, and
-when authorized, one validated Draft Receipt with `published=false`. Content
-creation alone is not a saved draft; a success toast alone is not a receipt.
+when authorized, one current validated Draft Receipt with `published=false`.
+Validated Content means every material section has a source-to-output mapping and
+every planned frame is present at its audited body block; HTML rendering or media
+Artifact counts alone are insufficient. Older Receipts may remain as immutable
+revision history but must be explicitly superseded. Content creation alone is not
+a saved draft; a success toast alone is not a receipt.
 
 ## Hard boundaries
 
 - No daemon, publish, schedule, mass send, originality declaration,
   monetization, or account management.
 - No duplicate Job for the same BVID/page and no second draft for a completed
-  Job.
+  Job. An explicitly authorized correction must update the same `appmsgid` and
+  supersede the current Receipt.
 - No user interruption for physically impossible evidence; mark and continue.

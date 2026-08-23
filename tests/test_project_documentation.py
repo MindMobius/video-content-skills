@@ -74,3 +74,15 @@ def test_docs_are_progressive_not_historical_dump() -> None:
         "2026-08-22-source-faithful-adaptation.md",
     ]
     assert not (ROOT / "docs" / "cases").exists()
+
+
+def test_skill_maintenance_turns_real_failures_into_enforced_contracts() -> None:
+    maintenance = (ROOT / "docs" / "skill-maintenance.md").read_text(encoding="utf-8")
+    for token in (
+        "流程完成不等于内容完成",
+        "先写失败测试",
+        "Agent 语义判断",
+        "确定性验收",
+        "真实输出",
+    ):
+        assert token in maintenance

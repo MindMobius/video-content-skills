@@ -52,3 +52,19 @@ def test_repository_promises_high_fidelity_carrier_migration() -> None:
 
     assert "来源忠实" in agents
     assert "高保真" in readme
+
+
+def test_full_fidelity_audit_maps_sections_and_frames_to_output_blocks() -> None:
+    skill = (CONTENT_SKILL / "SKILL.md").read_text(encoding="utf-8")
+    traceability = (CONTENT_SKILL / "references" / "traceability.md").read_text(
+        encoding="utf-8"
+    )
+    frames = (CONTENT_SKILL / "references" / "source-frame-selection.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "material_sections.items" in skill
+    assert "source_cue_indices" in traceability
+    assert "output_block_indices" in traceability
+    assert "block_index" in frames
+    assert "media 列表" in frames

@@ -51,6 +51,19 @@ python scripts/migrate_legacy_state.py --source <source> --archive <archive> --t
 
 不要通过删除 Job 目录“重试”；继续现有 Job，保留事件和 Artifact。
 
+## 内容质量闸门
+
+Watch Later 的 `source_faithful_full` Content 只有同时满足以下事实才算有效：
+
+- `material_sections.items` 将每个实质章节的 Transcript cue 映射到成稿 block；
+- 所有实质章节均为 `preserved`，省略项单独列出；
+- Content media 与正文 image block 按顺序完全一致；
+- 每个 `video_frame` 的 `visual_plan.block_index` 指向正文中的同一截图；
+- 少于截图下限时，有静态来源侦察 Artifact 支持 `visual_exception`。
+
+文章能渲染、图片 Artifact 存在或正文较长都不能替代这些验收。语义完整性由 Agent 对照完整
+Transcript 判断，程序只强制保存可追溯证据并阻止缺证据的结果进入微信交接。
+
 ## 稍后再看
 
 `watch_later_scan` 是一次调用。Profile 的 seen baseline 防止重排或旧视频再次入队。周期由
@@ -58,14 +71,16 @@ Codex automation 负责，仓库不运行后台 daemon。
 
 ## 微信
 
-1. Content 审计和验证通过；
+1. Content 审计和验证通过，Watch Later 稿件还必须通过完整章节与逐帧视觉计划检查；
 2. 本轮明确授权保存草稿；
-3. `wechat_prepare` 重建渲染包并准备瞬时剪贴板；
-4. Browser Adapter 只观察可见编辑器；
-5. 保存草稿后刷新回读；
-6. `wechat_bind` 生成并验证 Draft Receipt。
+3. `wechat_prepare` 重建渲染包并准备瞬时剪贴板；修订已有草稿时显式使用 `replace_existing_draft=true`；
+4. Browser Adapter 只观察可见编辑器，并确认新建目标或精确旧 `appmsgid`；
+5. 填入正文、原视频封面和摘要，并按 Profile 选择“内容由AI生成”；
+6. 只保存草稿，刷新同一草稿，回读正文、图片、封面、摘要和创作来源；
+7. `wechat_bind` 生成并验证 Draft Receipt；修订时传入 `supersedes_receipt_id`，且 `appmsgid` 必须不变。
 
-不保存 URL token、cookie、存储、原始 CDN URL 或剪贴板 HTML。任何发布相关动作都不在范围。
+不保存 URL token、cookie、存储、原始 CDN URL 或剪贴板 HTML。AI 创作来源不是原创声明；任何
+发布相关动作都不在范围。
 
 ## 验收层级
 

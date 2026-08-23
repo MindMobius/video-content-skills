@@ -11,7 +11,8 @@
 - 获取 Bilibili 元数据、平台字幕和持久视频缓存；
 - 用硬字幕侦察、VideOCR 和 ASR 补充或交叉校验证据；
 - 保留原始证据，由 Agent 形成规范 Transcript；
-- 把 Transcript 转成经过审计的来源忠实书面版或其他载体；
+- 把 Transcript 转成保留案例、限定和专业细节的来源忠实书面版；
+- 在真实论述节点穿插经过检查的原视频时间戳画面；
 - 扫描 Bilibili 稍后再看，幂等创建和恢复任务；
 - 复用可见的微信登录状态，保存且验证一份草稿收据。
 
@@ -43,7 +44,7 @@ Profile -> Job -> Evidence -> Transcript -> Content -> Draft Receipt
 - **Evidence**：平台、OCR、ASR、封面、截帧等不可变观察；
 - **Transcript**：Agent 基于 Evidence 形成的规范字幕；
 - **Content**：将来源表达高保真迁移到指定载体并审计后的内容；
-- **Draft Receipt**：微信草稿的可验证平台状态，固定 `published=false`。
+- **Draft Receipt**：微信草稿的可验证平台状态，固定 `published=false`；修订时以同一 `appmsgid` 的新 Receipt 显式 supersede 旧 Receipt。
 
 多视频通过 `run_id` 查询 Job，不维护独立 batch/project/phase 协议。
 
@@ -84,7 +85,11 @@ CLI 以 `system/source/evidence/job/content/watch-later/wechat` 分组；MCP 只
 - 当前 URL 平台只支持 Bilibili；
 - 平台字幕存在，不代表画面没有连续硬字幕；
 - 原始平台、OCR、ASR 和 Agent 校正证据分别保存，不互相覆盖；
-- 公众号配图默认只用原视频封面和时间戳截帧；
+- 稍后再看默认使用 `source_faithful_full`，完整保留实质章节，不把长视频压成摘要；
+- 公众号配图只用原视频封面和经过检查的时间戳截帧，最低数量只是防漏底线；
+- 渲染成功、媒体 Artifact 存在或草稿保存成功，都不能替代章节映射、正文截图位置和平台声明回读；
+- 微信 Profile 要求选择并刷新回读“内容由AI生成”，该声明不等于原创声明；
+- 已有草稿只能原位修订同一 `appmsgid`，不能创建重复草稿；
 - OCR/ASR 共用 GPU 时默认串行；
 - 技术失败重试，物理证据不足标记 `unprocessable`，真实登录边界标记 `paused_auth`；
 - 不请求或持久化 cookie、密码、token、浏览器存储或剪贴板正文；
