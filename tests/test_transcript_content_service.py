@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from video_content.automation import save_watch_later_profile
 from video_content.content import content_save, transcript_save
 from video_content.store import Store
 
@@ -171,6 +172,64 @@ def test_wechat_content_uses_only_cover_and_timestamped_frames(tmp_path: Path) -
     assert len(store.list_artifacts(job["job_id"], kind="content_render")) >= 4
 
 
+def test_wechat_content_revision_reuses_legacy_render_asset_metadata(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "home")
+    job, _ = store.create_job(
+        source={"platform": "bilibili", "bvid": "BV1legacyrender"},
+        idempotency_key="bilibili_BV1legacyrender_p1",
+        initial_stage="evidence",
+        initial_status="running",
+    )
+    transcript_id = _transcript(store, job["job_id"])
+    cover = tmp_path / "cover.jpg"
+    cover.write_bytes(b"same-rendered-cover")
+    cover_ref = store.put_artifact(job["job_id"], kind="video_cover", source_path=cover)
+    store.put_artifact(
+        job["job_id"],
+        kind="content_render",
+        source_path=cover,
+        metadata={
+            "content_id": "content_legacy",
+            "relative_path": "assets/01-legacy-cover.jpg",
+        },
+    )
+
+    result = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "修订后的文章",
+            "summary": "复用相同封面字节但绑定新的 Content。",
+            "source": {
+                "title": "测试视频",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1legacyrender",
+            },
+            "blocks": [
+                {
+                    "type": "image",
+                    "artifact_id": cover_ref["artifact_id"],
+                    "source_kind": "video_cover",
+                },
+                {"type": "paragraph", "text": "保留完整正文。"},
+            ],
+        },
+        audit={"status": "passed", "reviewed_by": "agent"},
+    )
+
+    assert result["validation"]["valid"] is True
+    assert any(
+        reference.get("metadata", {}).get("content_id")
+        == result["content"]["content_id"]
+        for reference in result["content"]["artifact_refs"]
+    )
+
+
 def test_content_rejects_generated_images(tmp_path: Path) -> None:
     store = Store(tmp_path)
     job, _ = store.create_job(
@@ -196,3 +255,331 @@ def test_content_rejects_generated_images(tmp_path: Path) -> None:
             audit={"status": "passed"},
             render=False,
         )
+
+
+def test_content_rejects_media_that_is_not_embedded_in_the_document(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path)
+    job, _ = store.create_job(
+        source={"platform": "bilibili"},
+        idempotency_key="fixture_detached_media",
+        initial_stage="evidence",
+        initial_status="running",
+    )
+    transcript_id = _transcript(store, job["job_id"])
+    cover_path = tmp_path / "cover.jpg"
+    frame_path = tmp_path / "frame.png"
+    cover_path.write_bytes(b"cover")
+    frame_path.write_bytes(b"frame")
+    cover = store.put_artifact(
+        job["job_id"], kind="video_cover", source_path=cover_path
+    )
+    frame = store.put_artifact(
+        job["job_id"],
+        kind="video_frame",
+        source_path=frame_path,
+        metadata={"timestamp_ms": 1000},
+    )
+
+    with pytest.raises(ValueError, match="document image blocks"):
+        content_save(
+            store,
+            job_id=job["job_id"],
+            transcript_id=transcript_id,
+            carrier="wechat_article",
+            document={
+                "blocks": [
+                    {
+                        "type": "image",
+                        "artifact_id": cover["artifact_id"],
+                        "source_kind": "video_cover",
+                    },
+                    {"type": "paragraph", "text": "正文没有插入视频截图。"},
+                ]
+            },
+            media=[
+                {
+                    "artifact_id": cover["artifact_id"],
+                    "source_kind": "video_cover",
+                    "timestamp_ms": None,
+                },
+                {
+                    "artifact_id": frame["artifact_id"],
+                    "source_kind": "video_frame",
+                    "timestamp_ms": 1000,
+                },
+            ],
+            audit={"status": "passed"},
+            render=False,
+        )
+
+
+def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path / "home")
+    save_watch_later_profile(
+        store,
+        profile_id="daily",
+        account_profile_alias="fixture-browser",
+    )
+    job, _ = store.create_job(
+        source={"platform": "bilibili", "bvid": "BV1fidelity"},
+        idempotency_key="bilibili_BV1fidelity_p1",
+        profile_id="daily",
+        initial_stage="evidence",
+        initial_status="running",
+    )
+    transcript_id = _transcript(store, job["job_id"])
+    cover_path = tmp_path / "fidelity-cover.jpg"
+    cover_path.write_bytes(b"cover")
+    cover = store.put_artifact(
+        job["job_id"], kind="video_cover", source_path=cover_path
+    )
+    frames = []
+    for index, timestamp_ms in enumerate((10000, 20000, 30000), start=1):
+        path = tmp_path / f"frame-{index}.png"
+        path.write_bytes(f"frame-{index}".encode())
+        reference = store.put_artifact(
+            job["job_id"],
+            kind="video_frame",
+            source_path=path,
+            metadata={"timestamp_ms": timestamp_ms},
+        )
+        frames.append((reference, timestamp_ms))
+    blocks = [
+        {
+            "type": "image",
+            "artifact_id": cover["artifact_id"],
+            "source_kind": "video_cover",
+        },
+    ]
+    for index, (reference, timestamp_ms) in enumerate(frames, start=1):
+        blocks.extend(
+            [
+                {"type": "paragraph", "text": f"保留第 {index} 个实质论述。"},
+                {
+                    "type": "image",
+                    "artifact_id": reference["artifact_id"],
+                    "source_kind": "video_frame",
+                    "timestamp_ms": timestamp_ms,
+                },
+            ]
+        )
+    material_sections = {
+        "total": 3,
+        "preserved": 3,
+        "items": [
+            {
+                "section_id": f"section-{index}",
+                "label": f"第 {index} 个实质论述",
+                "source_cue_indices": [0],
+                "output_block_indices": [index * 2 - 1, index * 2],
+                "status": "preserved",
+            }
+            for index in range(1, 4)
+        ],
+    }
+    result = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "忠实完整稿",
+            "summary": "保留专业细节并在论述节点使用原视频画面。",
+            "source": {
+                "title": "测试视频",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1fidelity",
+            },
+            "blocks": blocks,
+        },
+        audit={
+            "status": "passed",
+            "reviewed_by": "agent",
+            "adaptation_mode": "source_faithful_full",
+            "visual_policy": "source_frames_at_material_transitions",
+            "material_sections": material_sections,
+            "omissions": [],
+            "visual_plan": [
+                {
+                    "artifact_id": reference["artifact_id"],
+                    "timestamp_ms": timestamp_ms,
+                    "block_index": index * 2,
+                    "reason": "对应原视频中的实质论述节点",
+                }
+                for index, (reference, timestamp_ms) in enumerate(frames, start=1)
+            ],
+        },
+    )
+    assert result["validation"]["valid"] is True
+
+    counts_only = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "只有数量没有追溯映射",
+            "summary": "该稿件故意只声明数量。",
+            "source": {
+                "title": "测试视频",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1fidelity",
+            },
+            "blocks": blocks,
+        },
+        audit={
+            "status": "passed",
+            "reviewed_by": "agent",
+            "adaptation_mode": "source_faithful_full",
+            "visual_policy": "source_frames_at_material_transitions",
+            "material_sections": {"total": 3, "preserved": 3},
+            "omissions": [],
+            "visual_plan": [
+                {
+                    "artifact_id": reference["artifact_id"],
+                    "timestamp_ms": timestamp_ms,
+                    "block_index": index * 2,
+                    "reason": "对应原视频中的实质论述节点",
+                }
+                for index, (reference, timestamp_ms) in enumerate(frames, start=1)
+            ],
+        },
+        render=False,
+    )
+    assert counts_only["validation"]["valid"] is False
+    assert any(
+        "material_sections.items" in error
+        for error in counts_only["validation"]["errors"]
+    )
+
+    wrong_placement = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "截图计划没有对应正文位置",
+            "summary": "该稿件故意把截图计划指向正文段落。",
+            "source": {
+                "title": "测试视频",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1fidelity",
+            },
+            "blocks": blocks,
+        },
+        audit={
+            "status": "passed",
+            "reviewed_by": "agent",
+            "adaptation_mode": "source_faithful_full",
+            "visual_policy": "source_frames_at_material_transitions",
+            "material_sections": material_sections,
+            "omissions": [],
+            "visual_plan": [
+                {
+                    "artifact_id": reference["artifact_id"],
+                    "timestamp_ms": timestamp_ms,
+                    "block_index": index * 2 - 1,
+                    "reason": "故意指向错误的正文位置",
+                }
+                for index, (reference, timestamp_ms) in enumerate(frames, start=1)
+            ],
+        },
+        render=False,
+    )
+    assert wrong_placement["validation"]["valid"] is False
+    assert any(
+        "does not point to its document image block" in error
+        for error in wrong_placement["validation"]["errors"]
+    )
+
+    invalid = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "缺少视觉计划的稿件",
+            "summary": "该稿件故意缺少契约字段。",
+            "source": {
+                "title": "测试视频",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1fidelity",
+            },
+            "blocks": blocks[:2],
+        },
+        audit={"status": "passed", "reviewed_by": "agent"},
+        render=False,
+    )
+    assert invalid["validation"]["valid"] is False
+    assert any(
+        "source_faithful_full" in error
+        or "minimum_source_frames" in error
+        or "material_sections" in error
+        for error in invalid["validation"]["errors"]
+    )
+
+    scout_path = tmp_path / "static-source-contact-sheet.png"
+    scout_path.write_bytes(b"static-contact-sheet")
+    scout = store.put_artifact(
+        job["job_id"], kind="ocr_scout_contact_sheet", source_path=scout_path
+    )
+    static_source = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document={
+            "schema_version": "video-content/wechat-manuscript-v1",
+            "title": "静态播客画面",
+            "summary": "来源经侦察确认没有可用于正文的实质画面变化。",
+            "source": {
+                "title": "静态播客",
+                "creator": "测试作者",
+                "canonical_url": "https://www.bilibili.com/video/BV1fidelity",
+            },
+            "blocks": [
+                {
+                    "type": "image",
+                    "artifact_id": cover["artifact_id"],
+                    "source_kind": "video_cover",
+                },
+                {"type": "paragraph", "text": "正文仍保留完整讨论。"},
+            ],
+        },
+        audit={
+            "status": "passed",
+            "reviewed_by": "agent",
+            "adaptation_mode": "source_faithful_full",
+            "visual_policy": "source_frames_at_material_transitions",
+            "material_sections": {
+                "total": 1,
+                "preserved": 1,
+                "items": [
+                    {
+                        "section_id": "section-1",
+                        "label": "完整讨论",
+                        "source_cue_indices": [0],
+                        "output_block_indices": [1],
+                        "status": "preserved",
+                    }
+                ],
+            },
+            "omissions": [],
+            "visual_plan": [],
+            "visual_exception": {
+                "approved": True,
+                "reason": "Source scout proved a static podcast cover with no material visual transitions.",
+                "evidence_artifact_ids": [scout["artifact_id"]],
+            },
+        },
+        render=False,
+    )
+    assert static_source["validation"]["valid"] is True

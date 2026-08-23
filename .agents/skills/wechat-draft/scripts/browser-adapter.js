@@ -1,5 +1,5 @@
 export const ADAPTER_ID = 'video-content/wechat-browser-adapter'
-export const ADAPTER_VERSION = '1'
+export const ADAPTER_VERSION = '2'
 
 const WECHAT_IMAGE_HOSTS = new Set(['mmbiz.qpic.cn', 'mmbiz.qlogo.cn'])
 
@@ -40,6 +40,19 @@ export function summarizeBodyImages(items, intended, localPathMarkersRemaining =
   }
 }
 
+export function summarizeCreationSource(items, expectedLabel = '内容由AI生成') {
+  const candidates = items.filter(item =>
+    item.visible === true && String(item.label || '').includes(expectedLabel)
+  )
+  const selected = candidates.filter(item => item.selected === true)
+  return {
+    type: 'ai_generated',
+    declared: candidates.length === 1 && selected.length === 1,
+    visible_candidates: candidates.length,
+    selected_candidates: selected.length,
+  }
+}
+
 export function collectWechatEditorState(options = {}) {
   const documentObject = options.document || globalThis.document
   const locationValue = options.locationHref || globalThis.location?.href || ''
@@ -73,6 +86,25 @@ export function collectWechatEditorState(options = {}) {
       summary: visibleFieldValue(documentObject, options.summarySelector || 'textarea[name="digest"], #js_description'),
       author: visibleFieldValue(documentObject, options.authorSelector || '#author, input[name="author"]'),
     },
+    ...(options.creationSourceSelector ? {
+      creation_source: summarizeCreationSource(
+        [...documentObject.querySelectorAll(options.creationSourceSelector)].map(creationSourceDescriptor),
+        options.creationSourceLabel || '内容由AI生成',
+      ),
+    } : {}),
+  }
+}
+
+function creationSourceDescriptor(element) {
+  const control = element.matches?.('input, [role="checkbox"], [role="radio"], [role="option"]')
+    ? element
+    : element.querySelector?.('input, [role="checkbox"], [role="radio"], [role="option"]') || element
+  const ariaChecked = control.getAttribute?.('aria-checked')
+  const ariaSelected = control.getAttribute?.('aria-selected')
+  return {
+    visible: isVisible(element),
+    label: element.innerText || element.textContent || element.getAttribute?.('aria-label') || '',
+    selected: control.checked === true || control.selected === true || ariaChecked === 'true' || ariaSelected === 'true',
   }
 }
 

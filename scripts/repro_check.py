@@ -243,6 +243,21 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
+    frames: list[tuple[dict[str, Any], int]] = []
+    for index, timestamp_ms in enumerate((10000, 20000, 30000), start=1):
+        frame_path = root / f"frame-{index}.png"
+        frame_path.write_bytes(f"fixture-frame-{index}".encode())
+        frames.append(
+            (
+                store.put_artifact(
+                    job["job_id"],
+                    kind="video_frame",
+                    source_path=frame_path,
+                    metadata={"timestamp_ms": timestamp_ms},
+                ),
+                timestamp_ms,
+            )
+        )
     content_document = {
         "schema_version": "video-content/wechat-manuscript-v1",
         "title": "可复现视频内容文章",
@@ -258,10 +273,51 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
                 "artifact_id": cover["artifact_id"],
                 "source_kind": "video_cover",
             },
-            {"type": "paragraph", "text": "可复现内容"},
+            *[
+                block
+                for index, (reference, timestamp_ms) in enumerate(frames, start=1)
+                for block in (
+                    {"type": "paragraph", "text": f"可复现实质章节 {index}"},
+                    {
+                        "type": "image",
+                        "artifact_id": reference["artifact_id"],
+                        "source_kind": "video_frame",
+                        "timestamp_ms": timestamp_ms,
+                    },
+                )
+            ],
         ],
     }
-    content_audit = {"status": "passed", "reviewed_by": "repro"}
+    content_audit = {
+        "status": "passed",
+        "reviewed_by": "repro",
+        "adaptation_mode": "source_faithful_full",
+        "visual_policy": "source_frames_at_material_transitions",
+        "material_sections": {
+            "total": 3,
+            "preserved": 3,
+            "items": [
+                {
+                    "section_id": f"section-{index}",
+                    "label": f"可复现实质章节 {index}",
+                    "source_cue_indices": [0],
+                    "output_block_indices": [index * 2 - 1, index * 2],
+                    "status": "preserved",
+                }
+                for index in range(1, 4)
+            ],
+        },
+        "omissions": [],
+        "visual_plan": [
+            {
+                "artifact_id": reference["artifact_id"],
+                "timestamp_ms": timestamp_ms,
+                "block_index": index * 2,
+                "reason": "authorized fixture material transition",
+            }
+            for index, (reference, timestamp_ms) in enumerate(frames, start=1)
+        ],
+    }
     content_result = content_save(
         store,
         job_id=job["job_id"],
@@ -279,14 +335,14 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         save_draft=True,
     )
     observation = {
-        "schema_version": "video-content/wechat-editor-observation-v1",
+        "schema_version": "video-content/wechat-editor-observation-v2",
         "started_at": "2026-08-17T00:01:00Z",
         "saved_at": "2026-08-17T00:02:00Z",
         "title": "可复现视频内容文章",
         "content_sha256": prepared["content_sha256"],
         "draft_identity": {"appmsgid": "100000001"},
         "body_images": {
-            "intended": 1,
+            "intended": 4,
             "items": [
                 {
                     "visible": True,
@@ -296,6 +352,7 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
                     "height": 100,
                     "host_class": "wechat",
                 }
+                for _ in range(4)
             ],
             "local_path_markers_remaining": 0,
         },
@@ -307,6 +364,11 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
             "performed": True,
             "same_draft": True,
             "content_present": True,
+        },
+        "creation_source": {
+            "declared": True,
+            "type": "ai_generated",
+            "read_back": True,
         },
         "published": False,
     }

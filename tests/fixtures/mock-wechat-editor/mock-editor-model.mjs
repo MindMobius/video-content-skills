@@ -9,6 +9,8 @@ export function createEditorState() {
     body_html: '',
     body_images: [],
     cover: null,
+    required_creation_source: null,
+    creation_source: { type: 'ai_generated', declared: false },
     appmsgid: null,
     save_history: [],
     saved: false,
@@ -25,6 +27,7 @@ export function pasteArticle(state, article) {
     title: article.title,
     summary: article.summary || '',
     body_html: article.body_html,
+    required_creation_source: article.required_creation_source || null,
     body_images: Array.from({ length: imageCount }, (_, index) => ({
       index: index + 1,
       visible: true,
@@ -52,9 +55,19 @@ export function selectCover(state, imageIndex = 1) {
   }
 }
 
+export function declareAiGenerated(state) {
+  return {
+    ...state,
+    creation_source: { type: 'ai_generated', declared: true },
+  }
+}
+
 export function saveDraft(state, timestamp = '2026-01-01T00:00:00Z') {
   if (!state.title || !state.body_html || !state.cover) {
     throw new Error('Title, body, and cover are required before saving')
+  }
+  if (state.required_creation_source === 'ai_generated' && state.creation_source.declared !== true) {
+    throw new Error('AI-generated creation source must be declared before saving')
   }
   const nextHistory = [...state.save_history, `${timestamp} manual_save`]
   return {

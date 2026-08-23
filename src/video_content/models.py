@@ -141,6 +141,7 @@ class DraftReceipt:
     platform: str
     draft_identity: dict[str, Any]
     observation: dict[str, Any]
+    supersedes_receipt_id: str | None = None
     published: bool = False
     saved_at: str = ""
     receipt_id: str = ""

@@ -282,6 +282,7 @@ def wechat_prepare(
     authorized: bool,
     save_draft: bool,
     copy_to_clipboard: bool = False,
+    replace_existing_draft: bool = False,
 ) -> dict[str, Any]:
     return prepare_wechat(
         Store.from_environment(home),
@@ -290,6 +291,7 @@ def wechat_prepare(
         authorized=authorized,
         save_draft=save_draft,
         copy_to_clipboard=copy_to_clipboard,
+        replace_existing_draft=replace_existing_draft,
     )
 
 
@@ -299,12 +301,14 @@ def wechat_bind(
     observation: dict[str, Any],
     *,
     home: str | None = None,
+    supersedes_receipt_id: str | None = None,
 ) -> dict[str, Any]:
     return bind_wechat(
         Store.from_environment(home),
         job_id=job_id,
         content_id=content_id,
         observation=observation,
+        supersedes_receipt_id=supersedes_receipt_id,
     )
 
 

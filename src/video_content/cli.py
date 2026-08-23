@@ -120,10 +120,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--authorized", action="store_true")
     prepare.add_argument("--save-draft", action="store_true")
     prepare.add_argument("--copy-to-clipboard", action="store_true")
+    prepare.add_argument("--replace-existing-draft", action="store_true")
     bind = wechat_actions.add_parser("bind")
     bind.add_argument("job_id")
     bind.add_argument("content_id")
     bind.add_argument("observation", type=Path)
+    bind.add_argument("--supersedes-receipt-id")
     return parser
 
 
@@ -213,12 +215,14 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             authorized=args.authorized,
             save_draft=args.save_draft,
             copy_to_clipboard=args.copy_to_clipboard,
+            replace_existing_draft=args.replace_existing_draft,
         )
     return api.wechat_bind(
         args.job_id,
         args.content_id,
         _json_file(args.observation),
         **common,
+        supersedes_receipt_id=args.supersedes_receipt_id,
     )
 
 

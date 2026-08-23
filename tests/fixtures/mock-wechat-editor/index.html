@@ -24,22 +24,24 @@ pre { overflow: auto; padding: 14px; background: #f5f6f5; color: #454b50; font-s
 <div class="actions">
   <button id="load" type="button">载入测试正文</button>
   <button id="cover" type="button">从正文选择封面</button>
+  <button id="creation-source" type="button">选择内容由AI生成</button>
   <button id="save" type="button">保存草稿</button>
 </div>
 <pre id="readback"></pre>
 </main>
 <script type="module">
-import { createEditorState, pasteArticle, readBack, saveDraft, selectCover } from './mock-editor-model.mjs'
+import { createEditorState, declareAiGenerated, pasteArticle, readBack, saveDraft, selectCover } from './mock-editor-model.mjs'
 let state = createEditorState()
 const show = () => { document.getElementById('readback').textContent = JSON.stringify(readBack(state), null, 2) }
 document.getElementById('load').addEventListener('click', () => {
-  state = pasteArticle(state, { title: '验收文章', summary: '本地确定性摘要', body_html: '<p>正文</p>', image_count: 1 })
+  state = pasteArticle(state, { title: '验收文章', summary: '本地确定性摘要', body_html: '<p>正文</p>', image_count: 1, required_creation_source: 'ai_generated' })
   document.getElementById('title').value = state.title
   document.getElementById('summary').value = state.summary
   document.getElementById('editor').innerHTML = state.body_html
   show()
 })
 document.getElementById('cover').addEventListener('click', () => { state = selectCover(state, 1); show() })
+document.getElementById('creation-source').addEventListener('click', () => { state = declareAiGenerated(state); show() })
 document.getElementById('save').addEventListener('click', () => { state = saveDraft(state); show() })
 window.mockWechatEditor = { getState: () => readBack(state) }
 show()

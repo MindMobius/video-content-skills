@@ -13,7 +13,9 @@ from .store import Store
 from .util import reject_secrets, sha256_bytes, utc_now
 from .wechat_adapter import prepare_wechat_clipboard
 
-OBSERVATION_SCHEMA = "video-content/wechat-editor-observation-v1"
+OBSERVATION_SCHEMA_V1 = "video-content/wechat-editor-observation-v1"
+OBSERVATION_SCHEMA_V2 = "video-content/wechat-editor-observation-v2"
+OBSERVATION_SCHEMAS = {OBSERVATION_SCHEMA_V1, OBSERVATION_SCHEMA_V2}
 
 
 def wechat_prepare(
@@ -24,6 +26,7 @@ def wechat_prepare(
     authorized: bool,
     save_draft: bool,
     copy_to_clipboard: bool = False,
+    replace_existing_draft: bool = False,
 ) -> dict[str, Any]:
     if authorized is not True or save_draft is not True:
         raise PermissionError(
@@ -35,8 +38,27 @@ def wechat_prepare(
     validation = content_validate(store, job_id=job_id, content_id=content_id)
     if validation["valid"] is not True:
         raise ValueError("WeChat handoff requires validated content")
-    if store.list_artifacts(job_id, kind="draft_receipt"):
-        raise ValueError("This job already has a validated WeChat draft receipt")
+
+    receipts = _receipt_documents(store, job_id)
+    if replace_existing_draft:
+        active = _active_draft_receipts(store, job_id, receipts)
+        if len(active) != 1:
+            raise ValueError(
+                "Draft replacement requires exactly one current validated receipt"
+            )
+        previous = active[0]
+        if previous.get("content_id") == content_id:
+            raise ValueError("Draft replacement requires a revised Content object")
+        draft_target = {
+            "mode": "replace_existing",
+            "appmsgid": previous["draft_identity"]["appmsgid"],
+            "supersedes_receipt_id": previous["receipt_id"],
+        }
+    else:
+        if receipts:
+            raise ValueError("This job already has a validated WeChat draft receipt")
+        draft_target = {"mode": "create_new"}
+
     package_dir = _materialize_render_package(store, job_id, content)
     transport = prepare_wechat_clipboard(package_dir, copy=copy_to_clipboard)
     content_reference = _product_reference(
@@ -45,6 +67,7 @@ def wechat_prepare(
     current = store.get_job(job_id)
     if current["stage"] == "content":
         current = update_job(store, job_id, stage="handoff", status="running")
+    required_creation_source = _required_creation_source(store, job_id)
     return {
         "schema_version": "video-content/wechat-handoff-v1",
         "job_id": job_id,
@@ -55,6 +78,12 @@ def wechat_prepare(
         "intended_images": transport["marker_count"],
         "clipboard": transport,
         "authorization": {"save_draft": True, "publish": False},
+        "required_declarations": (
+            {"creation_source": required_creation_source}
+            if required_creation_source
+            else {}
+        ),
+        "draft_target": draft_target,
         "job": current,
     }
 
@@ -65,9 +94,23 @@ def wechat_bind(
     job_id: str,
     content_id: str,
     observation: dict[str, Any],
+    supersedes_receipt_id: str | None = None,
 ) -> dict[str, Any]:
-    if store.list_artifacts(job_id, kind="draft_receipt"):
-        raise ValueError("This job already has a validated WeChat draft receipt")
+    receipts = _receipt_documents(store, job_id)
+    previous: dict[str, Any] | None = None
+    if supersedes_receipt_id is None:
+        if receipts:
+            raise ValueError("This job already has a validated WeChat draft receipt")
+    else:
+        active = _active_draft_receipts(store, job_id, receipts)
+        if len(active) != 1 or active[0].get("receipt_id") != supersedes_receipt_id:
+            raise ValueError(
+                "Draft revision must supersede the current validated Draft Receipt"
+            )
+        previous = active[0]
+        if previous.get("content_id") == content_id:
+            raise ValueError("Draft revision requires a revised Content object")
+
     content = get_content(store, job_id, content_id)
     validation = content_validate(store, job_id=job_id, content_id=content_id)
     if validation["valid"] is not True:
@@ -79,8 +122,11 @@ def wechat_bind(
         observation,
         expected_title=str(content.get("document", {}).get("title") or ""),
         expected_content_sha256=content_reference["sha256"],
+        required_creation_source=_required_creation_source(store, job_id),
     )
     appmsgid = normalized["draft_identity"]["appmsgid"]
+    if previous is not None and appmsgid != previous["draft_identity"]["appmsgid"]:
+        raise ValueError("Draft revision must read back the same appmsgid")
     receipt_id = _receipt_id(content_id, appmsgid)
     receipt = DraftReceipt(
         receipt_id=receipt_id,
@@ -94,6 +140,7 @@ def wechat_bind(
             "refresh_read_back": True,
         },
         observation=normalized,
+        supersedes_receipt_id=supersedes_receipt_id,
         published=False,
         saved_at=normalized["saved_at"],
         schema_version=DRAFT_RECEIPT_SCHEMA,
@@ -121,11 +168,16 @@ def wechat_bind(
 
 
 def validate_editor_observation(
-    observation: dict[str, Any], *, expected_title: str, expected_content_sha256: str
+    observation: dict[str, Any],
+    *,
+    expected_title: str,
+    expected_content_sha256: str,
+    required_creation_source: str | None = None,
 ) -> dict[str, Any]:
     if not isinstance(observation, dict):
         raise TypeError("WeChat editor observation must be an object")
-    if observation.get("schema_version") != OBSERVATION_SCHEMA:
+    schema_version = observation.get("schema_version")
+    if schema_version not in OBSERVATION_SCHEMAS:
         raise ValueError("Unsupported WeChat editor observation schema")
     reject_secrets(observation)
     required = {
@@ -176,6 +228,29 @@ def validate_editor_observation(
         raise ValueError("WeChat draft cover is not confirmed")
     if observation.get("summary", {}).get("filled") is not True:
         raise ValueError("WeChat draft summary is not filled")
+
+    if required_creation_source and schema_version != OBSERVATION_SCHEMA_V2:
+        raise ValueError(
+            "AI creation source requires video-content/wechat-editor-observation-v2"
+        )
+    if schema_version == OBSERVATION_SCHEMA_V2:
+        creation_source = observation.get("creation_source")
+        if not isinstance(creation_source, dict):
+            raise ValueError("WeChat creation source declaration is missing")
+        if (
+            creation_source.get("declared") is not True
+            or creation_source.get("type") != "ai_generated"
+            or creation_source.get("read_back") is not True
+        ):
+            raise ValueError(
+                "WeChat creation source must declare and read back AI-generated content"
+            )
+        if (
+            required_creation_source is not None
+            and creation_source.get("type") != required_creation_source
+        ):
+            raise ValueError("WeChat creation source does not match the Profile")
+
     save = observation["save"]
     if save.get("saved") is not True or save.get("mode") != "draft":
         raise ValueError("WeChat editor did not confirm a draft save")
@@ -217,6 +292,43 @@ def validate_draft_receipt(
             errors.append("Draft receipt Content hash mismatch")
     except (FileNotFoundError, ValueError) as error:
         errors.append(str(error))
+
+    receipts = _receipt_documents(store, job_id)
+    successors = [
+        item for item in receipts if item.get("supersedes_receipt_id") == receipt_id
+    ]
+    if successors:
+        errors.append("Draft receipt has been superseded by a later revision")
+    if len(successors) > 1:
+        errors.append("Draft receipt has multiple successor revisions")
+    superseded_ids = {
+        str(item.get("supersedes_receipt_id"))
+        for item in receipts
+        if item.get("supersedes_receipt_id")
+    }
+    active = [
+        item
+        for item in receipts
+        if str(item.get("receipt_id") or "") not in superseded_ids
+    ]
+    if receipt_id not in superseded_ids and len(active) != 1:
+        errors.append("Job does not have exactly one current Draft Receipt")
+
+    predecessor_id = receipt.get("supersedes_receipt_id")
+    if predecessor_id:
+        predecessors = [
+            item for item in receipts if item.get("receipt_id") == predecessor_id
+        ]
+        if len(predecessors) != 1:
+            errors.append("Superseded Draft Receipt does not exist uniquely")
+        else:
+            predecessor = predecessors[0]
+            if predecessor.get("content_id") == receipt.get("content_id"):
+                errors.append("Draft revision did not bind revised Content")
+            if predecessor.get("draft_identity", {}).get("appmsgid") != receipt.get(
+                "draft_identity", {}
+            ).get("appmsgid"):
+                errors.append("Draft revision changed appmsgid")
     try:
         reject_secrets(receipt)
     except ValueError as error:
@@ -228,6 +340,54 @@ def validate_draft_receipt(
         "errors": errors,
         "checked_at": utc_now(),
     }
+
+
+def _receipt_documents(store: Store, job_id: str) -> list[dict[str, Any]]:
+    documents: list[dict[str, Any]] = []
+    for reference in store.list_artifacts(job_id, kind="draft_receipt"):
+        documents.append(store.read_json_artifact(job_id, reference["artifact_id"]))
+    return documents
+
+
+def _active_draft_receipts(
+    store: Store, job_id: str, receipts: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    selected = list(
+        receipts if receipts is not None else _receipt_documents(store, job_id)
+    )
+    superseded_ids = {
+        str(item.get("supersedes_receipt_id"))
+        for item in selected
+        if item.get("supersedes_receipt_id")
+    }
+    candidates = [
+        item
+        for item in selected
+        if str(item.get("receipt_id") or "") not in superseded_ids
+    ]
+    return [
+        item
+        for item in candidates
+        if validate_draft_receipt(
+            store, job_id=job_id, receipt_id=str(item.get("receipt_id") or "")
+        )["valid"]
+        is True
+    ]
+
+
+def _required_creation_source(store: Store, job_id: str) -> str | None:
+    job = store.get_job(job_id)
+    profile_id = str(job.get("profile_id") or "").strip()
+    if not profile_id:
+        return None
+    value = (
+        store.get_profile(profile_id).get("settings", {}).get("wechat_creation_source")
+    )
+    if value in {None, ""}:
+        return None
+    if value != "ai_generated":
+        raise ValueError(f"Unsupported WeChat creation source requirement: {value!r}")
+    return str(value)
 
 
 def _materialize_render_package(

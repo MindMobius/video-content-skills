@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   createEditorState,
+  declareAiGenerated,
   pasteArticle,
   readBack,
   saveDraft,
@@ -16,8 +17,11 @@ test('mock editor covers paste, image ingestion, cover, save, and read-back', ()
     summary: '验收摘要',
     body_html: '<p>正文</p>',
     image_count: 2,
+    required_creation_source: 'ai_generated',
   })
   state = selectCover(state, 1)
+  assert.throws(() => saveDraft(state), /creation source/)
+  state = declareAiGenerated(state)
   state = saveDraft(state, '2026-08-16T08:00:00Z')
   const readback = readBack(state)
 
@@ -27,6 +31,7 @@ test('mock editor covers paste, image ingestion, cover, save, and read-back', ()
   assert.equal(readback.cover.wechat_hosted_preview, true)
   assert.equal(readback.appmsgid, '100000001')
   assert.equal(readback.save_history.length, 1)
+  assert.equal(readback.creation_source.declared, true)
   assert.equal(readback.saved, true)
   assert.equal(readback.published, false)
 })

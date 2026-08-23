@@ -3,16 +3,52 @@
   "$id": "video-content/draft-receipt-v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "receipt_id", "job_id", "content_id", "platform", "draft_identity", "observation", "published", "saved_at"],
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "job_id",
+    "content_id",
+    "platform",
+    "draft_identity",
+    "observation",
+    "published",
+    "saved_at"
+  ],
   "properties": {
-    "schema_version": {"const": "video-content/draft-receipt-v1"},
-    "receipt_id": {"type": "string", "minLength": 1},
-    "job_id": {"type": "string", "minLength": 1},
-    "content_id": {"type": "string", "minLength": 1},
-    "platform": {"const": "wechat_official_account"},
-    "draft_identity": {"type": "object"},
-    "observation": {"type": "object"},
-    "published": {"const": false},
-    "saved_at": {"type": "string", "minLength": 1}
+    "schema_version": {
+      "const": "video-content/draft-receipt-v1"
+    },
+    "receipt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "const": "wechat_official_account"
+    },
+    "draft_identity": {
+      "type": "object"
+    },
+    "observation": {
+      "type": "object"
+    },
+    "supersedes_receipt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "published": {
+      "const": false
+    },
+    "saved_at": {
+      "type": "string",
+      "minLength": 1
+    }
   }
 }

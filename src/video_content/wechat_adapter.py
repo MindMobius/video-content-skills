@@ -17,8 +17,8 @@ from urllib.parse import parse_qs, urlparse
 from .wechat_renderer import safe_asset_path
 
 WECHAT_BROWSER_ADAPTER_ID = "video-content/wechat-browser-adapter"
-WECHAT_BROWSER_ADAPTER_VERSION = "1"
-OBSERVATION_VERSION = "video-content/wechat-editor-observation-v1"
+WECHAT_BROWSER_ADAPTER_VERSION = "2"
+OBSERVATION_VERSION = "video-content/wechat-editor-observation-v2"
 VOID_TAGS = frozenset(
     {
         "area",

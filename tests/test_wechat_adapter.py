@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+import jsonschema
 
 from video_content import wechat_adapter
 
@@ -52,3 +55,37 @@ def test_appmsgid_parser_never_returns_url_tokens() -> None:
     value = "https://mp.weixin.qq.com/cgi-bin/appmsg?action=edit&appmsgid=100000721&token=secret"
     assert wechat_adapter.parse_appmsgid(value) == "100000721"
     assert wechat_adapter.parse_appmsgid("not-an-id") is None
+
+
+def test_browser_snapshot_contract_records_visible_ai_creation_source() -> None:
+    schema = json.loads(
+        Path("schemas/wechat-browser-snapshot.schema.json").read_text(encoding="utf-8")
+    )
+    snapshot = {
+        "schema_version": "video-content/wechat-browser-snapshot-v1",
+        "adapter": {
+            "id": "video-content/wechat-browser-adapter",
+            "version": wechat_adapter.WECHAT_BROWSER_ADAPTER_VERSION,
+        },
+        "ready": True,
+        "appmsgid": "100000721",
+        "body_images": {
+            "intended": 0,
+            "items": [],
+            "local_path_markers_remaining": 0,
+        },
+        "fields": {
+            "title": {"value": "测试标题", "visible_candidates": 1},
+            "summary": {"value": "测试摘要", "visible_candidates": 1},
+            "author": {"value": "", "visible_candidates": 1},
+        },
+        "creation_source": {
+            "type": "ai_generated",
+            "declared": True,
+            "visible_candidates": 1,
+            "selected_candidates": 1,
+        },
+    }
+
+    assert wechat_adapter.WECHAT_BROWSER_ADAPTER_VERSION == "2"
+    jsonschema.validate(snapshot, schema)

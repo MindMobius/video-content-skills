@@ -40,6 +40,10 @@ def save_watch_later_profile(
             "max_retries": 3,
             "gpu_parallelism": 1,
             "publish": False,
+            "adaptation_mode": "source_faithful_full",
+            "visual_policy": "source_frames_at_material_transitions",
+            "minimum_source_frames": 3,
+            "wechat_creation_source": "ai_generated",
             **(settings or {}),
         },
         enabled=enabled,
@@ -48,6 +52,21 @@ def save_watch_later_profile(
         raise ValueError("OCR and ASR must share the GPU serially")
     if profile.settings.get("publish") is not False:
         raise ValueError("Watch Later automation may save drafts but never publish")
+    if profile.settings.get("adaptation_mode") != "source_faithful_full":
+        raise ValueError("Watch Later content must use source_faithful_full adaptation")
+    if profile.settings.get("visual_policy") != "source_frames_at_material_transitions":
+        raise ValueError(
+            "Watch Later content must use source frames at material transitions"
+        )
+    minimum_source_frames = profile.settings.get("minimum_source_frames")
+    if (
+        not isinstance(minimum_source_frames, int)
+        or isinstance(minimum_source_frames, bool)
+        or minimum_source_frames < 1
+    ):
+        raise ValueError("minimum_source_frames must be a positive integer")
+    if profile.settings.get("wechat_creation_source") != "ai_generated":
+        raise ValueError("Watch Later WeChat drafts must declare AI-generated content")
     return store.save_profile(profile)
 
 

@@ -137,6 +137,20 @@ def test_empty_profile_can_initialize_baseline_without_backfill(tmp_path: Path) 
 
 def test_profile_enforces_no_publish_and_serial_gpu(tmp_path: Path) -> None:
     store = Store(tmp_path)
+    profile = save_watch_later_profile(
+        store,
+        profile_id="daily",
+        account_profile_alias="j6g376bb",
+    )
+    assert profile["settings"] == {
+        "max_retries": 3,
+        "gpu_parallelism": 1,
+        "publish": False,
+        "adaptation_mode": "source_faithful_full",
+        "visual_policy": "source_frames_at_material_transitions",
+        "minimum_source_frames": 3,
+        "wechat_creation_source": "ai_generated",
+    }
     with pytest.raises(ValueError, match="never publish"):
         save_watch_later_profile(
             store,

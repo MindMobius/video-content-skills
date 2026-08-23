@@ -1,55 +1,248 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "video-content/wechat-editor-observation-v1",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema_version", "started_at", "saved_at", "title", "content_sha256",
-    "draft_identity", "body_images", "cover", "summary", "content_checks",
-    "save", "refresh_readback", "published"
-  ],
-  "properties": {
-    "schema_version": {"const": "video-content/wechat-editor-observation-v1"},
-    "started_at": {"type": "string", "minLength": 1},
-    "saved_at": {"type": "string", "minLength": 1},
-    "title": {"type": "string", "minLength": 1},
-    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "draft_identity": {
+  "$id": "video-content/wechat-editor-observation",
+  "$defs": {
+    "common": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["appmsgid"],
-      "properties": {"appmsgid": {"type": "string", "pattern": "^[0-9]+$"}}
-    },
-    "body_images": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["intended", "items", "local_path_markers_remaining"],
+      "required": [
+        "started_at",
+        "saved_at",
+        "title",
+        "content_sha256",
+        "draft_identity",
+        "body_images",
+        "cover",
+        "summary",
+        "content_checks",
+        "save",
+        "refresh_readback",
+        "published"
+      ],
       "properties": {
-        "intended": {"type": "integer", "minimum": 0},
-        "local_path_markers_remaining": {"type": "integer", "minimum": 0},
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["visible", "complete", "natural_width", "width", "height", "host_class"],
-            "properties": {
-              "visible": {"type": "boolean"},
-              "complete": {"type": "boolean"},
-              "natural_width": {"type": "number", "minimum": 0},
-              "width": {"type": "number", "minimum": 0},
-              "height": {"type": "number", "minimum": 0},
-              "host_class": {"enum": ["wechat", "other", "unknown"]}
+        "schema_version": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "saved_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "draft_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "appmsgid"
+          ],
+          "properties": {
+            "appmsgid": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
             }
           }
+        },
+        "body_images": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "intended",
+            "items",
+            "local_path_markers_remaining"
+          ],
+          "properties": {
+            "intended": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "local_path_markers_remaining": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "visible",
+                  "complete",
+                  "natural_width",
+                  "width",
+                  "height",
+                  "host_class"
+                ],
+                "properties": {
+                  "visible": {
+                    "type": "boolean"
+                  },
+                  "complete": {
+                    "type": "boolean"
+                  },
+                  "natural_width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "width": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "height": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "host_class": {
+                    "enum": [
+                      "wechat",
+                      "other",
+                      "unknown"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "cover": {
+          "type": "object",
+          "required": [
+            "selected"
+          ],
+          "properties": {
+            "selected": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "filled"
+          ],
+          "properties": {
+            "filled": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "content_checks": {
+          "type": "object"
+        },
+        "save": {
+          "type": "object",
+          "required": [
+            "saved",
+            "mode"
+          ],
+          "properties": {
+            "saved": {
+              "type": "boolean"
+            },
+            "mode": {
+              "const": "draft"
+            }
+          },
+          "additionalProperties": true
+        },
+        "refresh_readback": {
+          "type": "object",
+          "required": [
+            "performed",
+            "same_draft",
+            "content_present"
+          ],
+          "properties": {
+            "performed": {
+              "type": "boolean"
+            },
+            "same_draft": {
+              "type": "boolean"
+            },
+            "content_present": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "published": {
+          "const": false
         }
       }
     },
-    "cover": {"type": "object", "required": ["selected"], "properties": {"selected": {"type": "boolean"}}, "additionalProperties": true},
-    "summary": {"type": "object", "required": ["filled"], "properties": {"filled": {"type": "boolean"}}, "additionalProperties": true},
-    "content_checks": {"type": "object"},
-    "save": {"type": "object", "required": ["saved", "mode"], "properties": {"saved": {"type": "boolean"}, "mode": {"const": "draft"}}, "additionalProperties": true},
-    "refresh_readback": {"type": "object", "required": ["performed", "same_draft", "content_present"], "properties": {"performed": {"type": "boolean"}, "same_draft": {"type": "boolean"}, "content_present": {"type": "boolean"}}, "additionalProperties": false},
-    "published": {"const": false}
-  }
+    "creation_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared",
+        "type",
+        "read_back"
+      ],
+      "properties": {
+        "declared": {
+          "const": true
+        },
+        "type": {
+          "const": "ai_generated"
+        },
+        "read_back": {
+          "const": true
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/common"
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "video-content/wechat-editor-observation-v1"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/common"
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "creation_source"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "video-content/wechat-editor-observation-v2"
+            },
+            "creation_source": {
+              "$ref": "#/$defs/creation_source"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  ]
 }

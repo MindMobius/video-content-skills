@@ -215,6 +215,7 @@ def wechat_prepare(
     save_draft: bool,
     home: str | None = None,
     copy_to_clipboard: bool = False,
+    replace_existing_draft: bool = False,
 ) -> dict[str, Any]:
     return api.wechat_prepare(
         job_id,
@@ -223,13 +224,24 @@ def wechat_prepare(
         authorized=authorized,
         save_draft=save_draft,
         copy_to_clipboard=copy_to_clipboard,
+        replace_existing_draft=replace_existing_draft,
     )
 
 
 def wechat_bind(
-    job_id: str, content_id: str, observation: dict[str, Any], home: str | None = None
+    job_id: str,
+    content_id: str,
+    observation: dict[str, Any],
+    home: str | None = None,
+    supersedes_receipt_id: str | None = None,
 ) -> dict[str, Any]:
-    return api.wechat_bind(job_id, content_id, observation, home=home)
+    return api.wechat_bind(
+        job_id,
+        content_id,
+        observation,
+        home=home,
+        supersedes_receipt_id=supersedes_receipt_id,
+    )
 
 
 if McpServer is not None:
@@ -239,7 +251,7 @@ if McpServer is not None:
         instructions=(
             "Use source and evidence tools first. Preserve platform, OCR, ASR, and Agent-reviewed evidence independently. "
             "Save a Transcript before Content. Watch Later scans are one-shot and idempotent; the caller owns recurrence. "
-            "WeChat tools require explicit draft authorization, validate refresh readback, and never publish."
+            "WeChat tools require explicit draft authorization, enforce required AI creation-source readback, support only same-appmsgid revisions, and never publish."
         ),
     )
     for _name in TOOL_NAMES:
