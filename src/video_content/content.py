@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,12 @@ from .wechat_renderer import MANUSCRIPT_VERSION, render_wechat_package
 
 _ALLOWED_MEDIA_SOURCES = {"video_cover", "video_frame"}
 _APPROVED_AUDIT_STATES = {"passed", "approved"}
+_RAW_TRANSCRIPT_MIN_BODY_CHARS = 500
+_RAW_TRANSCRIPT_SHINGLE_SIZE = 12
+_RAW_TRANSCRIPT_MIN_OVERLAP = 0.90
+_RAW_TRANSCRIPT_MAX_PUNCTUATION_PER_100 = 4.0
+_RAW_TRANSCRIPT_MIN_MAX_CLAUSE = 60
+_WRITTEN_BLOCK_TYPES = {"paragraph", "lead", "key_point", "quote"}
 
 
 def _store_content_render_asset(
@@ -271,6 +278,7 @@ def _profile_content_contract_errors(
         str(content.get("transcript_id") or ""),
     )
     cue_count = len(list((transcript or {}).get("cues") or []))
+    errors.extend(_written_adaptation_errors(document, transcript))
 
     sections = audit.get("material_sections")
     if not isinstance(sections, dict):
@@ -444,6 +452,91 @@ def _profile_content_contract_errors(
                 f"visual_plan timestamp does not match media for {artifact_id}"
             )
     return errors
+
+
+def _written_adaptation_errors(
+    document: dict[str, Any], transcript: dict[str, Any] | None
+) -> list[str]:
+    """Reject only the high-confidence shape of mechanically pasted cues.
+
+    This is a handoff safety check, not a style score: source wording may remain
+    highly similar when the source itself already has publication-ready sentences.
+    """
+    if not isinstance(transcript, dict):
+        return []
+    body_text = _written_body_text(document)
+    source_text = "".join(
+        str(cue.get("text") or "")
+        for cue in list(transcript.get("cues") or [])
+        if isinstance(cue, dict)
+    )
+    normalized_body = _normalize_written_text(body_text)
+    normalized_source = _normalize_written_text(source_text)
+    if (
+        len(normalized_body) < _RAW_TRANSCRIPT_MIN_BODY_CHARS
+        or len(normalized_source) < _RAW_TRANSCRIPT_MIN_BODY_CHARS
+    ):
+        return []
+
+    overlap = _shingle_coverage(
+        normalized_body,
+        normalized_source,
+        size=_RAW_TRANSCRIPT_SHINGLE_SIZE,
+    )
+    punctuation_count = sum(body_text.count(char) for char in "，。！？；：,.!?;:")
+    punctuation_per_100 = punctuation_count * 100 / len(normalized_body)
+    clauses = [
+        _normalize_written_text(value)
+        for value in re.split(r"[，。！？；：,.!?;:\n]+", body_text)
+    ]
+    max_clause = max((len(value) for value in clauses), default=0)
+    if (
+        overlap >= _RAW_TRANSCRIPT_MIN_OVERLAP
+        and punctuation_per_100 < _RAW_TRANSCRIPT_MAX_PUNCTUATION_PER_100
+        and max_clause >= _RAW_TRANSCRIPT_MIN_MAX_CLAUSE
+    ):
+        return [
+            (
+                "source_faithful_full Content looks like raw Transcript passthrough "
+                f"(12-character overlap={overlap:.1%}, "
+                f"punctuation={punctuation_per_100:.1f}/100 characters, "
+                f"max_clause={max_clause}); produce a readable written edition before handoff"
+            )
+        ]
+    return []
+
+
+def _written_body_text(document: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for block in list(document.get("blocks") or []):
+        if not isinstance(block, dict):
+            continue
+        block_type = block.get("type")
+        if block_type in _WRITTEN_BLOCK_TYPES:
+            if value := str(block.get("text") or "").strip():
+                parts.append(value)
+        elif block_type == "list":
+            for item in list(block.get("items") or []):
+                if value := str(item or "").strip():
+                    parts.append(value)
+    return "\n".join(parts)
+
+
+def _normalize_written_text(value: str) -> str:
+    return "".join(char.lower() for char in value if char.isalnum())
+
+
+def _shingle_coverage(value: str, source: str, *, size: int) -> float:
+    if len(value) < size or len(source) < size:
+        return 0.0
+    source_shingles = {
+        source[index : index + size] for index in range(len(source) - size + 1)
+    }
+    windows = len(value) - size + 1
+    matches = sum(
+        value[index : index + size] in source_shingles for index in range(windows)
+    )
+    return matches / windows
 
 
 def _valid_visual_exception(store: Store, job_id: str, value: Any) -> bool:

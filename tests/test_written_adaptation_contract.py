@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from video_content.automation import save_watch_later_profile
 from video_content.content import content_save, transcript_save
 from video_content.store import Store
+from video_content.wechat import wechat_prepare
 
 
 def _save_watch_later_content(
@@ -183,6 +186,18 @@ def test_source_faithful_content_rejects_mechanical_transcript_passthrough(
         for error in result["validation"]["errors"]
     )
 
+    store = Store(tmp_path / "home")
+    content = result["content"]
+    with pytest.raises(ValueError, match="validated content"):
+        wechat_prepare(
+            store,
+            job_id=content["job_id"],
+            content_id=content["content_id"],
+            authorized=True,
+            save_draft=True,
+        )
+    assert store.get_job(content["job_id"])["stage"] == "content"
+
 
 def test_source_faithful_content_allows_publication_ready_source_wording(
     tmp_path: Path,
@@ -193,8 +208,7 @@ def test_source_faithful_content_allows_publication_ready_source_wording(
         for index in range(18)
     ]
     paragraph_texts = [
-        "".join(cue_texts[start : start + 6])
-        for start in range(0, len(cue_texts), 6)
+        "".join(cue_texts[start : start + 6]) for start in range(0, len(cue_texts), 6)
     ]
 
     result = _save_watch_later_content(
