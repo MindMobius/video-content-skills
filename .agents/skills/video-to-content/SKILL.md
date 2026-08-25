@@ -41,7 +41,9 @@ video.
    facts outside the Transcript.
 4. Produce a readable written edition in the source structure. Repair
    transcription and translation, remove only oral noise, and adapt paragraphing
-   without mechanically turning every cue into a paragraph.
+   without mechanically turning every cue into a paragraph. Cue concatenation,
+   fixed-length paragraphing, and regex punctuation are preprocessing only; they
+   are not Agent review and must not be marked as a passed written edition.
 5. Summary, audience rewrite, style imitation, a new thesis, a new analogy, or
    material reorder are allowed only when explicitly requested. Record every
    such departure in the audit.
@@ -62,6 +64,9 @@ video.
 8. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
    clean HTML, preview, local assets, and one-line relative image markers.
 9. Save Content with `content_save`, then require `content_validate.valid=true`.
+   A `raw Transcript passthrough` error is a hard stop: return to the Transcript
+   and produce the written edition before any WeChat handoff. Do not bypass it by
+   changing audit labels or adding cosmetic punctuation.
 
 A render result, article length, media Artifact list, or valid HTML is not Content
 completion. A source frame counts only when it is an actual ordered image block in
@@ -70,7 +75,7 @@ the carrier document and its audit points to that exact block.
 ## Audit
 
 The audit must be Agent-authored and state `passed` or `approved` only after
-checking:
+reading the actual body at the opening, middle, and ending, then checking:
 
 - every material section remains traceable to Transcript or cited Evidence
   ranges;
@@ -91,8 +96,9 @@ checking:
   present at the audited document block;
 - the output contains no persisted Base64 image or secret-bearing URL.
 
-Do not use article-to-Transcript character ratio as a mechanical pass/fail gate.
-It is only a diagnostic signal; the Agent must judge whether material examples,
+Do not use article-to-Transcript character ratio or lexical overlap as a target
+for gratuitous rewriting. The deterministic passthrough check combines several
+high-risk signals only; the Agent must still judge whether material examples,
 questions, limits, disagreements, and professional detail remain.
 
 ## Boundaries

@@ -84,5 +84,6 @@ def test_skill_maintenance_turns_real_failures_into_enforced_contracts() -> None
         "Agent 语义判断",
         "确定性验收",
         "真实输出",
+        "字幕直贴",
     ):
         assert token in maintenance

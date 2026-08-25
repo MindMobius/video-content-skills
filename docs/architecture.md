@@ -35,11 +35,15 @@ Agent 对 Evidence 的规范化结果，包含证据选择、校正、未解决�
 ### Content
 
 默认将 Transcript 的来源结构、人物关系、案例、限定、专业密度和语气高保真迁移到用户
-指定载体，同时保存媒体计划、渲染结果和来源忠实审计。Watch Later Profile 的审计还要求
+指定载体，同时把逐条字幕恢复为可阅读的书面稿；机械拼接 cue、定长分段或少量正则补标点
+仍然只是 Transcript 预处理，不是 Content。Content 同时保存媒体计划、渲染结果和来源忠实
+审计。Watch Later Profile 的审计还要求
 `material_sections.items` 的 cue-to-block 全量映射、显式 `omissions` 和带 `block_index` 的逐帧
 `visual_plan`。Content media 必须与正文 image block 按顺序一致。最低截图数只是防止遗漏，Agent
 仍按真实论述和视觉转场决定数量。只有用户明确要求时才进行摘要、受众改写、文风模仿
-或重新组织论证。Content 不代表平台状态，也不授权保存。
+或重新组织论证。程序使用组合式高风险信号阻止明显的字幕直贴进入平台交接，但这不是
+文风评分器，语义完整性和实际可读性仍由 Agent 对照来源判断。Content 不代表平台状态，也不
+授权保存。
 
 ### Draft Receipt
 

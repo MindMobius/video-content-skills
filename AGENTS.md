@@ -89,7 +89,10 @@ Content uses a saved Transcript. The default editorial policy is 来源忠实
 and visual references while preserving source structure, speaker roles,
 professional density, examples, uncertainty, and voice. Summary, audience
 rewrite, style imitation, a new thesis, a new analogy, or material reorder
-requires an explicit user request.
+requires an explicit user request. Mechanical cue concatenation, fixed-length
+paragraphing, or regex punctuation is not written adaptation and must never be
+marked `reviewed_by=agent` or `status=passed`. A `raw Transcript passthrough`
+validation result is a hard Content-stage stop, not permission to continue.
 
 For Watch Later Profiles, `source_faithful_full` is the default contract. The
 Content audit must map every material section from Transcript cues to output

@@ -55,14 +55,18 @@ python scripts/migrate_legacy_state.py --source <source> --archive <archive> --t
 
 Watch Later 的 `source_faithful_full` Content 只有同时满足以下事实才算有效：
 
+- 正文经过真实书面化，不是 cue 机械拼接、定长分段或只用正则补标点；
+- Agent 实际抽查开头、中部和结尾，确认断句、口语噪声、转写错误和视觉指代已处理；
 - `material_sections.items` 将每个实质章节的 Transcript cue 映射到成稿 block；
 - 所有实质章节均为 `preserved`，省略项单独列出；
 - Content media 与正文 image block 按顺序完全一致；
 - 每个 `video_frame` 的 `visual_plan.block_index` 指向正文中的同一截图；
 - 少于截图下限时，有静态来源侦察 Artifact 支持 `visual_exception`。
 
-文章能渲染、图片 Artifact 存在或正文较长都不能替代这些验收。语义完整性由 Agent 对照完整
-Transcript 判断，程序只强制保存可追溯证据并阻止缺证据的结果进入微信交接。
+文章能渲染、图片 Artifact 存在或正文较长都不能替代这些验收。程序还组合检查正文与
+Transcript 的长片段重合、标点密度和最长无标点片段；只有这些高风险信号同时出现时才报告
+`raw Transcript passthrough`。它是防止明显假完成的硬停止，不是要求 Agent 为降低重合率而
+改写。语义完整性和真实可读性仍由 Agent 对照完整 Transcript 判断。
 
 ## 稍后再看
 
@@ -71,7 +75,7 @@ Codex automation 负责，仓库不运行后台 daemon。
 
 ## 微信
 
-1. Content 审计和验证通过，Watch Later 稿件还必须通过完整章节与逐帧视觉计划检查；
+1. Content 审计和验证通过，Watch Later 稿件还必须通过书面化、完整章节与逐帧视觉计划检查；
 2. 本轮明确授权保存草稿；
 3. `wechat_prepare` 重建渲染包并准备瞬时剪贴板；修订已有草稿时显式使用 `replace_existing_draft=true`；
 4. Browser Adapter 只观察可见编辑器，并确认新建目标或精确旧 `appmsgid`；

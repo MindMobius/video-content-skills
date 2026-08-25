@@ -29,6 +29,8 @@ def test_source_faithful_reference_defines_editorial_boundaries() -> None:
         "人物身份",
         "原有顺序",
         "明确要求",
+        "机械拼接",
+        "逐条字幕",
     ):
         assert token in content
 
@@ -68,3 +70,4 @@ def test_full_fidelity_audit_maps_sections_and_frames_to_output_blocks() -> None
     assert "output_block_indices" in traceability
     assert "block_index" in frames
     assert "media 列表" in frames
+    assert "raw Transcript passthrough" in skill

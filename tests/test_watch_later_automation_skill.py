@@ -22,6 +22,7 @@ def test_watch_later_skill_keeps_operational_failure_policy() -> None:
         "minimum_source_frames",
         "内容由AI生成",
         "supersede",
+        "raw Transcript passthrough",
     ):
         assert token in contract
     for prohibited in (

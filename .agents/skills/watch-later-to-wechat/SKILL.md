@@ -43,7 +43,10 @@ It never authorizes publishing or unrelated account actions.
 4. For each Job, acquire Evidence and save a Transcript using `$video-evidence`.
 5. Use the carrier stored in the Profile with `$video-to-content`; require a
    passing full-fidelity Content audit, explicit material-section coverage, and
-   inspected source frames placed at real content transitions.
+   inspected source frames placed at real content transitions. `content_validate`
+   must also clear the `raw Transcript passthrough` check. If it does not, keep
+   the Job at Content, perform the missing written adaptation, and do not enter
+   WeChat handoff.
 6. If draft saving is within the standing authorization, use `$wechat-draft` and
    select the required WeChat creation-source disclosure “内容由AI生成”.
 7. Continue until the queue has no actionable Job. Record physical failures as
@@ -65,8 +68,10 @@ to Codex automation or the calling Agent; do not create a hidden daemon.
 
 A Job is complete only when it has Evidence, Transcript, validated Content, and
 when authorized, one current validated Draft Receipt with `published=false`.
-Validated Content means every material section has a source-to-output mapping and
-every planned frame is present at its audited body block; HTML rendering or media
+Validated Content means the body is a genuinely readable written edition rather
+than mechanical cue concatenation, every material section has a source-to-output
+mapping, and every planned frame is present at its audited body block. A
+`raw Transcript passthrough` result is incomplete Content; HTML rendering or media
 Artifact counts alone are insufficient. Older Receipts may remain as immutable
 revision history but must be explicitly superseded. Content creation alone is not
 a saved draft; a success toast alone is not a receipt.
