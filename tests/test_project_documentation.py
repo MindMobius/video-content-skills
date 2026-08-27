@@ -19,6 +19,8 @@ def test_readme_is_a_concise_agent_router() -> None:
     assert "## Agent 任务路由" in readme
     assert "## 渐进式读取" in readme
     assert "docs/skill-maintenance.md" in readme
+    assert "content-acceptance.md" in readme
+    assert "recovery-and-readback.md" in readme
     for skill in EXPECTED_SKILLS:
         assert f".agents/skills/{skill}/SKILL.md" in readme
     for removed_heading in ("## CLI", "## MCP", "## 多视频任务编排与耗时优化"):
@@ -85,5 +87,23 @@ def test_skill_maintenance_turns_real_failures_into_enforced_contracts() -> None
         "确定性验收",
         "真实输出",
         "字幕直贴",
+        "文章很短不等于文章很干净",
+        "截图存在不等于截图被使用",
+        "平台点击成功不等于平台状态成立",
+        "经验沉淀模板",
     ):
         assert token in maintenance
+
+
+def test_operations_document_separates_content_and_platform_failures() -> None:
+    operations = (ROOT / "docs" / "operations.md").read_text(encoding="utf-8")
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    for token in (
+        "真实运行中的常见假完成",
+        "微信交接的重试顺序",
+        "完成证据分层",
+        "有副作用的重试",
+        "保存 Toast",
+        "同一数字 `appmsgid`",
+    ):
+        assert token in f"{operations}\n{architecture}"

@@ -39,3 +39,20 @@ def test_wechat_skill_scripts_use_new_runtime_name() -> None:
     )
     assert "video-content/wechat-browser-adapter" in browser
     assert "video_content.wechat_adapter" in clipboard
+
+
+def test_wechat_skill_has_same_target_recovery_rules() -> None:
+    recovery = (SKILL_ROOT / "references" / "recovery-and-readback.md").read_text(
+        encoding="utf-8"
+    )
+    for token in (
+        "先观察，再重试",
+        "同一目标",
+        "稳定数字 `appmsgid`",
+        "不要新建第二篇",
+        "paused_auth",
+        "retryable",
+        "刷新或重新打开",
+        "内容由AI生成",
+    ):
+        assert token in recovery

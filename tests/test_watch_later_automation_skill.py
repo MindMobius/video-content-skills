@@ -23,6 +23,9 @@ def test_watch_later_skill_keeps_operational_failure_policy() -> None:
         "内容由AI生成",
         "supersede",
         "raw Transcript passthrough",
+        "active Draft",
+        "recovery-and-readback.md",
+        "technical timeout",
     ):
         assert token in contract
     for prohibited in (

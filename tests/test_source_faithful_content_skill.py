@@ -71,3 +71,22 @@ def test_full_fidelity_audit_maps_sections_and_frames_to_output_blocks() -> None
     assert "block_index" in frames
     assert "media 列表" in frames
     assert "raw Transcript passthrough" in skill
+
+
+def test_content_acceptance_reference_preserves_stage_boundaries() -> None:
+    reference = CONTENT_SKILL / "references" / "content-acceptance.md"
+    assert reference.exists()
+    content = reference.read_text(encoding="utf-8")
+    for token in (
+        "Evidence",
+        "Transcript",
+        "Content",
+        "Handoff",
+        "Draft Receipt",
+        "文章比视频短",
+        "开头、中部和结尾",
+        "visual_plan.block_index",
+        "raw Transcript passthrough",
+        "长度不是质量指标",
+    ):
+        assert token in content
