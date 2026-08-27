@@ -57,6 +57,10 @@ Profile -> Job -> Evidence -> Transcript -> Content -> Draft Receipt
 5. [`docs/architecture.md`](docs/architecture.md) 与
    [`docs/operations.md`](docs/operations.md)：维护或诊断时读取。
 
+内容验收或微信状态不明确时，再按需读取
+`.agents/skills/video-to-content/references/content-acceptance.md` 和
+`.agents/skills/wechat-draft/references/recovery-and-readback.md`，不要把所有背景一次性塞进上下文。
+
 `.agents/skills/` 是唯一 canonical source。维护规则见
 [`docs/skill-maintenance.md`](docs/skill-maintenance.md)。
 
@@ -87,6 +91,7 @@ CLI 以 `system/source/evidence/job/content/watch-later/wechat` 分组；MCP 只
 - 原始平台、OCR、ASR 和 Agent 校正证据分别保存，不互相覆盖；
 - 稍后再看默认使用 `source_faithful_full`，完整保留实质章节，不把长视频压成摘要；
 - 来源忠实仍然必须完成书面化；逐条字幕机械拼接、定长分段或只补标点不算有效 Content；
+- Content、Handoff、Draft Receipt 分层验收，任何单一成功信号都不能替代下一层的证据；
 - 公众号配图只用原视频封面和经过检查的时间戳截帧，最低数量只是防漏底线；
 - 渲染成功、媒体 Artifact 存在或草稿保存成功，都不能替代章节映射、正文截图位置和平台声明回读；
 - 微信 Profile 要求选择并刷新回读“内容由AI生成”，该声明不等于原创声明；

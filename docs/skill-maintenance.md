@@ -86,6 +86,36 @@ JSON 合同，不写秘密，不静默改变平台状态。
 和长无标点片段的组合信号做确定性验收，命中 `raw Transcript passthrough` 时禁止微信交接。该
 信号不是文风评分器，也不能通过无意义换词或篡改审计字段绕过。
 
+### 本轮沉淀的三个验收教训
+
+1. **文章很短不等于文章很干净。** 来源忠实任务的目标是恢复创作者已有表达，不是把长视频压成摘要。
+   “看起来简洁”必须回到完整 Transcript，对照实质章节、专业细节、案例、反例和限定判断。
+2. **截图存在不等于截图被使用。** `media` 列表、渲染目录和正文 image block 是三个不同事实；只有
+   正文中实际出现的图片，且 `visual_plan.block_index` 指向同一 block，才算完成。最低数量只是防漏，
+   不能复制相似帧凑数。
+3. **平台点击成功不等于平台状态成立。** 选择“内容由AI生成”、点击保存、看到 Toast 或拿到
+   `appmsgid` 都要在刷新后的同一草稿中重新回读；没有回读就不能生成有效 Receipt。
+
+这些经验分别落在 `video-to-content` 的 Content 验收、`wechat-draft` 的恢复清单和程序验证器中，
+不要只把它们写成一次性的提示词。
+
+### 以后遇到浏览器不确定状态
+
+先重读同一可见目标，再决定重试或暂停：一次 evaluate/Playwright 超时属于技术问题，真实登录页才是
+`paused_auth`。在确认当前没有有效 Receipt 之前，不得再次新建草稿；明确修订必须复用同一数字
+`appmsgid` 并保留 `supersedes_receipt_id` 历史。
+
+### 经验沉淀模板
+
+每次真实运行发现问题，至少补齐以下六项：
+
+1. 用户实际看到的症状；
+2. 旧流程用什么假信号把它判成成功；
+3. 缺失的是 Agent 判断还是确定性事实；
+4. 能否写成失败测试、Schema/验证器或 Receipt 字段；
+5. 应该放在 README、AGENTS、SKILL 还是低频 reference；
+6. 下一次如何在不打断用户的前提下安全停止、重试或继续下一 Job。
+
 ## 修改步骤
 
 1. 先写失败测试或 fixture；
@@ -95,12 +125,15 @@ JSON 合同，不写秘密，不静默改变平台状态。
 5. 运行完整验证；
 6. 使用中文提交信息准确描述变化。
 
+验证优先使用项目锁定环境。宿主 Python 缺少 `pytest`、`ruff` 或项目模块时，先修正运行环境，
+不要把环境错误误判成实现回归。
+
 ```text
-python -m ruff check .
-python -m ruff format --check .
-python -m pytest
-python scripts/mcp_smoke.py
+uv run --isolated --locked --all-extras python -m ruff check .
+uv run --isolated --locked --all-extras python -m ruff format --check .
+uv run --isolated --locked --all-extras python -m pytest
+uv run --isolated --locked --all-extras python scripts/mcp_smoke.py
 npm test
 npm run pack:check
-python scripts/repro_check.py --require-tier core --require-tier agent
+uv run --isolated --locked --all-extras python scripts/repro_check.py --require-tier core --require-tier agent
 ```

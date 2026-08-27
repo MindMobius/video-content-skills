@@ -103,6 +103,11 @@ at real visual or argument transitions rather than
 using evenly spaced screenshots. A scout-proven static source may use an audited
 `visual_exception`; never duplicate meaningless frames to satisfy the minimum.
 
+An existing Content Artifact, successful renderer, or complete media list is not
+proof that the article is complete. `source_faithful_full` must not silently become
+a summary: the Agent checks the actual body at the opening, middle, and ending and
+keeps material details, professional qualifiers, and source progression.
+
 Video-derived images default to the original cover and timestamped source
 frames; do not generate or source filler visuals without separate user
 approval.
@@ -113,6 +118,11 @@ transient. Persist only no-secret visible observations and a validated
 `video-content/draft-receipt-v1` with `published=false`. When the Profile
 requires it, select and refresh-read-back the WeChat creation-source disclosure
 “内容由AI生成”; this is not an originality declaration.
+
+After an ambiguous browser read or save, inspect the same visible target and
+active Draft Receipts before retrying. A technical timeout is retryable, not a
+reason to create another draft; a real login page is the only `paused_auth`
+boundary.
 
 Never publish, mass send, schedule, declare originality, monetize, or manage an
 account.

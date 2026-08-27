@@ -7,7 +7,9 @@ description: Place an audited WeChat article into an already signed-in WeChat Of
 
 Use only after `content_validate.valid=true` for `carrier=wechat_article`.
 Read [editor-checklist.md](references/editor-checklist.md) before browser
-mutation or when editor state is ambiguous.
+mutation or when editor state is ambiguous. Read
+[recovery-and-readback.md](references/recovery-and-readback.md) after a browser
+timeout, empty snapshot, unreliable editor entry, or uncertain save result.
 
 ## Authorization gate
 
@@ -44,6 +46,9 @@ a Draft Receipt.
 7. Refresh or reopen the same draft and re-read title, body, images, cover,
    summary, and creation-source control with a fresh Browser Adapter snapshot. A
    transient toast or the pre-save DOM state is insufficient.
+   If any browser read or click times out, retry observation against the same
+   visible target first; do not open a second editor until the current target has
+   been ruled out.
 8. Build a no-secret `video-content/wechat-editor-observation-v2` when the AI
    creation-source declaration is required. Record `declared=true`,
    `type=ai_generated`, and `read_back=true` only from the selected pre-save

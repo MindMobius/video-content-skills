@@ -68,6 +68,21 @@ Transcript 的长片段重合、标点密度和最长无标点片段；只有这
 `raw Transcript passthrough`。它是防止明显假完成的硬停止，不是要求 Agent 为降低重合率而
 改写。语义完整性和真实可读性仍由 Agent 对照完整 Transcript 判断。
 
+## 真实运行中的常见假完成
+
+遇到以下现象时，先按“哪一层的证据缺失”诊断，不要把结果直接交给下一层：
+
+| 现象 | 不能据此推出 | 正确动作 |
+| --- | --- | --- |
+| 文章比视频短很多，细节和限定消失 | “已经完成了简洁改写” | 回到完整 Transcript，补回实质章节并重新做来源忠实审计 |
+| 图片 Artifact 数量正确，但正文看不到截图 | “配图已经插入” | 检查有序 image block 和 `visual_plan.block_index`，错位就停在 Content |
+| 保存后出现 Toast 或拿到 `appmsgid` | “草稿已可靠保存” | 刷新/重开同一草稿，回读正文、图片、封面、摘要和创作来源 |
+| “内容由AI生成”点击过一次 | “平台声明已经生效” | 在刷新后的新快照中再次确认选中，再写入 Observation/Receipt |
+| Browser Bridge/evaluate 一次超时 | “业务操作失败，可以新建” | 对同一目标重试可见快照；先查当前 Receipt，禁止重复建稿 |
+
+文章过短、图片缺失和声明未回读不是同一种故障：前者是 Content 语义/结构问题，后两者是确定性
+平台验收问题。不要用“下次注意”替代字段、验证器或 Skill 中的完成条件。
+
 ## 稍后再看
 
 `watch_later_scan` 是一次调用。Profile 的 seen baseline 防止重排或旧视频再次入队。周期由
@@ -85,6 +100,14 @@ Codex automation 负责，仓库不运行后台 daemon。
 
 不保存 URL token、cookie、存储、原始 CDN URL 或剪贴板 HTML。AI 创作来源不是原创声明；任何
 发布相关动作都不在范围。
+
+### 微信交接的重试顺序
+
+1. 先读取当前可见编辑器和数字 `appmsgid`；
+2. 对同一目标刷新或重开并回读；
+3. 只有在确认没有当前有效 Receipt 时才允许创建新草稿；
+4. 明确修订只能原位更新同一 `appmsgid`，并以新 Receipt supersede 旧 Receipt；
+5. 真实登录页才标记 `paused_auth`，普通读取超时保持 `retryable`。
 
 ## 验收层级
 

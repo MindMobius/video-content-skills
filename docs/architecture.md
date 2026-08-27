@@ -87,3 +87,38 @@ Bilibili/local media
 ```
 
 定时触发不在仓库内。Codex automation 只重复调用一次扫描和 Job 操作。
+
+## 完成证据分层
+
+这条链路不是“有文件就算完成”。每个阶段只对自己的事实负责：
+
+```text
+Evidence -> Transcript -> Content -> Handoff -> Draft Receipt
+   取到       可用         可读可追溯     已放入编辑器       刷新后仍存在
+```
+
+- Evidence 证明来源观察已经取得，不证明字幕选择或文章质量；
+- Transcript 证明 Agent 已完成证据选择、校正和不确定性记录，不证明已经书面化；
+- Content 证明正文保留实质章节、专业密度、观点归属和必要限定，并且章节与截图可追溯；
+- Handoff 只代表一次可见平台交接，不代表保存成功；
+- Draft Receipt 必须绑定当前 Content 哈希、稳定数字 `appmsgid`，并有刷新后的正文/图片/封面/摘要/创作来源回读。
+
+因此，渲染结果、文章长度、媒体数量、保存 Toast、上传完成或 `appmsgid` 都不能越级充当完成证据。
+
+## Agent 与程序边界
+
+Agent 负责语义和视觉判断：实质章节、需要保留的细节、口语书面化、画面转场和截图理由。程序负责
+可确定的高风险条件：哈希、路径、索引、媒体顺序、`raw Transcript passthrough`、授权、幂等、
+回读字段和 `published=false`。程序可以阻止明显假完成，但不把重合率当作文风评分器，也不替 Agent
+发明一套固定公众号腔。
+
+## 有副作用的重试
+
+微信交接具有外部副作用，重试前必须先读取当前可见目标和已有 Receipt：
+
+1. 读取同一页面或同一数字 `appmsgid`；
+2. 刷新/重开并回读；
+3. 只有确认没有当前有效 Receipt，才允许继续新建；
+4. 修订只能复用原 `appmsgid`，以 `supersedes_receipt_id` 留存历史。
+
+浏览器读取超时属于技术重试，真实登录页才是 `paused_auth`；不能因为一次超时就创建第二篇草稿。

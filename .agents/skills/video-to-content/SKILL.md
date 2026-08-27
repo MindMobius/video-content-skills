@@ -18,6 +18,7 @@ video.
 
 - Default editorial boundary: [source-faithful-adaptation.md](references/source-faithful-adaptation.md)
 - Traceability and omission rules: [traceability.md](references/traceability.md)
+- Content completion, failure classification, and recovery: [content-acceptance.md](references/content-acceptance.md)
 - WeChat article manuscript and renderer: [wechat-article.md](references/wechat-article.md)
 - Selecting and checking source frames: [source-frame-selection.md](references/source-frame-selection.md)
 
@@ -63,14 +64,19 @@ video.
    `block_index`, and placement reason.
 8. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
    clean HTML, preview, local assets, and one-line relative image markers.
-9. Save Content with `content_save`, then require `content_validate.valid=true`.
+9. Read [content-acceptance.md](references/content-acceptance.md), inspect the
+   actual body at the opening, middle, and ending, and distinguish a concise
+   source-faithful edition from an over-compressed summary.
+10. Save Content with `content_save`, then require `content_validate.valid=true`.
    A `raw Transcript passthrough` error is a hard stop: return to the Transcript
    and produce the written edition before any WeChat handoff. Do not bypass it by
    changing audit labels or adding cosmetic punctuation.
 
 A render result, article length, media Artifact list, or valid HTML is not Content
 completion. A source frame counts only when it is an actual ordered image block in
-the carrier document and its audit points to that exact block.
+the carrier document and its audit points to that exact block. If material details,
+professional qualifiers, or the source's argument progression disappeared, Content
+is incomplete even when every mechanical field is present.
 
 ## Audit
 

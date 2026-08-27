@@ -76,6 +76,11 @@ Artifact counts alone are insufficient. Older Receipts may remain as immutable
 revision history but must be explicitly superseded. Content creation alone is not
 a saved draft; a success toast alone is not a receipt.
 
+When a browser operation is ambiguous, read the current target and active Draft
+Receipts before retrying. A technical timeout is retryable; it is never permission
+to create a second draft. Read
+`../wechat-draft/references/recovery-and-readback.md` for the recovery order.
+
 ## Hard boundaries
 
 - No daemon, publish, schedule, mass send, originality declaration,
