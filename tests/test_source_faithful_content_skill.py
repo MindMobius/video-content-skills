@@ -13,6 +13,7 @@ def test_video_to_content_defaults_to_source_faithful_adaptation() -> None:
     normalized = " ".join(skill.split())
 
     assert "references/source-faithful-adaptation.md" in skill
+    assert "references/source-aware-expression-audit.md" in skill
     assert "source structure" in normalized
     assert "explicitly requested" in normalized
     assert "source-faithful" in prompt
@@ -90,3 +91,23 @@ def test_content_acceptance_reference_preserves_stage_boundaries() -> None:
         "长度不是质量指标",
     ):
         assert token in content
+
+
+def test_source_aware_expression_audit_protects_source_voice() -> None:
+    reference = CONTENT_SKILL / "references" / "source-aware-expression-audit.md"
+    assert reference.exists()
+    content = reference.read_text(encoding="utf-8")
+
+    for token in (
+        "source-aware",
+        "Agent 新增",
+        "来源真实表达",
+        "信息密度",
+        "命中即修改",
+        "expression_audit",
+        "source_aware_minimal",
+    ):
+        assert token in content
+
+    assert "全文去 AI 味" in content
+    assert "source_expression" in content

@@ -9,6 +9,29 @@ from video_content.content import content_save, transcript_save
 from video_content.store import Store
 
 
+def _expression_audit(*, items: list[dict] | None = None) -> dict:
+    return {
+        "status": "passed",
+        "reviewed_by": "agent",
+        "policy": "source_aware_minimal",
+        "reviewed_targets": [
+            "title_summary",
+            "headings",
+            "transitions",
+            "evidence_boundaries",
+            "ending",
+            "material_details",
+        ],
+        "checks": {
+            "source_expression_priority": True,
+            "information_density_preserved": True,
+            "structure_and_media_preserved": True,
+            "final_source_fidelity_rechecked": True,
+        },
+        "items": list(items or []),
+    }
+
+
 def _evidence(store: Store, job_id: str) -> str:
     evidence_id = "evidence_fixture"
     store.save_document(
@@ -413,9 +436,70 @@ def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
                 }
                 for index, (reference, timestamp_ms) in enumerate(frames, start=1)
             ],
+            "expression_audit": _expression_audit(),
         },
     )
     assert result["validation"]["valid"] is True
+
+    stale_text = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document=result["content"]["document"],
+        audit={
+            **result["content"]["audit"],
+            "expression_audit": _expression_audit(
+                items=[
+                    {
+                        "target": {"field": "title"},
+                        "rule": "carrier_template",
+                        "decision": "revised",
+                        "origin": "agent_added",
+                        "before": "先把话说清：忠实完整稿",
+                        "after": "已经过期的旧标题",
+                        "reason": "审校记录必须绑定最终标题，不能沿用旧稿文本",
+                    }
+                ]
+            ),
+        },
+        render=False,
+    )
+    assert stale_text["validation"]["valid"] is False
+    assert any(
+        "expression_audit" in error and "final document" in error
+        for error in stale_text["validation"]["errors"]
+    )
+
+    invalid_block = content_save(
+        store,
+        job_id=job["job_id"],
+        transcript_id=transcript_id,
+        carrier="wechat_article",
+        document=result["content"]["document"],
+        audit={
+            **result["content"]["audit"],
+            "expression_audit": _expression_audit(
+                items=[
+                    {
+                        "target": {"field": "block", "block_index": 999},
+                        "rule": "empty_signpost",
+                        "decision": "revised",
+                        "origin": "agent_added",
+                        "before": "先把话说清，保留第 1 个实质论述。",
+                        "after": "保留第 1 个实质论述。",
+                        "reason": "故意使用不存在的 block，验证索引必须指向真实正文",
+                    }
+                ]
+            ),
+        },
+        render=False,
+    )
+    assert invalid_block["validation"]["valid"] is False
+    assert any(
+        "expression_audit" in error and "block_index" in error
+        for error in invalid_block["validation"]["errors"]
+    )
 
     counts_only = content_save(
         store,
@@ -449,6 +533,7 @@ def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
                 }
                 for index, (reference, timestamp_ms) in enumerate(frames, start=1)
             ],
+            "expression_audit": _expression_audit(),
         },
         render=False,
     )
@@ -490,6 +575,7 @@ def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
                 }
                 for index, (reference, timestamp_ms) in enumerate(frames, start=1)
             ],
+            "expression_audit": _expression_audit(),
         },
         render=False,
     )
@@ -579,6 +665,7 @@ def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
                 "reason": "Source scout proved a static podcast cover with no material visual transitions.",
                 "evidence_artifact_ids": [scout["artifact_id"]],
             },
+            "expression_audit": _expression_audit(),
         },
         render=False,
     )

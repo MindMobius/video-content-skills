@@ -74,6 +74,8 @@ def test_docs_are_progressive_not_historical_dump() -> None:
         "2026-08-17-video-content-clean-slate.md",
         "2026-08-22-source-faithful-adaptation-design.md",
         "2026-08-22-source-faithful-adaptation.md",
+        "2026-08-28-source-aware-expression-audit-design.md",
+        "2026-08-28-source-aware-expression-audit.md",
     ]
     assert not (ROOT / "docs" / "cases").exists()
 
@@ -107,3 +109,16 @@ def test_operations_document_separates_content_and_platform_failures() -> None:
         "同一数字 `appmsgid`",
     ):
         assert token in f"{operations}\n{architecture}"
+
+
+def test_repository_routes_source_aware_expression_review() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    maintenance = (ROOT / "docs" / "skill-maintenance.md").read_text(encoding="utf-8")
+    contract = f"{readme}\n{agents}\n{architecture}\n{maintenance}"
+
+    assert "来源感知表达审校" in contract
+    assert "expression_audit" in contract
+    assert "固定公众号文风" in contract
+    assert "Agent 新增" in contract

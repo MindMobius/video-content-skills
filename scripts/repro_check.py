@@ -317,6 +317,26 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
             }
             for index, (reference, timestamp_ms) in enumerate(frames, start=1)
         ],
+        "expression_audit": {
+            "status": "passed",
+            "reviewed_by": "agent",
+            "policy": "source_aware_minimal",
+            "reviewed_targets": [
+                "title_summary",
+                "headings",
+                "transitions",
+                "evidence_boundaries",
+                "ending",
+                "material_details",
+            ],
+            "checks": {
+                "source_expression_priority": True,
+                "information_density_preserved": True,
+                "structure_and_media_preserved": True,
+                "final_source_fidelity_rechecked": True,
+            },
+            "items": [],
+        },
     }
     content_result = content_save(
         store,

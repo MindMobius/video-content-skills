@@ -12,6 +12,7 @@
 - 用硬字幕侦察、VideOCR 和 ASR 补充或交叉校验证据；
 - 保留原始证据，由 Agent 形成规范 Transcript；
 - 把 Transcript 转成保留案例、限定和专业细节的来源忠实书面版；
+- 完稿后只审校 Agent 新增的标题、转场、总结和证据边界，不重写来源声音；
 - 在真实论述节点穿插经过检查的原视频时间戳画面；
 - 扫描 Bilibili 稍后再看，幂等创建和恢复任务；
 - 复用可见的微信登录状态，保存且验证一份草稿收据。
@@ -91,6 +92,7 @@ CLI 以 `system/source/evidence/job/content/watch-later/wechat` 分组；MCP 只
 - 原始平台、OCR、ASR 和 Agent 校正证据分别保存，不互相覆盖；
 - 稍后再看默认使用 `source_faithful_full`，完整保留实质章节，不把长视频压成摘要；
 - 来源忠实仍然必须完成书面化；逐条字幕机械拼接、定长分段或只补标点不算有效 Content；
+- `expression_audit` 使用来源感知表达审校，只处理 Agent 新增或载体适配语言，不套固定公众号文风；
 - Content、Handoff、Draft Receipt 分层验收，任何单一成功信号都不能替代下一层的证据；
 - 公众号配图只用原视频封面和经过检查的时间戳截帧，最低数量只是防漏底线；
 - 渲染成功、媒体 Artifact 存在或草稿保存成功，都不能替代章节映射、正文截图位置和平台声明回读；

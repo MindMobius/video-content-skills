@@ -20,6 +20,48 @@ _RAW_TRANSCRIPT_MIN_OVERLAP = 0.90
 _RAW_TRANSCRIPT_MAX_PUNCTUATION_PER_100 = 4.0
 _RAW_TRANSCRIPT_MIN_MAX_CLAUSE = 60
 _WRITTEN_BLOCK_TYPES = {"paragraph", "lead", "key_point", "quote"}
+_EXPRESSION_AUDIT_POLICY = "source_aware_minimal"
+_EXPRESSION_AUDIT_REQUIRED_TARGETS = {
+    "title_summary",
+    "headings",
+    "transitions",
+    "evidence_boundaries",
+    "ending",
+    "material_details",
+}
+_EXPRESSION_AUDIT_REQUIRED_CHECKS = {
+    "source_expression_priority",
+    "information_density_preserved",
+    "structure_and_media_preserved",
+    "final_source_fidelity_rechecked",
+}
+_EXPRESSION_AUDIT_RULES = {
+    "manufactured_contrast",
+    "empty_signpost",
+    "repeated_sentence_scaffold",
+    "agent_abstraction",
+    "carrier_template",
+    "dense_enumeration",
+    "missing_anaphora",
+    "translationese_shell",
+    "decorative_personification",
+}
+_EXPRESSION_AUDIT_DECISIONS = {"revised", "retained"}
+_EXPRESSION_AUDIT_ORIGINS = {
+    "agent_added",
+    "carrier_adaptation",
+    "source_expression",
+}
+_EXPRESSION_AUDIT_REVISED_ORIGINS = {"agent_added", "carrier_adaptation"}
+_EXPRESSION_AUDIT_TARGET_FIELDS = {"title", "summary", "block"}
+_EXPRESSION_AUDIT_TEXT_BLOCK_TYPES = {
+    "heading",
+    "paragraph",
+    "lead",
+    "key_point",
+    "quote",
+    "list",
+}
 
 
 def _store_content_render_asset(
@@ -279,6 +321,7 @@ def _profile_content_contract_errors(
     )
     cue_count = len(list((transcript or {}).get("cues") or []))
     errors.extend(_written_adaptation_errors(document, transcript))
+    errors.extend(_expression_audit_errors(document, audit.get("expression_audit")))
 
     sections = audit.get("material_sections")
     if not isinstance(sections, dict):
@@ -452,6 +495,156 @@ def _profile_content_contract_errors(
                 f"visual_plan timestamp does not match media for {artifact_id}"
             )
     return errors
+
+
+def _expression_audit_errors(document: dict[str, Any], value: Any) -> list[str]:
+    if not isinstance(value, dict):
+        return ["source_faithful_full Content requires audit.expression_audit"]
+
+    errors: list[str] = []
+    status = value.get("status")
+    if not isinstance(status, str) or status not in _APPROVED_AUDIT_STATES:
+        errors.append("expression_audit status must be passed or approved")
+    if value.get("reviewed_by") != "agent":
+        errors.append("expression_audit reviewed_by must be agent")
+    if value.get("policy") != _EXPRESSION_AUDIT_POLICY:
+        errors.append(f"expression_audit policy must be {_EXPRESSION_AUDIT_POLICY}")
+
+    reviewed_targets = value.get("reviewed_targets")
+    if not isinstance(reviewed_targets, list) or not all(
+        isinstance(item, str) and item.strip() for item in reviewed_targets
+    ):
+        errors.append("expression_audit reviewed_targets must be a text list")
+    else:
+        missing_targets = sorted(
+            _EXPRESSION_AUDIT_REQUIRED_TARGETS - set(reviewed_targets)
+        )
+        if missing_targets:
+            errors.append(
+                "expression_audit reviewed_targets missing: "
+                + ", ".join(missing_targets)
+            )
+
+    checks = value.get("checks")
+    if not isinstance(checks, dict):
+        errors.append("expression_audit checks must be an object")
+    else:
+        failed_checks = sorted(
+            key
+            for key in _EXPRESSION_AUDIT_REQUIRED_CHECKS
+            if checks.get(key) is not True
+        )
+        if failed_checks:
+            errors.append(
+                "expression_audit checks must be true: " + ", ".join(failed_checks)
+            )
+
+    items = value.get("items")
+    if not isinstance(items, list):
+        errors.append("expression_audit items must be a list")
+        return errors
+
+    for index, item in enumerate(items):
+        prefix = f"expression_audit.items[{index}]"
+        if not isinstance(item, dict):
+            errors.append(f"{prefix} must be an object")
+            continue
+
+        rule = item.get("rule")
+        if not isinstance(rule, str) or rule not in _EXPRESSION_AUDIT_RULES:
+            errors.append(f"{prefix}.rule is unsupported")
+
+        decision = item.get("decision")
+        if not isinstance(decision, str) or decision not in _EXPRESSION_AUDIT_DECISIONS:
+            errors.append(f"{prefix}.decision must be revised or retained")
+
+        origin = item.get("origin")
+        if not isinstance(origin, str) or origin not in _EXPRESSION_AUDIT_ORIGINS:
+            errors.append(f"{prefix}.origin is unsupported")
+
+        reason = item.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            errors.append(f"{prefix}.reason must explain the source/editorial judgment")
+        elif "".join(reason.split()) == "去AI味":
+            errors.append(f"{prefix}.reason cannot only say 去 AI 味")
+
+        before = item.get("before")
+        after = item.get("after")
+        if not isinstance(before, str) or not before.strip():
+            errors.append(f"{prefix}.before must be complete non-empty text")
+        if not isinstance(after, str) or not after.strip():
+            errors.append(f"{prefix}.after must be complete non-empty text")
+
+        target = item.get("target")
+        target_text, target_error = _expression_audit_target_text(document, target)
+        if target_error:
+            errors.append(f"{prefix}.{target_error}")
+        elif isinstance(after, str) and after != target_text:
+            errors.append(
+                f"{prefix}.after does not match the final document target text"
+            )
+
+        if decision == "revised":
+            if isinstance(before, str) and isinstance(after, str) and before == after:
+                errors.append(f"{prefix} revised text must change before to after")
+            if origin not in _EXPRESSION_AUDIT_REVISED_ORIGINS:
+                errors.append(
+                    f"{prefix} cannot revise origin={origin}; "
+                    "source_expression must be retained"
+                )
+        elif (
+            decision == "retained"
+            and isinstance(before, str)
+            and isinstance(after, str)
+            and before != after
+        ):
+            errors.append(f"{prefix} retained text must keep before equal to after")
+
+    return errors
+
+
+def _expression_audit_target_text(
+    document: dict[str, Any], target: Any
+) -> tuple[str | None, str | None]:
+    if not isinstance(target, dict):
+        return None, "target must be an object"
+    field = target.get("field")
+    if not isinstance(field, str) or field not in _EXPRESSION_AUDIT_TARGET_FIELDS:
+        return None, "target.field must be title, summary, or block"
+    if field in {"title", "summary"}:
+        value = document.get(field)
+        if not isinstance(value, str) or not value.strip():
+            return None, f"target.field={field} is missing from the final document"
+        return value, None
+
+    block_index = target.get("block_index")
+    blocks = document.get("blocks")
+    if (
+        not isinstance(blocks, list)
+        or not isinstance(block_index, int)
+        or isinstance(block_index, bool)
+        or block_index < 0
+        or block_index >= len(blocks)
+    ):
+        return None, "target.block_index must point to a valid text block"
+    block = blocks[block_index]
+    block_type = block.get("type") if isinstance(block, dict) else None
+    if (
+        not isinstance(block_type, str)
+        or block_type not in _EXPRESSION_AUDIT_TEXT_BLOCK_TYPES
+    ):
+        return None, "target.block_index must point to a valid text block"
+    if block_type == "list":
+        items = block.get("items")
+        if not isinstance(items, list) or not all(
+            isinstance(item, str) and item.strip() for item in items
+        ):
+            return None, "target.block_index must point to a valid text block"
+        return "\n".join(items), None
+    text = block.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return None, "target.block_index must point to a valid text block"
+    return text, None
 
 
 def _written_adaptation_errors(

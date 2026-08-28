@@ -17,6 +17,8 @@ video.
 ## Read progressively
 
 - Default editorial boundary: [source-faithful-adaptation.md](references/source-faithful-adaptation.md)
+- After a complete draft exists, review only Agent-added carrier language:
+  [source-aware-expression-audit.md](references/source-aware-expression-audit.md)
 - Traceability and omission rules: [traceability.md](references/traceability.md)
 - Content completion, failure classification, and recovery: [content-acceptance.md](references/content-acceptance.md)
 - WeChat article manuscript and renderer: [wechat-article.md](references/wechat-article.md)
@@ -62,15 +64,21 @@ video.
    `visual_plan`. Every material section maps Transcript cue indices to output
    block indices; every frame records `artifact_id`, `timestamp_ms`,
    `block_index`, and placement reason.
-8. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
-   clean HTML, preview, local assets, and one-line relative image markers.
-9. Read [content-acceptance.md](references/content-acceptance.md), inspect the
+8. Read [content-acceptance.md](references/content-acceptance.md), inspect the
    actual body at the opening, middle, and ending, and distinguish a concise
    source-faithful edition from an over-compressed summary.
-10. Save Content with `content_save`, then require `content_validate.valid=true`.
-   A `raw Transcript passthrough` error is a hard stop: return to the Transcript
-   and produce the written edition before any WeChat handoff. Do not bypass it by
-   changing audit labels or adding cosmetic punctuation.
+9. Read [source-aware-expression-audit.md](references/source-aware-expression-audit.md).
+   Review title, summary, headings, transitions, evidence-boundary language,
+   material details, and the ending. Change only Agent-added or carrier-adaptation
+   scaffolding; retain source-owned contrasts, lists, questions, metaphors, and
+   professional phrasing. Record the result as `audit.expression_audit` and then
+   recheck source fidelity.
+10. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
+   clean HTML, preview, local assets, and one-line relative image markers.
+11. Save Content with `content_save`, then require `content_validate.valid=true`.
+   A `raw Transcript passthrough` or invalid `expression_audit` error is a hard
+   stop: return to Content and repair the actual body before any WeChat handoff.
+   Do not bypass either check by changing audit labels or adding cosmetic edits.
 
 A render result, article length, media Artifact list, or valid HTML is not Content
 completion. A source frame counts only when it is an actual ordered image block in
@@ -95,6 +103,9 @@ reading the actual body at the opening, middle, and ending, then checking:
 - material omissions, compression, reorder, and editorial additions are listed;
 - title and summary do not overclaim or promote a minor detail into the main
   claim;
+- `expression_audit` reviews Agent-added carrier language with
+  `policy=source_aware_minimal`, preserves source-owned expression, and records
+  every revised or deliberately retained rule hit against the final document;
 - every image is an original cover or timestamped source frame;
 - every material section has an explicit source-to-output mapping, all are
   preserved, and omissions are explicit;
@@ -109,7 +120,8 @@ questions, limits, disagreements, and professional detail remain.
 
 ## Boundaries
 
-- Do not infer a house style from the requested carrier.
+- Do not infer a house style from the requested carrier. Source-aware expression
+  review is not a fixed WeChat style and never authorizes full-text rewriting.
 - Do not generate diagrams, illustrations, stock images, or synthetic visual
   summaries unless the user separately requested or approved them.
 - Content validation does not authorize a platform action.

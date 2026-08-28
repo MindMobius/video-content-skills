@@ -94,6 +94,15 @@ paragraphing, or regex punctuation is not written adaptation and must never be
 marked `reviewed_by=agent` or `status=passed`. A `raw Transcript passthrough`
 validation result is a hard Content-stage stop, not permission to continue.
 
+After a complete source-faithful draft exists, run 来源感知表达审校 only on
+Agent-added or carrier-adaptation language such as the title, transitions,
+summary, evidence boundaries, and ending. Record it as
+`audit.expression_audit` with `policy=source_aware_minimal`, then recheck source
+fidelity. Source-owned contrasts, questions, metaphors, lists, professional
+phrasing, and real repetition take priority over generic style preferences.
+This is not a fixed公众号文风, a full-text rewrite, a regex “AI tone” scan, or
+permission to reduce information density.
+
 For Watch Later Profiles, `source_faithful_full` is the default contract. The
 Content audit must map every material section from Transcript cues to output
 blocks, list omissions, and include a per-frame visual plan whose block index
@@ -106,7 +115,9 @@ using evenly spaced screenshots. A scout-proven static source may use an audited
 An existing Content Artifact, successful renderer, or complete media list is not
 proof that the article is complete. `source_faithful_full` must not silently become
 a summary: the Agent checks the actual body at the opening, middle, and ending and
-keeps material details, professional qualifiers, and source progression.
+keeps material details, professional qualifiers, and source progression. A
+passing `expression_audit` is required in addition to the existing section and
+visual audits; it cannot repair or excuse missing source content.
 
 Video-derived images default to the original cover and timestamped source
 frames; do not generate or source filler visuals without separate user
