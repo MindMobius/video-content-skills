@@ -45,8 +45,7 @@ def system_doctor(
     deep: bool = True,
     config_path: str | None = None,
 ) -> dict[str, Any]:
-    if config_path:
-        apply_configuration(config_path)
+    apply_configuration(config_path)
     selected = normalize_capabilities(capabilities)
     settings = OpenCliSettings.discover(allow_missing=True)
     return run_doctor(
@@ -86,7 +85,7 @@ def evidence_start(
     config_path: str | None = None,
 ) -> dict[str, Any]:
     return start_evidence(
-        Store.from_environment(home),
+        _store(home, config_path),
         url=url,
         page=page,
         run_id=run_id,
@@ -105,13 +104,13 @@ def evidence_start(
 
 
 def job_get(job_id: str, *, home: str | None = None) -> dict[str, Any]:
-    return Store.from_environment(home).get_job(job_id)
+    return _store(home).get_job(job_id)
 
 
 def artifact_list(
     job_id: str, *, home: str | None = None, kind: str | None = None
 ) -> dict[str, Any]:
-    artifacts = Store.from_environment(home).list_artifacts(job_id, kind=kind)
+    artifacts = _store(home).list_artifacts(job_id, kind=kind)
     return {
         "schema_version": "video-content/artifact-list-v1",
         "job_id": job_id,
@@ -126,7 +125,7 @@ def artifact_read(
     home: str | None = None,
     text: bool = True,
 ) -> dict[str, Any]:
-    reference, payload = Store.from_environment(home).read_artifact(job_id, artifact_id)
+    reference, payload = _store(home).read_artifact(job_id, artifact_id)
     if text:
         try:
             content = payload.decode("utf-8")
@@ -158,7 +157,7 @@ def transcript_save(
     quality: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return save_transcript(
-        Store.from_environment(home),
+        _store(home),
         job_id=job_id,
         evidence_ids=evidence_ids,
         cues=cues,
@@ -181,7 +180,7 @@ def content_save(
     render: bool = True,
 ) -> dict[str, Any]:
     return save_content(
-        Store.from_environment(home),
+        _store(home),
         job_id=job_id,
         transcript_id=transcript_id,
         carrier=carrier,
@@ -195,9 +194,7 @@ def content_save(
 def content_validate(
     job_id: str, content_id: str, *, home: str | None = None
 ) -> dict[str, Any]:
-    return validate_content(
-        Store.from_environment(home), job_id=job_id, content_id=content_id
-    )
+    return validate_content(_store(home), job_id=job_id, content_id=content_id)
 
 
 def watch_later_scan(
@@ -210,7 +207,7 @@ def watch_later_scan(
     baseline_if_empty: bool = False,
     config_path: str | None = None,
 ) -> dict[str, Any]:
-    store = Store.from_environment(home)
+    store = _store(home, config_path)
     try:
         profile = store.get_profile(profile_id)
     except FileNotFoundError:
@@ -243,9 +240,7 @@ def job_list(
     status: str | None = None,
     profile_id: str | None = None,
 ) -> dict[str, Any]:
-    jobs = Store.from_environment(home).list_jobs(
-        run_id=run_id, status=status, profile_id=profile_id
-    )
+    jobs = _store(home).list_jobs(run_id=run_id, status=status, profile_id=profile_id)
     return {
         "schema_version": "video-content/job-list-v1",
         "jobs": jobs,
@@ -264,7 +259,7 @@ def job_update(
     increment_attempts: bool = False,
 ) -> dict[str, Any]:
     return transition_job(
-        Store.from_environment(home),
+        _store(home),
         job_id,
         stage=stage,
         status=status,
@@ -285,7 +280,7 @@ def wechat_prepare(
     replace_existing_draft: bool = False,
 ) -> dict[str, Any]:
     return prepare_wechat(
-        Store.from_environment(home),
+        _store(home),
         job_id=job_id,
         content_id=content_id,
         authorized=authorized,
@@ -304,7 +299,7 @@ def wechat_bind(
     supersedes_receipt_id: str | None = None,
 ) -> dict[str, Any]:
     return bind_wechat(
-        Store.from_environment(home),
+        _store(home),
         job_id=job_id,
         content_id=content_id,
         observation=observation,
@@ -312,9 +307,17 @@ def wechat_bind(
     )
 
 
+def _store(
+    home: str | None = None,
+    config_path: str | None = None,
+) -> Store:
+    if config_path is not None:
+        apply_configuration(config_path)
+    return Store.from_environment(home)
+
+
 def _settings(
     config_path: str | None, *, profile: str | None = None
 ) -> OpenCliSettings:
-    if config_path:
-        apply_configuration(config_path)
+    apply_configuration(config_path)
     return OpenCliSettings.discover(profile=profile)

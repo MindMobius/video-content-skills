@@ -8,7 +8,13 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from .config import CONFIG_ENVIRONMENT, read_configuration
+from .config import (
+    CONFIG_ENVIRONMENT,
+    configured_home,
+    default_state_root,
+    read_configuration,
+)
+from .layout import inspect_state_layout, read_path_relocation
 
 DEFAULT_CAPABILITIES = ["platform_subtitle", "hard_ocr_url"]
 
@@ -87,6 +93,9 @@ def build_setup_report(
     else:
         status = "ready"
     config = read_configuration(config_path)
+    state_root = configured_home(config_path)
+    if state_root is None:
+        state_root = default_state_root()
     return {
         "schema_version": "video-content/setup-v1",
         "status": status,
@@ -95,13 +104,26 @@ def build_setup_report(
         "configuration": {
             "path": config["path"],
             "exists": config["exists"],
+            "state_root": str(state_root),
             "configured_fields": sorted(config["values"]),
             "precedence": ["CLI arguments", "environment", "config file", "PATH"],
+            "layout": inspect_state_layout(state_root),
+            "path_relocation": _path_relocation_summary(state_root),
         },
         "dependencies": dependencies,
         "agent_actions": agent_actions,
         "human_actions": human_actions,
         "next_step": _next_step(status, deep=bool(diagnostics.get("deep"))),
+    }
+
+
+def _path_relocation_summary(state_root: Path) -> dict[str, Any]:
+    registry = read_path_relocation(state_root)
+    return {
+        "path": registry.get("path"),
+        "exists": bool(registry.get("exists")),
+        "current_state_root": registry.get("current_state_root"),
+        "relocations": len(registry.get("relocations") or []),
     }
 
 

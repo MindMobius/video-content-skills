@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://video-content.local/schemas/path-relocation-v1.json",
+  "title": "Video Content Historical Path Relocation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "updated_at",
+    "current_state_root",
+    "resolution_order",
+    "immutable_history",
+    "relocations"
+  ],
+  "properties": {
+    "schema_version": {"const": "video-content/path-relocation-v1"},
+    "updated_at": {"type": "string", "minLength": 1},
+    "current_state_root": {"type": "string", "minLength": 1},
+    "resolution_order": {
+      "type": "array",
+      "const": ["current_root", "archive_root"]
+    },
+    "immutable_history": {"const": true},
+    "relocations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relocation"}
+    }
+  },
+  "$defs": {
+    "relocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recorded_root",
+        "current_root",
+        "archive_root",
+        "reason",
+        "registered_at"
+      ],
+      "properties": {
+        "recorded_root": {"type": "string", "minLength": 1},
+        "current_root": {"type": "string", "minLength": 1},
+        "archive_root": {"type": ["string", "null"]},
+        "reason": {"type": "string", "minLength": 1},
+        "registered_at": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

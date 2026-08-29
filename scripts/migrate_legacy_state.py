@@ -20,6 +20,7 @@ if str(SRC) not in sys.path:
 
 from video_content.automation import save_watch_later_profile
 from video_content.config import CONFIG_ENVIRONMENT, update_configuration
+from video_content.layout import write_path_relocation
 from video_content.store import Store
 from video_content.util import reject_secrets, sha256_file, utc_now, write_json_atomic
 
@@ -28,6 +29,7 @@ MIGRATION_SCHEMA = "video-content/state-migration-v1"
 ARCHIVE_MANIFEST_SCHEMA = "video-content/archive-manifest-v1"
 ARCHIVE_RECORD_SCHEMA = "video-content/archive-record-v1"
 PROFILE_ID = "watch-later-main"
+MIGRATION_RECEIPT_RELATIVE = Path("meta") / "migration-receipt.json"
 _BVID = re.compile(r"^BV[0-9A-Za-z]+$")
 _NUMERIC = re.compile(r"^[0-9]+$")
 
@@ -102,7 +104,8 @@ def plan_migration(
             "atomically move the source directory to the archive destination",
             "copy and verify the media cache into the new state",
             "seed one profile and completed idempotency job per validated source",
-            "write a new no-secret configuration and migration receipt",
+            "write a new no-secret configuration and place the migration receipt under meta/",
+            "register historical absolute paths without rewriting immutable artifacts",
             "mark archived files read-only after verification",
         ],
         "published": False,
@@ -263,7 +266,15 @@ def apply_migration(
         "published": False,
     }
     reject_secrets(receipt)
-    write_json_atomic(staging / "migration-receipt.json", receipt)
+    write_path_relocation(
+        staging,
+        recorded_root=source_path,
+        current_root=target_path,
+        archive_root=archive_path,
+        reason="legacy state root consolidation",
+    )
+    receipt["path_relocation"] = "meta/path-relocation.json"
+    write_json_atomic(staging / MIGRATION_RECEIPT_RELATIVE, receipt)
     _verify_target(staging, receipt, expected_completed=expected_completed)
     staging.rename(target_path)
 
@@ -296,7 +307,7 @@ def verify_migration(
         if manifest.get("schema_version") != ARCHIVE_MANIFEST_SCHEMA:
             raise ValueError("Unsupported archive manifest schema")
         _verify_inventory(archive_path, list(manifest.get("entries") or []))
-        receipt = _read_object(target_path / "migration-receipt.json")
+        receipt = _read_object(target_path / MIGRATION_RECEIPT_RELATIVE)
         if receipt.get("schema_version") != MIGRATION_SCHEMA:
             raise ValueError("Unsupported migration receipt schema")
         if receipt.get("published") is not False:

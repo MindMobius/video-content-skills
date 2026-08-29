@@ -61,3 +61,12 @@ def test_draft_receipt_can_never_be_published() -> None:
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(document, schema)
+
+
+def test_path_relocation_schema_is_valid_and_non_product_metadata() -> None:
+    schema = json.loads(
+        Path("schemas/path-relocation.schema.json").read_text(encoding="utf-8")
+    )
+    jsonschema.Draft202012Validator.check_schema(schema)
+    assert schema["$id"].endswith("path-relocation-v1.json")
+    assert schema["properties"]["immutable_history"]["const"] is True

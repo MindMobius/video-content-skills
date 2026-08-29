@@ -164,3 +164,45 @@ def test_cli_parses_transcript_and_wechat_inputs() -> None:
     )
     assert handoff.authorized is True
     assert handoff.save_draft is True
+
+
+def test_cli_discovers_project_local_config_without_flags(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "src" / "video_content").mkdir(parents=True)
+    (project / ".video-content").mkdir()
+    (project / "pyproject.toml").write_text(
+        "[project]\nname='test'\n", encoding="utf-8"
+    )
+    state = tmp_path / "state"
+    (project / ".video-content" / "config.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "video-content/config-v1",
+                "values": {"home": str(state)},
+            }
+        ),
+        encoding="utf-8",
+    )
+    Store(state).create_job(
+        source={"platform": "bilibili", "bvid": "BV1auto"},
+        idempotency_key="auto-discovered",
+    )
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(ROOT / "src")
+    environment.pop("VIDEO_CONTENT_HOME", None)
+    environment.pop("VIDEO_CONTENT_CONFIG", None)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "video_content.cli", "job", "list"],
+        cwd=project,
+        env=environment,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["result"]["count"] == 1
+    assert payload["result"]["jobs"][0]["idempotency_key"] == "auto-discovered"

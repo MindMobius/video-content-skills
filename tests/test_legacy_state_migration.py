@@ -265,11 +265,14 @@ def test_apply_moves_archive_builds_store_and_prevents_duplicate_jobs(
 
     assert receipt["schema_version"] == "video-content/state-migration-v1"
     assert receipt["published"] is False
+    assert receipt["path_relocation"] == "meta/path-relocation.json"
     assert not source.exists()
     assert archive.is_dir()
     assert target.is_dir()
     assert (archive / "archive-manifest.json").is_file()
-    assert (target / "migration-receipt.json").is_file()
+    assert not (target / "migration-receipt.json").exists()
+    assert (target / "meta" / "migration-receipt.json").is_file()
+    assert (target / "meta" / "path-relocation.json").is_file()
     assert (
         target / "cache" / "media" / "bilibili" / "fixture" / "video.mp4"
     ).read_bytes() == b"authorized cached video"
