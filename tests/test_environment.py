@@ -127,6 +127,30 @@ def test_setup_report_separates_agent_and_human_actions(
     )
 
 
+def test_setup_report_exposes_configured_state_root(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.json"
+    state_root = tmp_path / "state"
+    config_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "video-content/config-v1",
+                "values": {"home": str(state_root)},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_setup_report(
+        {"opencli": {}, "download_tools": {}, "hard_ocr": {}, "audio_asr": {}},
+        capabilities=["platform_subtitle"],
+        config_path=config_path,
+    )
+
+    assert report["configuration"]["state_root"] == str(state_root.resolve())
+    assert report["configuration"]["layout"]["root"] == str(state_root.resolve())
+    assert report["configuration"]["path_relocation"]["exists"] is False
+
+
 def test_opencli_waits_for_node_before_install_or_login(
     tmp_path: Path,
     monkeypatch,

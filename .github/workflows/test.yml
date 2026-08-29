@@ -68,7 +68,7 @@ jobs:
       - name: Bootstrap clean checkout
         run: >-
           python scripts/bootstrap.py --apply
-          --config .video-content-local/config.json
+          --config .video-content/config.json
           --capability hard_ocr_local > bootstrap.json
 
       - name: Validate Agent invocation contract

@@ -12,6 +12,15 @@ The repository collects durable observations; the Agent makes semantic and
 visual judgments. Preserve platform, OCR, ASR, and reviewed material as
 separate immutable artifacts.
 
+## Runtime files
+
+Use the repository's single runtime context: `.video-content/config.json` and
+its configured `home`. Store durable Job artifacts through the Store; put
+one-off logs, sampled frames, and intermediate reports under
+`runs/<run_id>/`, then archive them under `archive/<date>-<reason>/` when the
+run is over. Never create batch-named directories or loose JSON/scripts at the
+state-root top level, and never use a parallel `.video-content-local` root.
+
 ## Read progressively
 
 Read only what the current task needs:

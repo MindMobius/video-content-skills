@@ -8,6 +8,8 @@ from typing import Any
 from .util import write_json_atomic
 
 CONFIG_SCHEMA_VERSION = "video-content/config-v1"
+PROJECT_STATE_DIRNAME = ".video-content"
+CONFIG_FILENAME = "config.json"
 
 CONFIG_ENVIRONMENT = {
     "opencli": "VIDEO_CONTENT_OPENCLI",
@@ -28,15 +30,104 @@ CONFIG_ENVIRONMENT = {
 
 
 def resolve_config_path(value: str | Path | None = None) -> Path:
+    """Resolve one deterministic configuration file for this invocation.
+
+    Explicit paths and environment overrides remain authoritative. When they
+    are absent, a project-local .video-content/config.json is preferred over
+    the operating-system fallback so repository commands and direct API calls
+    use the same runtime configuration.
+    """
+
     selected = value or os.getenv("VIDEO_CONTENT_CONFIG")
     if selected:
         return Path(selected).expanduser().resolve()
+
+    configured_home = os.getenv("VIDEO_CONTENT_HOME")
+    if configured_home:
+        home_config = Path(configured_home).expanduser() / CONFIG_FILENAME
+        if home_config.is_file():
+            return home_config.resolve()
+
+    project_root = find_project_root()
+    if project_root is not None:
+        project_config = project_root / PROJECT_STATE_DIRNAME / CONFIG_FILENAME
+        if project_config.is_file():
+            return project_config.resolve()
+
+    return _default_global_config_path()
+
+
+def find_project_root(start: str | Path | None = None) -> Path | None:
+    """Find the repository root without depending on the current shell path."""
+
+    candidate = Path(start or Path.cwd()).expanduser().resolve()
+    if candidate.is_file():
+        candidate = candidate.parent
+    for directory in (candidate, *candidate.parents):
+        if (directory / "pyproject.toml").is_file() and (
+            directory / "src" / "video_content"
+        ).is_dir():
+            return directory
+    return None
+
+
+def default_state_root(start: str | Path | None = None) -> Path:
+    """Return the repository-local or user-level state root.
+
+    A package invoked outside a discoverable checkout must not create a new
+    ``.video-content`` directory in whatever directory happened to be the
+    caller's current working directory. Use the same user-level location as
+    the configuration fallback instead.
+    """
+
+    project_root = find_project_root(start)
+    if project_root is not None:
+        return (project_root / PROJECT_STATE_DIRNAME).resolve()
+    return _default_global_config_path().parent.resolve()
+
+
+def configured_home(
+    value: str | Path | None = None,
+    *,
+    explicit_home: str | Path | None = None,
+) -> Path | None:
+    """Return the active state root selected by one config context."""
+
+    if explicit_home:
+        return Path(explicit_home).expanduser().resolve()
+    environment_home = os.getenv("VIDEO_CONTENT_HOME")
+    if environment_home:
+        return Path(environment_home).expanduser().resolve()
+    configuration = read_configuration(value)
+    configured = configuration["values"].get("home")
+    if configured:
+        selected = Path(configured).expanduser()
+        if not selected.is_absolute():
+            selected = Path(configuration["path"]).parent / selected
+        return selected.resolve()
+
+    # A config file is itself a state-root anchor when it lives at the
+    # canonical ``<state-root>/config.json`` location. This keeps an explicit
+    # config context from silently falling back to the repository that happens
+    # to be the current working directory.
+    config_path = Path(configuration["path"]).expanduser()
+    explicitly_selected = value is not None or bool(os.getenv("VIDEO_CONTENT_CONFIG"))
+    if (
+        configuration["exists"] or explicitly_selected
+    ) and config_path.name == CONFIG_FILENAME:
+        return config_path.parent.resolve()
+    return None
+
+
+def _default_global_config_path() -> Path:
     if os.name == "nt" and os.getenv("APPDATA"):
-        return (Path(os.environ["APPDATA"]) / "video-content" / "config.json").resolve()
+        return (
+            Path(os.environ["APPDATA"]) / "video-content" / CONFIG_FILENAME
+        ).resolve()
     xdg_home = os.getenv("XDG_CONFIG_HOME")
     if xdg_home:
-        return (Path(xdg_home) / "video-content" / "config.json").resolve()
-    return (Path.home() / ".config" / "video-content" / "config.json").resolve()
+        return (Path(xdg_home) / "video-content" / CONFIG_FILENAME).resolve()
+    return (Path.home() / ".config" / "video-content" / CONFIG_FILENAME).resolve()
 
 
 def read_configuration(value: str | Path | None = None) -> dict[str, Any]:

@@ -1,7 +1,8 @@
 # Skill 维护
 
-`.agents/skills/` 是唯一规范 Skill 源。README 给 Agent 路由，SKILL 给任务主流程，低频内容
-按需进入 references/scripts；不要再把完整手册堆回入口文件。
+`README.md` 负责让人快速理解项目意义和能力；`AGENTS.md` 是 Agent 的运行入口和全局契约；
+`.agents/skills/` 是唯一规范 Skill 源，`SKILL.md` 负责任务主流程，低频内容按需进入
+`references/` 和脚本。不要把完整手册堆回 README 或任何入口文件。
 
 ## 四个 Skill
 
@@ -42,6 +43,27 @@ JSON 合同，不写秘密，不静默改变平台状态。
 
 目录名、frontmatter `name`、`$skill-name` 默认提示必须一致。
 
+## 运行目录治理
+
+Skill 只描述流程，不拥有第二套运行目录。所有运行都先固定同一组上下文：
+
+```text
+config = .video-content/config.json
+home   = config.values.home（默认 .video-content）
+run_id = 本次扫描或处理的运行标识
+```
+
+持久业务产物只能由 Store 写入 `profiles/`、`jobs/`、`cache/media/`、`indexes/` 和
+`locks/`；当前一次性的脚本输出、预览和调试材料放到 `runs/<run_id>/`，结束后再清理或归档到
+`archive/<date>-<reason>/`。禁止把批次名、脚本名、日志、截图或 JSON 直接写到状态根顶层，
+也禁止再创建 `.video-content-local` 之类的平行状态根。可复用脚本进入仓库 `scripts/`，并配套
+测试；临时脚本不应成为新的业务入口。
+
+修改涉及输出路径时，必须同时检查 Store、CLI/MCP、对应 Skill、运行文档和布局检查；先确认
+`config`、`home`、`run_id`，再执行能力探测。迁移历史时必须登记 `meta/path-relocation.json`，
+并把迁移回执写入 `meta/migration-receipt.json`，不能把回执写回状态根顶层。这样不会把“隔离 Store
+没有配置”误判成“本机没有 VideOCR/ASR”，也不会把历史绝对路径误判成当前文件丢失。
+
 ## 契约同步
 
 | 变化 | 同时检查 |
@@ -50,7 +72,7 @@ JSON 合同，不写秘密，不静默改变平台状态。
 | CLI/MCP 工具 | `api.py`、CLI、MCP smoke、相关 Skill |
 | 环境能力 | requirements、bootstrap/setup、doctor、`video-evidence` reference |
 | 证据决策 | evidence/pipeline、`video-evidence`、fixture |
-| 内容载体 | content/renderer、`video-to-content`、来源忠实 reference、审计测试 |
+| 内容载体 | content/renderer、`video-to-content`、来源忠实/表达审校 reference、审计测试 |
 | 微信交接 | adapter、observation/receipt、`wechat-draft`、Node/Python 测试 |
 | 自动化状态 | Profile/Job、`watch-later-to-wechat`、幂等测试 |
 
@@ -86,6 +108,17 @@ JSON 合同，不写秘密，不静默改变平台状态。
 和长无标点片段的组合信号做确定性验收，命中 `raw Transcript passthrough` 时禁止微信交接。该
 信号不是文风评分器，也不能通过无意义换词或篡改审计字段绕过。
 
+### 已发生案例：信息完整但 Agent 脚手架仍像模板
+
+症状是文章已经保留视频的章节、细节和截图，却在 Agent 新增的标题、转场、总结或证据边界中
+反复出现空转提示语、人造对照和统一句法。旧流程只验证“内容在不在”，没有留下“这些新增语言
+是否经过来源感知判断”的可核验结果，因此一篇事实完整的文章仍可能带有明显模板腔。
+
+修复不是全文“去 AI 味”重写，也不是把外部规则命中次数变成分数。`video-to-content` 在完整成稿
+之后按需读取表达审校 reference，只最小修改 Agent 新增或载体适配语言，来源真实表达、专业罗列、
+问句、比喻和限定优先保留；程序只验证 `expression_audit` 的策略、覆盖范围、决策来源以及
+`after` 是否等于最终文档。修改后还必须再次复核来源忠实，不能用“更像人写的”交换信息密度。
+
 ### 本轮沉淀的三个验收教训
 
 1. **文章很短不等于文章很干净。** 来源忠实任务的目标是恢复创作者已有表达，不是把长视频压成摘要。
@@ -96,8 +129,8 @@ JSON 合同，不写秘密，不静默改变平台状态。
 3. **平台点击成功不等于平台状态成立。** 选择“内容由AI生成”、点击保存、看到 Toast 或拿到
    `appmsgid` 都要在刷新后的同一草稿中重新回读；没有回读就不能生成有效 Receipt。
 
-这些经验分别落在 `video-to-content` 的 Content 验收、`wechat-draft` 的恢复清单和程序验证器中，
-不要只把它们写成一次性的提示词。
+这些经验分别落在 `video-to-content` 的 Content 验收与来源感知表达审校、`wechat-draft` 的恢复
+清单和程序验证器中，不要只把它们写成一次性的提示词。
 
 ### 以后遇到浏览器不确定状态
 

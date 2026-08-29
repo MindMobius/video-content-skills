@@ -230,8 +230,10 @@ def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if args.config is not None:
-            apply_configuration(args.config)
+        # Every CLI command uses the same discovered project configuration.
+        # An explicit --config still wins; otherwise config.py selects the
+        # repository-local .video-content/config.json when present.
+        apply_configuration(args.config)
         result = dispatch(args)
         output = {"ok": True, "result": result}
         code = 0

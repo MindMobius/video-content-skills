@@ -7,6 +7,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from .config import configured_home, default_state_root
+from .layout import ensure_state_layout, state_paths
 from .locking import exclusive_file_lock
 from .models import ArtifactRef, Job, Profile
 from .util import (
@@ -28,35 +30,58 @@ class Store:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).expanduser().resolve()
-        self.profiles_dir = self.root / "profiles"
-        self.jobs_dir = self.root / "jobs"
-        self.cache_dir = self.root / "cache" / "media"
-        self.locks_dir = self.root / "locks"
-        self.indexes_dir = self.root / "indexes"
+        paths = state_paths(self.root)
+        self.profiles_dir = paths["profiles"]
+        self.jobs_dir = paths["jobs"]
+        self.cache_dir = paths["cache"] / "media"
+        self.locks_dir = paths["locks"]
+        self.indexes_dir = paths["indexes"]
+        self.meta_dir = paths["meta"]
+        self.runs_dir = paths["runs"]
+        self.archive_dir = paths["archive"]
 
     @classmethod
     def from_environment(cls, root: str | Path | None = None) -> Store:
-        selected = (
-            root or os.getenv("VIDEO_CONTENT_HOME") or Path.cwd() / ".video-content"
-        )
-        return cls(selected)
+        """Build a store from the one active runtime configuration.
+
+        A direct API caller may not go through the CLI's global config setup.
+        Resolve the persisted home here as a final safety net, while keeping an
+        explicit root authoritative for isolated tests and temporary work.
+        """
+
+        selected = configured_home(explicit_home=root)
+        return cls(selected or default_state_root())
 
     def initialize(self) -> dict[str, Any]:
-        for path in (
-            self.profiles_dir,
-            self.jobs_dir,
-            self.cache_dir,
-            self.locks_dir,
-            self.indexes_dir,
-        ):
-            path.mkdir(parents=True, exist_ok=True)
+        ensure_state_layout(self.root)
         return {
             "schema_version": "video-content/store-v1",
             "root": str(self.root),
             "ready": True,
         }
 
+    def run_dir(self, run_id: str, *, create: bool = False) -> Path:
+        """Return one run workspace below the canonical ``runs`` directory."""
+
+        selected = ensure_within(
+            self.runs_dir, self.runs_dir / safe_id(run_id, label="run id")
+        )
+        if create:
+            selected.mkdir(parents=True, exist_ok=True)
+        return selected
+
+    def archive_dir_for(self, name: str, *, create: bool = False) -> Path:
+        """Return one explicitly named archive bucket below ``archive``."""
+
+        selected = ensure_within(
+            self.archive_dir, self.archive_dir / safe_id(name, label="archive name")
+        )
+        if create:
+            selected.mkdir(parents=True, exist_ok=True)
+        return selected
+
     def save_profile(self, profile: Profile | dict[str, Any]) -> dict[str, Any]:
+        self.initialize()
         document = profile.as_dict() if isinstance(profile, Profile) else dict(profile)
         profile_id = safe_id(str(document["profile_id"]), label="profile id")
         now = utc_now()
@@ -134,6 +159,168 @@ class Store:
             index[idempotency_key] = selected_job_id
             write_json_atomic(index_path, dict(sorted(index.items())))
             return job, False
+
+    def validate_integrity(self, *, max_errors: int = 20) -> dict[str, Any]:
+        """Verify the active Job tree without changing any state."""
+
+        errors: list[dict[str, str]] = []
+        jobs_checked = 0
+        artifacts_checked = 0
+        unreferenced_artifacts = 0
+
+        def add_error(kind: str, path: Path, message: str) -> None:
+            if len(errors) < max_errors:
+                errors.append(
+                    {
+                        "kind": kind,
+                        "path": str(path),
+                        "message": message,
+                    }
+                )
+
+        if not self.jobs_dir.is_dir():
+            add_error("missing_directory", self.jobs_dir, "jobs directory is missing")
+        else:
+            for job_dir in sorted(self.jobs_dir.iterdir()):
+                if not job_dir.is_dir():
+                    add_error(
+                        "unexpected_entry",
+                        job_dir,
+                        "jobs contains a non-directory entry",
+                    )
+                    continue
+                jobs_checked += 1
+                expected_job_entries = {"job.json", "events.jsonl", "artifacts", "work"}
+                for entry in job_dir.iterdir():
+                    if entry.name not in expected_job_entries:
+                        add_error(
+                            "unexpected_job_entry",
+                            entry,
+                            "job directory contains an ungoverned entry",
+                        )
+                job_path = job_dir / "job.json"
+                events_path = job_dir / "events.jsonl"
+                if not job_path.is_file():
+                    add_error("missing_job", job_path, "job.json is missing")
+                    continue
+                if not events_path.is_file():
+                    add_error("missing_events", events_path, "events.jsonl is missing")
+                try:
+                    job = read_json(job_path)
+                except (OSError, TypeError, ValueError) as error:
+                    add_error("invalid_job", job_path, str(error))
+                    continue
+                if not isinstance(job, dict):
+                    add_error(
+                        "invalid_job", job_path, "job.json must contain an object"
+                    )
+                    continue
+                if str(job.get("job_id") or "") != job_dir.name:
+                    add_error(
+                        "job_id_mismatch",
+                        job_path,
+                        "job_id does not match directory name",
+                    )
+                references = job.get("artifact_refs")
+                if not isinstance(references, list):
+                    add_error(
+                        "invalid_artifacts", job_path, "artifact_refs must be a list"
+                    )
+                    references = []
+                referenced_paths: set[Path] = set()
+                for reference in references:
+                    if not isinstance(reference, dict):
+                        add_error(
+                            "invalid_artifact_reference",
+                            job_path,
+                            "artifact reference must be an object",
+                        )
+                        continue
+                    artifact_id = str(reference.get("artifact_id") or "")
+                    raw_path = str(reference.get("path") or "")
+                    try:
+                        target = ensure_within(job_dir, job_dir / raw_path)
+                    except (OSError, ValueError) as error:
+                        add_error("unsafe_artifact_path", job_path, str(error))
+                        continue
+                    referenced_paths.add(target)
+                    artifacts_checked += 1
+                    if not target.is_file():
+                        add_error(
+                            "missing_artifact",
+                            target,
+                            f"artifact {artifact_id} is missing",
+                        )
+                        continue
+                    expected_bytes = reference.get("bytes")
+                    if (
+                        isinstance(expected_bytes, int)
+                        and not isinstance(expected_bytes, bool)
+                        and target.stat().st_size != expected_bytes
+                    ):
+                        add_error(
+                            "artifact_size_mismatch",
+                            target,
+                            f"artifact {artifact_id} size mismatch",
+                        )
+                        continue
+                    expected_sha256 = str(reference.get("sha256") or "")
+                    if expected_sha256 and sha256_file(target) != expected_sha256:
+                        add_error(
+                            "artifact_hash_mismatch",
+                            target,
+                            f"artifact {artifact_id} hash mismatch",
+                        )
+                artifact_dir = job_dir / "artifacts"
+                if artifact_dir.is_dir():
+                    for target in artifact_dir.rglob("*"):
+                        if (
+                            target.is_file()
+                            and target.resolve() not in referenced_paths
+                        ):
+                            unreferenced_artifacts += 1
+                            add_error(
+                                "unreferenced_artifact",
+                                target,
+                                "artifact file is not referenced by job.json",
+                            )
+
+        index_path = self.indexes_dir / "idempotency.json"
+        if index_path.is_file():
+            try:
+                index = read_json(index_path)
+            except (OSError, TypeError, ValueError) as error:
+                add_error("invalid_index", index_path, str(error))
+            else:
+                if not isinstance(index, dict):
+                    add_error(
+                        "invalid_index",
+                        index_path,
+                        "idempotency index must be an object",
+                    )
+                else:
+                    for key, job_id in index.items():
+                        try:
+                            job = self.get_job(str(job_id))
+                        except (OSError, ValueError, TypeError) as error:
+                            add_error("dangling_index", index_path, f"{key}: {error}")
+                            continue
+                        if job.get("idempotency_key") != key:
+                            add_error(
+                                "index_mismatch",
+                                index_path,
+                                f"{key}: job idempotency key mismatch",
+                            )
+        return {
+            "schema_version": "video-content/state-integrity-v1",
+            "root": str(self.root),
+            "jobs_checked": jobs_checked,
+            "artifacts_checked": artifacts_checked,
+            "unreferenced_artifacts": unreferenced_artifacts,
+            "errors": errors,
+            "error_count": len(errors),
+            "status": "passed" if not errors else "failed",
+        }
 
     def get_job(self, job_id: str) -> dict[str, Any]:
         path = self.job_dir(job_id) / "job.json"

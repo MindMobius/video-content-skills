@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 .video-content/
 .video-content-local/
+.tmp-live-test-*/
 dist/
 build/
 *.egg-info/

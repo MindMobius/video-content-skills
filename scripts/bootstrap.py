@@ -49,8 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     root = Path(__file__).resolve().parents[1]
-    if args.config:
-        args.config = str(Path(args.config).expanduser().resolve())
+    args.config = _resolve_config_argument(root, args.config)
     venv_dir = root / ".venv"
     python = _venv_python(venv_dir)
     installed = python.is_file() and _package_available(python)
@@ -185,6 +184,14 @@ def main() -> None:
             next_step=str(setup["next_step"]),
         )
     )
+
+
+def _resolve_config_argument(root: Path, value: str | None) -> str:
+    """Always expose the repository's canonical config entrypoint."""
+
+    if value:
+        return str(Path(value).expanduser().resolve())
+    return str((root / ".video-content" / "config.json").resolve())
 
 
 def _parse_setup_result(value: str) -> dict[str, Any]:

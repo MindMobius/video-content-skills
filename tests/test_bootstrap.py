@@ -8,7 +8,7 @@ from pathlib import Path
 
 import jsonschema
 
-from scripts.bootstrap import _parse_setup_result
+from scripts.bootstrap import _parse_setup_result, _resolve_config_argument
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -79,3 +79,14 @@ def test_bootstrap_unwraps_the_current_cli_envelope() -> None:
         "next_step": "plan",
     }
     assert _parse_setup_result(json.dumps({"ok": True, "result": setup})) == setup
+
+
+def test_bootstrap_defaults_to_the_project_local_config_path() -> None:
+    assert _resolve_config_argument(ROOT, None) == str(
+        (ROOT / ".video-content" / "config.json").resolve()
+    )
+
+
+def test_bootstrap_preserves_an_explicit_config_path(tmp_path: Path) -> None:
+    selected = _resolve_config_argument(ROOT, str(tmp_path / "config.json"))
+    assert selected == str((tmp_path / "config.json").resolve())

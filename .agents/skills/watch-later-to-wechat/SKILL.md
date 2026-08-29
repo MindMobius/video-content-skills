@@ -44,9 +44,11 @@ It never authorizes publishing or unrelated account actions.
 5. Use the carrier stored in the Profile with `$video-to-content`; require a
    passing full-fidelity Content audit, explicit material-section coverage, and
    inspected source frames placed at real content transitions. `content_validate`
-   must also clear the `raw Transcript passthrough` check. If it does not, keep
-   the Job at Content, perform the missing written adaptation, and do not enter
-   WeChat handoff.
+   must also clear the `raw Transcript passthrough` check and validate a
+   `source_aware_minimal` `expression_audit` covering Agent-added title, summary,
+   headings, transitions, evidence boundaries, material details, and ending. If
+   either check fails, keep the Job at Content, repair the actual written edition,
+   and do not enter WeChat handoff.
 6. If draft saving is within the standing authorization, use `$wechat-draft` and
    select the required WeChat creation-source disclosure “内容由AI生成”.
 7. Continue until the queue has no actionable Job. Record physical failures as
@@ -54,6 +56,11 @@ It never authorizes publishing or unrelated account actions.
 
 The repository exposes one-shot scan and Job operations only. Recurrence belongs
 to Codex automation or the calling Agent; do not create a hidden daemon.
+
+Each one-shot cycle keeps one explicit `config`, `home`, and `run_id`. Durable
+queue state and receipts go through the Store; intermediate run reports and
+browser observations belong under that run or its Job. Never create a second
+state root or loose files at the top level of `.video-content/`.
 
 ## Scheduling and resources
 
@@ -70,11 +77,14 @@ A Job is complete only when it has Evidence, Transcript, validated Content, and
 when authorized, one current validated Draft Receipt with `published=false`.
 Validated Content means the body is a genuinely readable written edition rather
 than mechanical cue concatenation, every material section has a source-to-output
-mapping, and every planned frame is present at its audited body block. A
-`raw Transcript passthrough` result is incomplete Content; HTML rendering or media
-Artifact counts alone are insufficient. Older Receipts may remain as immutable
-revision history but must be explicitly superseded. Content creation alone is not
-a saved draft; a success toast alone is not a receipt.
+mapping, every planned frame is present at its audited body block, and a
+`source_aware_minimal` `expression_audit` has reviewed Agent-added carrier
+language against the final document without rewriting source-owned expression. A
+`raw Transcript passthrough` or invalid expression audit is incomplete Content;
+HTML rendering or media Artifact counts alone are insufficient. Older Receipts
+may remain as immutable revision history but must be explicitly superseded.
+Content creation alone is not a saved draft; a success toast alone is not a
+receipt.
 
 When a browser operation is ambiguous, read the current target and active Draft
 Receipts before retrying. A technical timeout is retryable; it is never permission

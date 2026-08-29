@@ -1,118 +1,77 @@
 # Video Content Skills
 
-面向 Agent 的视频证据与内容生产 Skill 集。
+把视频可靠地变成可继续使用的内容。
 
-用户可以只给一个 Bilibili 视频链接，或把视频加入“稍后再看”。Agent 负责取得多来源字幕
-证据、判断哪份更可靠、生成可追溯 Transcript，并把创作者原有的结构、专业程度和语气高保真
-迁移到指定载体；在明确授权后可保存到微信公众号草稿箱。项目永不发布。
+你只需要给一个 Bilibili 视频链接，或者把视频放进 Bilibili「稍后再看」。项目会帮助 Agent
+看懂视频、核对字幕和画面，再把创作者原本的表达整理成一篇完整、可追溯的内容。需要时，
+还可以在明确授权后把它保存为微信公众号草稿。
 
-## 项目解决什么
+默认原则很简单：**先弄清视频说了什么，再决定怎么写；不把字幕原样贴上去，也不擅自把
+创作者改成另一种文风。** 项目永远不会替你发布、群发或声明原创。
 
-- 获取 Bilibili 元数据、平台字幕和持久视频缓存；
-- 用硬字幕侦察、VideOCR 和 ASR 补充或交叉校验证据；
-- 保留原始证据，由 Agent 形成规范 Transcript；
-- 把 Transcript 转成保留案例、限定和专业细节的来源忠实书面版；
-- 在真实论述节点穿插经过检查的原视频时间戳画面；
-- 扫描 Bilibili 稍后再看，幂等创建和恢复任务；
-- 复用可见的微信登录状态，保存且验证一份草稿收据。
+## 能做什么
 
-工具只负责确定性采集、持久化、校验和平台边界；Agent 负责语义修复、视觉判断和必要的
-口语转书面语，但默认不替创作者重新选题、增加观点或套用固定公众号文风。
+- 从 Bilibili 视频中取得元数据、字幕、音频和关键画面；
+- 用平台字幕、画面 OCR、ASR 等来源相互核对，保留证据；
+- 把经过核验的内容整理成高保真的文字稿，保留细节、案例、限定和专业表达；
+- 扫描「稍后再看」时发现新视频，去重、排队、重试和恢复；
+- 将完整内容交给微信公众号编辑器，保存草稿并在保存后回读确认；
+- 保留每一步的来源、产物和回执，方便继续处理或检查问题。
 
-## Agent 任务路由
+## 处理管线
 
-先读 [`AGENTS.md`](AGENTS.md)，再只加载命中的 Skill：
+```mermaid
+flowchart LR
+    A[视频链接 / 稍后再看] --> B[识别输入并去重排队]
+    B --> C[读取视频与字幕]
+    C --> D[多来源证据核对]
+    D --> E[Agent 理解与整理]
+    E --> F[来源忠实的文字内容]
+    F --> G[章节、画面与表达检查]
+    G --> H[可选：微信公众号草稿]
+    H --> I[刷新回读与保存回执]
+```
 
-| 需求 | Skill |
+「稍后再看」只是输入方式，不会改变内容标准；微信公众号只是输出载体，也不会授权
+Agent 擅自改写视频观点。
+
+## 目前已经具备
+
+- 单个视频处理：从链接到证据、Transcript、文章内容；
+- 稍后再看处理：发现新增视频后按稳定身份建任务，避免重复处理；
+- 微信草稿交接：使用已登录的可见编辑器，支持图片、封面、AI 创作来源声明和回读；
+- 本地可追溯运行：任务、证据、文章、媒体和草稿回执分开保存；
+- Agent-first Skill 体系：按任务渐进式读取，不把所有规则塞进一个长提示词。
+
+## 主要组件
+
+| 组件 | 作用 |
 | --- | --- |
-| 视频链接、本地媒体、字幕、OCR、ASR、证据校正 | [video-evidence](.agents/skills/video-evidence/SKILL.md) |
-| 已有可信 Transcript，需要来源忠实的文章或其他载体 | [video-to-content](.agents/skills/video-to-content/SKILL.md) |
-| 扫描、排空、重试或恢复稍后再看队列 | [watch-later-to-wechat](.agents/skills/watch-later-to-wechat/SKILL.md) |
-| 把已审计文章保存到已登录微信编辑器 | [wechat-draft](.agents/skills/wechat-draft/SKILL.md) |
+| Agent + `.agents/skills/` | 负责任务路由、语义判断、内容整理和质量审校 |
+| Python `video_content` | 负责任务状态、证据保存、内容服务、CLI 和 MCP |
+| OpenCLI + `opencli-plugin` | 只读访问 Bilibili「稍后再看」 |
+| FFmpeg / FFprobe | 检查媒体、提取音频和视频画面 |
+| VideOCR（按需） | 识别画面中的硬字幕 |
+| Qwen3 ASR（按需） | 在需要时补充语音转录和对齐 |
+| Browser Bridge + 微信编辑器 | 在明确授权下保存草稿并回读状态 |
 
-普通单视频任务未指定输出载体时，先完成证据与 Transcript；不要因为仓库支持微信就自动选择
-公众号文章。已有 Watch Later Profile 时按 Profile 选择的载体执行。
+## 给 Agent 的入口
 
-## 六种核心产物
+人类先看本页；**Agent 从 [`AGENTS.md`](AGENTS.md) 开始**。不要从旧脚本、历史归档或
+某个临时预览文件猜流程。
 
-```text
-Profile -> Job -> Evidence -> Transcript -> Content -> Draft Receipt
-```
+`AGENTS.md` 会继续引导 Agent 完成：仓库定位、目录自检、环境检查、组件安装、任务路由、
+渐进式读取、失败处理和最终验收。真正执行某类任务时，再只读取对应的 Skill 和它要求的
+reference。
 
-- **Profile**：授权来源、载体、扫描基线和非秘密运行偏好；
-- **Job**：一个视频的状态、重试、恢复和幂等身份；
-- **Evidence**：平台、OCR、ASR、封面、截帧等不可变观察；
-- **Transcript**：Agent 基于 Evidence 形成的规范字幕；
-- **Content**：将来源表达高保真迁移到指定载体并审计后的内容；
-- **Draft Receipt**：微信草稿的可验证平台状态，固定 `published=false`；修订时以同一 `appmsgid` 的新 Receipt 显式 supersede 旧 Receipt。
+目录和运行状态见 [`docs/repository-layout.md`](docs/repository-layout.md)，架构和操作细节
+见 [`docs/architecture.md`](docs/architecture.md) 与 [`docs/operations.md`](docs/operations.md)。
 
-多视频通过 `run_id` 查询 Job，不维护独立 batch/project/phase 协议。
+## 边界
 
-## 渐进式读取
+- 当前视频来源支持 Bilibili；
+- 默认保留视频原有结构、信息密度和表达，不套固定的公众号文风；
+- 真实微信交接需要当前登录状态和明确授权；
+- 只保存草稿，不发布、不群发、不排期、不声明原创、不管理账号。
 
-1. `README.md`：项目意义与 Skill 路由；
-2. `AGENTS.md`：仓库级不变量；
-3. 任务命中的 `SKILL.md`：主流程和边界；
-4. Skill 的 `references/`：仅在当前分支需要时读取；
-5. [`docs/architecture.md`](docs/architecture.md) 与
-   [`docs/operations.md`](docs/operations.md)：维护或诊断时读取。
-
-内容验收或微信状态不明确时，再按需读取
-`.agents/skills/video-to-content/references/content-acceptance.md` 和
-`.agents/skills/wechat-draft/references/recovery-and-readback.md`，不要把所有背景一次性塞进上下文。
-
-`.agents/skills/` 是唯一 canonical source。维护规则见
-[`docs/skill-maintenance.md`](docs/skill-maintenance.md)。
-
-## 新机器入口
-
-```powershell
-python scripts/bootstrap.py
-python scripts/bootstrap.py --apply --config <config-path> --capability <required-capability>
-```
-
-Bootstrap 返回一个 JSON 环境合同。Agent 先执行普通安装和路径发现，只把浏览器登录、硬件/权限
-边界和确认的大下载交给用户。
-
-运行入口：
-
-```text
-video-content ...
-video-content-mcp
-```
-
-CLI 以 `system/source/evidence/job/content/watch-later/wechat` 分组；MCP 只暴露 16 个与这些
-资源对应的动作。
-
-## 不变量
-
-- 当前 URL 平台只支持 Bilibili；
-- 平台字幕存在，不代表画面没有连续硬字幕；
-- 原始平台、OCR、ASR 和 Agent 校正证据分别保存，不互相覆盖；
-- 稍后再看默认使用 `source_faithful_full`，完整保留实质章节，不把长视频压成摘要；
-- 来源忠实仍然必须完成书面化；逐条字幕机械拼接、定长分段或只补标点不算有效 Content；
-- Content、Handoff、Draft Receipt 分层验收，任何单一成功信号都不能替代下一层的证据；
-- 公众号配图只用原视频封面和经过检查的时间戳截帧，最低数量只是防漏底线；
-- 渲染成功、媒体 Artifact 存在或草稿保存成功，都不能替代章节映射、正文截图位置和平台声明回读；
-- 微信 Profile 要求选择并刷新回读“内容由AI生成”，该声明不等于原创声明；
-- 已有草稿只能原位修订同一 `appmsgid`，不能创建重复草稿；
-- OCR/ASR 共用 GPU 时默认串行；
-- 技术失败重试，物理证据不足标记 `unprocessable`，真实登录边界标记 `paused_auth`；
-- 不请求或持久化 cookie、密码、token、浏览器存储或剪贴板正文；
-- 不创建隐藏 daemon；
-- 永不发布、群发、排期、声明原创、变现或管理账号。
-
-## 验证
-
-```powershell
-python -m ruff check .
-python -m ruff format --check .
-python -m pytest
-python scripts/mcp_smoke.py
-npm test
-npm run pack:check
-python scripts/repro_check.py --require-tier core --require-tier agent
-```
-
-真实 Bilibili、OCR/ASR、Browser Bridge 和微信编辑器属于单独授权的 `live` 验收，不能从
-离线测试推断成功。
+MIT License
