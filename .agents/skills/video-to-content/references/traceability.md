@@ -24,7 +24,12 @@ Transcript 或明确的 Evidence 时间范围；映射保存在 Content audit �
 
 ## 完整性审计合同
 
-`source_faithful_full` 不能只写“共 5 节，保留 5 节”。数量本身不能证明 Agent 真的读完
+`source_faithful_full` 跟踪的是实质内容，不是每个 cue。广告、赞助、商品推广和平台 CTA 在与主题
+无关时可以省略，但 `omissions` 应记录来源 cue 范围和具体理由；影响来源立场判断的赞助或利益披露
+必须保留。如果推广对象本身就是文章主题，则仍按实质内容映射。
+
+省略发生在审计层，不向读者展示编辑过程。正文不保留占位标题、括号说明或“广告已删除”“视频
+原文中的推广段”等痕迹。`source_faithful_full` 不能只写“共 5 节，保留 5 节”。数量本身不能证明 Agent 真的读完
 并映射了来源。`material_sections.items` 中的每一项至少记录：
 
 - 唯一 `section_id` 和可读的 `label`；

@@ -284,6 +284,15 @@ paragraphing, or regex punctuation is not written adaptation and must never be
 marked `reviewed_by=agent` or `status=passed`. A `raw Transcript passthrough`
 validation result is a hard Content-stage stop, not permission to continue.
 
+A written edition is the source's written form, not a second-hand video explainer（不是二手解说）.
+The body normally adopts the source's direct 叙述视角: preserve the source
+speaker's `I`/`we`, questions, satire, judgments, and speaker attribution where
+they carry meaning. Keep source disclosure concentrated in metadata or one short disclosure; do not wrap ordinary paragraphs in repeated “视频认为”,
+“视频指出”, “创作者介绍”, or “本期视频里” narration. These words remain valid
+when a video, creator, or act of publishing is the actual discussion object or
+when attribution is materially necessary. This is an Agent semantic judgment,
+not a global banned-word or regex rule.
+
 After a complete source-faithful draft exists, run 来源感知表达审校 only on
 Agent-added or carrier-adaptation language such as the title, transitions,
 summary, evidence boundaries, and ending. Record it as
@@ -293,8 +302,15 @@ phrasing, and real repetition take priority over generic style preferences.
 This is not a fixed公众号文风, a full-text rewrite, a regex “AI tone” scan, or
 permission to reduce information density.
 
-For Watch Later Profiles, `source_faithful_full` is the default contract. The
-Content audit must map every material section from Transcript cues to output
+For Watch Later Profiles, `source_faithful_full` is the default contract. It
+preserves substantive content rather than every cue（保留实质内容，不是每个 cue）. Advertising,
+sponsorship copy, 商品推广, subscribe/like/follow language, and other platform CTA
+are normally explicit omissions when they do not advance the subject. Preserve
+a compact sponsorship or 利益披露 when it affects provenance or interpretation,
+and treat promotion as material when the promoted product is itself the topic.
+Removing a segment means removing its heading and editorial trace too: never
+leave “已删除广告”, “视频原文中的推广段”, or another 占位说明 in the article.
+The Content audit must map every material section from Transcript cues to output
 blocks, list omissions, and include a per-frame visual plan whose block index
 points to the actual body image. Content media must exactly match ordered document
 image blocks. The Profile frame minimum is only a floor; select and inspect frames

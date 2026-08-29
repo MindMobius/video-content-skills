@@ -184,3 +184,21 @@ def test_repository_layout_defines_one_runtime_root() -> None:
         "临时 Store",
     ):
         assert token in layout
+
+
+def test_project_language_covers_viewpoint_and_clean_omissions() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+    operations = (ROOT / "docs" / "operations.md").read_text(encoding="utf-8")
+    maintenance = (ROOT / "docs" / "skill-maintenance.md").read_text(encoding="utf-8")
+    contract = f"{readme}\n{agents}\n{architecture}\n{operations}\n{maintenance}"
+
+    for token in (
+        "二手解说",
+        "叙述视角",
+        "商品推广",
+        "占位说明",
+        "不是每个 cue",
+    ):
+        assert token in contract

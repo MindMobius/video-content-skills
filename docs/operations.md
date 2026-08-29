@@ -78,6 +78,9 @@ python scripts/migrate_legacy_state.py --source <source> --archive <archive> --t
 Watch Later 的 `source_faithful_full` Content 只有同时满足以下事实才算有效：
 
 - 正文经过真实书面化，不是 cue 机械拼接、定长分段或只用正则补标点；
+- 正文切换到来源叙述视角，不反复用“视频认为”“创作者指出”写成二手解说；
+- `source_faithful_full` 保留实质内容，不是每个 cue；与主题无关的商品推广和平台 CTA 有
+  omission，正文无占位说明；
 - Agent 实际抽查开头、中部和结尾，确认断句、口语噪声、转写错误和视觉指代已处理；
 - `material_sections.items` 将每个实质章节的 Transcript cue 映射到成稿 block；
 - 所有实质章节均为 `preserved`，省略项单独列出；
@@ -97,6 +100,8 @@ Transcript 的长片段重合、标点密度和最长无标点片段；只有这
 | 现象 | 不能据此推出 | 正确动作 |
 | --- | --- | --- |
 | 文章比视频短很多，细节和限定消失 | “已经完成了简洁改写” | 回到完整 Transcript，补回实质章节并重新做来源忠实审计 |
+| 正文反复写“视频认为/创作者指出” | “来源已经声明，所以视角没问题” | 恢复来源直接叙述，只把必要归属和实际讨论对象保留下来 |
+| 商品推广已删，却留下“原视频推广段”等标题 | “读者知道这里被删过就行” | 删除全部占位说明，在 `omissions` 内部记录 cue 范围和理由 |
 | 图片 Artifact 数量正确，但正文看不到截图 | “配图已经插入” | 检查有序 image block 和 `visual_plan.block_index`，错位就停在 Content |
 | 保存后出现 Toast 或拿到 `appmsgid` | “草稿已可靠保存” | 刷新/重开同一草稿，回读正文、图片、封面、摘要和创作来源 |
 | “内容由AI生成”点击过一次 | “平台声明已经生效” | 在刷新后的新快照中再次确认选中，再写入 Observation/Receipt |

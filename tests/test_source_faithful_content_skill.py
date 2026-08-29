@@ -111,3 +111,51 @@ def test_source_aware_expression_audit_protects_source_voice() -> None:
 
     assert "全文去 AI 味" in content
     assert "source_expression" in content
+
+
+def test_written_edition_uses_source_narrative_not_video_reporting_shell() -> None:
+    skill = (CONTENT_SKILL / "SKILL.md").read_text(encoding="utf-8")
+    prompt = (CONTENT_SKILL / "agents" / "openai.yaml").read_text(encoding="utf-8")
+    adaptation = (
+        CONTENT_SKILL / "references" / "source-faithful-adaptation.md"
+    ).read_text(encoding="utf-8")
+    expression = (
+        CONTENT_SKILL / "references" / "source-aware-expression-audit.md"
+    ).read_text(encoding="utf-8")
+    wechat = (CONTENT_SKILL / "references" / "wechat-article.md").read_text(
+        encoding="utf-8"
+    )
+    contract = f"{skill}\n{prompt}\n{adaptation}\n{expression}\n{wechat}"
+
+    for token in (
+        "不是“关于视频的解说稿”",
+        "正文直接采用来源叙述视角",
+        "来源声明集中",
+        "视频认为",
+        "实际讨论对象",
+        "direct narrative voice",
+    ):
+        assert token in contract
+
+
+def test_non_material_promotions_and_ctas_are_clean_omissions() -> None:
+    adaptation = (
+        CONTENT_SKILL / "references" / "source-faithful-adaptation.md"
+    ).read_text(encoding="utf-8")
+    acceptance = (CONTENT_SKILL / "references" / "content-acceptance.md").read_text(
+        encoding="utf-8"
+    )
+    traceability = (CONTENT_SKILL / "references" / "traceability.md").read_text(
+        encoding="utf-8"
+    )
+    contract = f"{adaptation}\n{acceptance}\n{traceability}"
+
+    for token in (
+        "广告、赞助、商品推广",
+        "平台 CTA",
+        "实质内容，不是每个 cue",
+        "不保留占位标题",
+        "利益披露",
+        "同一 cue 同时包含",
+    ):
+        assert token in contract

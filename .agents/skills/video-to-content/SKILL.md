@@ -1,6 +1,6 @@
 ---
 name: video-to-content
-description: Transform a verified video Transcript into a source-faithful written edition or other requested carrier. Use only after durable Evidence and a usable or verified Transcript exist.
+description: Transform a verified video Transcript into a source-faithful written edition in the source's direct narrative voice, or another explicitly requested carrier. Use only after durable Evidence and a usable or verified Transcript exist.
 ---
 
 # Video to Content
@@ -11,8 +11,9 @@ and high-risk checks.
 
 The default output is a source-faithful written edition. Preserve the source
 structure, speaker roles, professional density, examples, uncertainty, and
-voice. Do not treat a carrier such as WeChat as permission to reauthor the
-video.
+voice. The article normally speaks from the source's own narrative perspective;
+it does not become a report about what a video said. Do not treat a carrier such
+as WeChat as permission to reauthor the source.
 
 All temporary manuscripts, frame candidates, previews, and audit material must
 stay in the current Job or `runs/<run_id>/`; do not write them as
@@ -44,19 +45,34 @@ invented inside the active state root.
    references.
 2. Build an ephemeral source map: source type, speakers and roles, source
    structure, terms, examples, source-owned analogies, counterexamples,
-   caveats, visual references, and tone. Do not persist it as a new product.
+   caveats, visual references, tone, and ranges that are non-material promotion
+   or platform CTA. Distinguish those ranges from sponsorship or interest
+   disclosures that materially affect provenance. Do not persist the map as a
+   new product.
 3. Inspect source-video ranges when speaker changes, delivery, visual references,
    or uncertain wording affect the written edition. Do not derive new textual
    facts outside the Transcript.
-4. Produce a readable written edition in the source structure. Repair
-   transcription and translation, remove only oral noise, and adapt paragraphing
+4. Produce a readable written edition in the source structure. Use the
+   source's direct narrative voice rather than repeatedly reporting “the video
+   says” or “the creator points out”. Preserve meaningful first-person voice,
+   questions, satire, and speaker attribution; keep source disclosure in
+   metadata or one concise statement. Literal references to a video or creator
+   remain valid when they are the actual subject or attribution matters. Repair
+   transcription and translation, remove oral noise, and adapt paragraphing
    without mechanically turning every cue into a paragraph. Cue concatenation,
    fixed-length paragraphing, and regex punctuation are preprocessing only; they
    are not Agent review and must not be marked as a passed written edition.
-5. Summary, audience rewrite, style imitation, a new thesis, a new analogy, or
+5. `source_faithful_full` preserves substantive content, not every cue. Treat
+   unrelated advertising, sponsorship copy, product promotion, and platform CTA
+   as explicit omissions by default. Preserve a compact sponsorship or interest
+   disclosure when it affects provenance, and keep promotion when the promoted
+   subject is itself material. Record omitted cue ranges and reasons, but remove
+   the segment cleanly: do not emit placeholder headings or notes about the
+   removed advertisement or CTA.
+6. Summary, audience rewrite, style imitation, a new thesis, a new analogy, or
    material reorder are allowed only when explicitly requested. Record every
    such departure in the audit.
-6. For video-derived imagery, use only the original cover and timestamped source
+7. For video-derived imagery, use only the original cover and timestamped source
    frames by default. Identify material visual or argument transitions, extract
    nearby candidates, inspect them, and place the selected frame at the matching
    passage. A Profile minimum is a floor, not a target; long or visually dense
@@ -64,24 +80,24 @@ invented inside the active state root.
    spaced filler screenshots. If scout evidence proves a static source with no
    material visual transitions, record an approved `visual_exception` with the
    scout Artifact IDs instead of duplicating meaningless frames.
-7. Build the carrier document and an explicit source-fidelity audit. When the
+8. Build the carrier document and an explicit source-fidelity audit. When the
    active Profile selects `source_faithful_full`, include `adaptation_mode`,
    `visual_policy`, `material_sections.items`, `omissions`, and a per-frame
    `visual_plan`. Every material section maps Transcript cue indices to output
    block indices; every frame records `artifact_id`, `timestamp_ms`,
    `block_index`, and placement reason.
-8. Read [content-acceptance.md](references/content-acceptance.md), inspect the
+9. Read [content-acceptance.md](references/content-acceptance.md), inspect the
    actual body at the opening, middle, and ending, and distinguish a concise
    source-faithful edition from an over-compressed summary.
-9. Read [source-aware-expression-audit.md](references/source-aware-expression-audit.md).
+10. Read [source-aware-expression-audit.md](references/source-aware-expression-audit.md).
    Review title, summary, headings, transitions, evidence-boundary language,
    material details, and the ending. Change only Agent-added or carrier-adaptation
    scaffolding; retain source-owned contrasts, lists, questions, metaphors, and
    professional phrasing. Record the result as `audit.expression_audit` and then
    recheck source fidelity.
-10. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
+11. For `wechat_article`, prefer `scripts/render_wechat_article.py`; it creates
    clean HTML, preview, local assets, and one-line relative image markers.
-11. Save Content with `content_save`, then require `content_validate.valid=true`.
+12. Save Content with `content_save`, then require `content_validate.valid=true`.
    A `raw Transcript passthrough` or invalid `expression_audit` error is a hard
    stop: return to Content and repair the actual body before any WeChat handoff.
    Do not bypass either check by changing audit labels or adding cosmetic edits.
@@ -106,7 +122,11 @@ reading the actual body at the opening, middle, and ending, then checking:
   detail;
 - professional density, humor, emotional intensity, and overall source voice did
   not drift for the carrier;
+- the body uses the source's narrative perspective rather than a repeated
+  video-reporting shell; source attribution remains concentrated and necessary;
 - material omissions, compression, reorder, and editorial additions are listed;
+- non-material promotion and platform CTA are removed without placeholder
+  headings, while provenance-relevant sponsorship or interest disclosure remains;
 - title and summary do not overclaim or promote a minor detail into the main
   claim;
 - `expression_audit` reviews Agent-added carrier language with

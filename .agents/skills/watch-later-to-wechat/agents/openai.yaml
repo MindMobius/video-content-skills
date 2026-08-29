@@ -1,4 +1,4 @@
 interface:
   display_name: "Watch Later to WeChat"
-  short_description: "Turn new Bilibili Watch Later videos into audited WeChat drafts"
-  default_prompt: "Use $watch-later-to-wechat to scan, drain, retry, or resume my authorized Watch Later queue."
+  short_description: "Turn Watch Later videos into faithful direct-narrative drafts"
+  default_prompt: "Use $watch-later-to-wechat to process my authorized Watch Later queue into source-faithful WeChat drafts with a direct source narrative and clean non-material omissions."

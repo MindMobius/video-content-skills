@@ -1,6 +1,6 @@
 ---
 name: watch-later-to-wechat
-description: Run or resume an authorized Bilibili Watch Later to audited WeChat draft cycle. Use for one-shot scans, queue drain, retries, resume, and recurring Codex automation orchestration. Never publishes.
+description: Run or resume an authorized Bilibili Watch Later to source-faithful, directly narrated, audited WeChat drafts. Use for one-shot scans, queue drain, retries, resume, and recurring Codex automation orchestration. Never publishes.
 ---
 
 # Watch Later to WeChat
@@ -46,7 +46,12 @@ It never authorizes publishing or unrelated account actions.
    inspected source frames placed at real content transitions. `content_validate`
    must also clear the `raw Transcript passthrough` check and validate a
    `source_aware_minimal` `expression_audit` covering Agent-added title, summary,
-   headings, transitions, evidence boundaries, material details, and ending. If
+   headings, transitions, evidence boundaries, material details, and ending. The
+   body must use the direct source narrative rather than a repeated report about
+   the video. Full fidelity preserves substantive content, not every cue: remove
+   non-material ads and CTA ranges cleanly, with no promotion or platform-CTA
+   placeholders, while retaining provenance-relevant sponsorship or interest
+   disclosure. If
    either check fails, keep the Job at Content, repair the actual written edition,
    and do not enter WeChat handoff.
 6. If draft saving is within the standing authorization, use `$wechat-draft` and
@@ -75,9 +80,11 @@ state root or loose files at the top level of `.video-content/`.
 
 A Job is complete only when it has Evidence, Transcript, validated Content, and
 when authorized, one current validated Draft Receipt with `published=false`.
-Validated Content means the body is a genuinely readable written edition rather
-than mechanical cue concatenation, every material section has a source-to-output
-mapping, every planned frame is present at its audited body block, and a
+Validated Content means the body is a genuinely readable written edition in the
+source's narrative perspective rather than mechanical cue concatenation or a
+third-party video-reporting shell. Every material section has a source-to-output
+mapping, non-material promotion/CTA omissions leave no reader-facing placeholder,
+every planned frame is present at its audited body block, and a
 `source_aware_minimal` `expression_audit` has reviewed Agent-added carrier
 language against the final document without rewriting source-owned expression. A
 `raw Transcript passthrough` or invalid expression audit is incomplete Content;

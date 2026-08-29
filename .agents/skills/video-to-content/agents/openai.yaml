@@ -1,4 +1,4 @@
 interface:
   display_name: "Video to Content"
-  short_description: "Create a source-faithful carrier edition"
-  default_prompt: "Use $video-to-content to create a source-faithful written edition of this verified Transcript in the requested carrier."
+  short_description: "Create a source-faithful direct-narrative edition"
+  default_prompt: "Use $video-to-content to create a source-faithful written edition in the source's direct narrative voice, cleanly omitting non-material promotion and platform CTA."
