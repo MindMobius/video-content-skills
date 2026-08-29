@@ -12,19 +12,60 @@ EXPECTED_SKILLS = (
 )
 
 
-def test_readme_is_a_concise_agent_router() -> None:
+def test_readme_is_a_short_human_overview() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert readme.startswith("# Video Content Skills\n")
-    assert len(readme.splitlines()) <= 160
-    assert "## Agent 任务路由" in readme
-    assert "## 渐进式读取" in readme
-    assert "docs/skill-maintenance.md" in readme
-    assert "content-acceptance.md" in readme
-    assert "recovery-and-readback.md" in readme
-    for skill in EXPECTED_SKILLS:
-        assert f".agents/skills/{skill}/SKILL.md" in readme
-    for removed_heading in ("## CLI", "## MCP", "## 多视频任务编排与耗时优化"):
+    assert len(readme.splitlines()) <= 100
+    for heading in ("## 能做什么", "## 处理管线", "## 目前已经具备", "## 主要组件"):
+        assert heading in readme
+    assert "```mermaid" in readme
+    assert "AGENTS.md" in readme
+    assert "高保真" in readme
+    assert "不发布" in readme
+    assert "按需" in readme
+    for removed_heading in (
+        "## 六种核心产物",
+        "## 渐进式读取",
+        "## 新机器入口",
+        "## 不变量",
+        "## 验证",
+        "## CLI",
+        "## MCP",
+    ):
         assert removed_heading not in readme
+
+
+def test_agents_is_the_operational_entrypoint() -> None:
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert agents.startswith("# Repository Instructions\n")
+    assert "## Agent entry" in agents
+    for token in (
+        "git rev-parse --show-toplevel",
+        "validate_layout.py",
+        "scripts/bootstrap.py",
+        "system setup",
+        "scripts/runtime_setup.py",
+        "system doctor",
+        "agent_actions",
+        "human_actions",
+        "configuration.path",
+        "configuration.state_root",
+        "config",
+        "home",
+        "run_id",
+        "`.agents/skills/` is the only canonical Skill source",
+        "published=false",
+        "先判断任务类型",
+        "不安装 VideOCR/ASR",
+        "platform_subtitle",
+        "hard_ocr_url",
+        "audio_asr_url",
+        "watch_later_monitor",
+        "source-aware-expression-audit.md",
+    ):
+        assert token in agents
+    for skill in EXPECTED_SKILLS:
+        assert f".agents/skills/{skill}/SKILL.md" in agents
 
 
 def test_active_documents_define_the_six_product_clean_surface() -> None:
@@ -66,6 +107,7 @@ def test_docs_are_progressive_not_historical_dump() -> None:
     assert sorted(path.name for path in (ROOT / "docs").glob("*.md")) == [
         "architecture.md",
         "operations.md",
+        "repository-layout.md",
         "skill-maintenance.md",
     ]
     plans = sorted(path.name for path in (ROOT / "docs" / "plans").glob("*.md"))
@@ -122,3 +164,23 @@ def test_repository_routes_source_aware_expression_review() -> None:
     assert "expression_audit" in contract
     assert "固定公众号文风" in contract
     assert "Agent 新增" in contract
+
+
+def test_repository_layout_defines_one_runtime_root() -> None:
+    layout = (ROOT / "docs" / "repository-layout.md").read_text(encoding="utf-8")
+    for token in (
+        ".video-content/",
+        "config.json",
+        "profiles/",
+        "jobs/",
+        "cache/media/",
+        "runs/",
+        "archive/",
+        "migration-receipt.json",
+        "path-relocation.json",
+        "state-layout.json",
+        "validate_layout.py",
+        "historical_path_references",
+        "临时 Store",
+    ):
+        assert token in layout

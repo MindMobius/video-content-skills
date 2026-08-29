@@ -1,7 +1,8 @@
 # Skill 维护
 
-`.agents/skills/` 是唯一规范 Skill 源。README 给 Agent 路由，SKILL 给任务主流程，低频内容
-按需进入 references/scripts；不要再把完整手册堆回入口文件。
+`README.md` 负责让人快速理解项目意义和能力；`AGENTS.md` 是 Agent 的运行入口和全局契约；
+`.agents/skills/` 是唯一规范 Skill 源，`SKILL.md` 负责任务主流程，低频内容按需进入
+`references/` 和脚本。不要把完整手册堆回 README 或任何入口文件。
 
 ## 四个 Skill
 
@@ -41,6 +42,27 @@ JSON 合同，不写秘密，不静默改变平台状态。
 ### `agents/openai.yaml`
 
 目录名、frontmatter `name`、`$skill-name` 默认提示必须一致。
+
+## 运行目录治理
+
+Skill 只描述流程，不拥有第二套运行目录。所有运行都先固定同一组上下文：
+
+```text
+config = .video-content/config.json
+home   = config.values.home（默认 .video-content）
+run_id = 本次扫描或处理的运行标识
+```
+
+持久业务产物只能由 Store 写入 `profiles/`、`jobs/`、`cache/media/`、`indexes/` 和
+`locks/`；当前一次性的脚本输出、预览和调试材料放到 `runs/<run_id>/`，结束后再清理或归档到
+`archive/<date>-<reason>/`。禁止把批次名、脚本名、日志、截图或 JSON 直接写到状态根顶层，
+也禁止再创建 `.video-content-local` 之类的平行状态根。可复用脚本进入仓库 `scripts/`，并配套
+测试；临时脚本不应成为新的业务入口。
+
+修改涉及输出路径时，必须同时检查 Store、CLI/MCP、对应 Skill、运行文档和布局检查；先确认
+`config`、`home`、`run_id`，再执行能力探测。迁移历史时必须登记 `meta/path-relocation.json`，
+并把迁移回执写入 `meta/migration-receipt.json`，不能把回执写回状态根顶层。这样不会把“隔离 Store
+没有配置”误判成“本机没有 VideOCR/ASR”，也不会把历史绝对路径误判成当前文件丢失。
 
 ## 契约同步
 

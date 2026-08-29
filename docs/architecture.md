@@ -55,7 +55,7 @@ Agent 对照来源判断。Content 不代表平台状态，也不授权保存。
 
 ## Store
 
-默认目录：
+活动状态只允许落在仓库根目录下被 Git 忽略的 `.video-content/`：
 
 ```text
 .video-content/
@@ -67,7 +67,16 @@ Agent 对照来源判断。Content 不代表平台状态，也不授权保存。
   cache/media/
   indexes/
   locks/
+  meta/                       # 迁移、重定位和布局管理回执
+    migration-receipt.json
+    path-relocation.json
+    state-layout.json         # 迁移时的布局快照
+  runs/<run_id>/              # 当前运行的临时工作区
+  archive/<date>-<reason>/    # 已保留但不再参与运行的历史材料
 ```
+
+`config.json` 是唯一活动配置入口。CLI、MCP 和直接 API 会自动发现仓库本地配置；隔离测试必须同时显式传入独立 `--config` 和 `--home`，不能只创建一个临时 Store。迁移回执固定存放在 `meta/migration-receipt.json`；历史绝对路径由 `meta/path-relocation.json` 解释，不改写原始 Artifact。
+完整规则见 [`docs/repository-layout.md`](repository-layout.md)。
 
 写入使用同目录临时文件和原子替换。Artifact ID 同时绑定 kind 与内容哈希，允许相同字节以
 不同语义角色存在，但不允许同一引用被不同字节覆盖。

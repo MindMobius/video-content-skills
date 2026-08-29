@@ -1,5 +1,27 @@
 # 运行与诊断
 
+## 先固定运行上下文
+
+每次运行先确定三个值，并在同一轮中保持不变：
+
+```text
+config = .video-content/config.json
+home   = config.values.home；未设置时使用 config.json 所在的 .video-content/
+run_id = 本次扫描或处理的运行标识
+```
+
+从仓库根目录启动时，程序会自动发现 `.video-content/config.json`；直接 API 从仓库子目录启动时也会回到同一个仓库状态根。不要把临时目录当成新系统，也不要在没有加载同一份配置的情况下单独运行 `setup`、`doctor` 或证据服务。目录和生命周期规则见 [`docs/repository-layout.md`](repository-layout.md)。
+
+结构变更或一次批处理结束后，先运行只读布局检查：
+
+```powershell
+python scripts/validate_layout.py
+# 迁移或大规模整理后，追加完整数据校验
+python scripts/validate_layout.py --integrity
+```
+
+只有 `ready=true` 且没有 residual/unexpected 项时，才开始下一轮处理。若 `historical_path_references.status=mapped`，表示历史 provenance 已登记，不需要也不允许改写旧 Artifact。
+
 ## 环境合同
 
 首次运行或能力变化时：

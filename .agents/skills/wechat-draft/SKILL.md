@@ -11,6 +11,10 @@ mutation or when editor state is ambiguous. Read
 [recovery-and-readback.md](references/recovery-and-readback.md) after a browser
 timeout, empty snapshot, unreliable editor entry, or uncertain save result.
 
+Transient handoff packages, observations, and browser diagnostics belong in the
+current Job or `runs/<run_id>/`; never leave clipboard payloads, previews, or
+loose JSON at the state-root top level.
+
 ## Authorization gate
 
 The current user request or active automation Profile must explicitly authorize

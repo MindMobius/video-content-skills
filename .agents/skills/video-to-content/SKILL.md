@@ -14,6 +14,12 @@ structure, speaker roles, professional density, examples, uncertainty, and
 voice. Do not treat a carrier such as WeChat as permission to reauthor the
 video.
 
+All temporary manuscripts, frame candidates, previews, and audit material must
+stay in the current Job or `runs/<run_id>/`; do not write them as
+`current-*`/`latest-*` files or directories at the state-root top level.
+Reusable helpers belong in the repository `scripts/` directory and must not be
+invented inside the active state root.
+
 ## Read progressively
 
 - Default editorial boundary: [source-faithful-adaptation.md](references/source-faithful-adaptation.md)

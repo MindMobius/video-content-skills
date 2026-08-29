@@ -57,6 +57,11 @@ It never authorizes publishing or unrelated account actions.
 The repository exposes one-shot scan and Job operations only. Recurrence belongs
 to Codex automation or the calling Agent; do not create a hidden daemon.
 
+Each one-shot cycle keeps one explicit `config`, `home`, and `run_id`. Durable
+queue state and receipts go through the Store; intermediate run reports and
+browser observations belong under that run or its Job. Never create a second
+state root or loose files at the top level of `.video-content/`.
+
 ## Scheduling and resources
 
 - Preserve `VIDEO_CONTENT_HOME/cache/media` across retries and related Jobs.
