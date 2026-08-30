@@ -92,6 +92,10 @@
                     "type": "number",
                     "minimum": 0
                   },
+                  "natural_height": {
+                    "type": "number",
+                    "minimum": 0
+                  },
                   "width": {
                     "type": "number",
                     "minimum": 0
@@ -238,6 +242,47 @@
             },
             "creation_source": {
               "$ref": "#/$defs/creation_source"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/common"
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "video-content/wechat-editor-observation-v3"
+            },
+            "creation_source": {
+              "$ref": "#/$defs/creation_source"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "body_images": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "natural_height"
+                    ]
+                  }
+                }
+              }
             }
           }
         }

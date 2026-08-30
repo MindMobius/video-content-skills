@@ -14,6 +14,7 @@ COMMAND_SURFACE = {
     "source": {"inspect"},
     "evidence": {"start"},
     "job": {"get", "list", "update", "artifacts", "read-artifact"},
+    "media": {"extract-frame"},
     "content": {"save-transcript", "save", "validate"},
     "watch-later": {"scan"},
     "wechat": {"prepare", "bind"},
@@ -90,6 +91,13 @@ def build_parser() -> argparse.ArgumentParser:
     read_artifact.add_argument("job_id")
     read_artifact.add_argument("artifact_id")
     read_artifact.add_argument("--base64", action="store_true")
+
+    media = groups.add_parser("media")
+    media_actions = media.add_subparsers(dest="action", required=True)
+    extract_frame = media_actions.add_parser("extract-frame")
+    extract_frame.add_argument("job_id")
+    extract_frame.add_argument("timestamp_ms", type=int)
+    extract_frame.add_argument("--selection-reason", required=True)
 
     content = groups.add_parser("content")
     content_actions = content.add_subparsers(dest="action", required=True)
@@ -189,6 +197,14 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             return api.artifact_list(args.job_id, **common, kind=args.kind)
         return api.artifact_read(
             args.job_id, args.artifact_id, **common, text=not args.base64
+        )
+    if args.group == "media":
+        return api.source_frame_extract(
+            args.job_id,
+            args.timestamp_ms,
+            args.selection_reason,
+            **common,
+            config_path=args.config,
         )
     if args.group == "content":
         if args.action == "validate":

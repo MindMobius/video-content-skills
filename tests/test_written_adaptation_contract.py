@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import struct
+import zlib
 from pathlib import Path
 
 import pytest
@@ -8,6 +10,27 @@ from video_content.automation import save_watch_later_profile
 from video_content.content import content_save, transcript_save
 from video_content.store import Store
 from video_content.wechat import wechat_prepare
+
+
+def _png_bytes(
+    width: int, height: int, *, rgb: tuple[int, int, int] = (32, 64, 96)
+) -> bytes:
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return (
+            struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body))
+        )
+
+    pixel = bytes(rgb)
+    rows = b"".join(b"\x00" + (pixel * width) for _ in range(height))
+    return b"".join(
+        (
+            b"\x89PNG\r\n\x1a\n",
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)),
+            chunk(b"IDAT", zlib.compress(rows)),
+            chunk(b"IEND", b""),
+        )
+    )
 
 
 def _expression_audit(*, items: list[dict] | None = None) -> dict:
@@ -40,6 +63,7 @@ def _save_watch_later_content(
     paragraph_texts: list[str],
     include_expression_audit: bool = True,
     expression_items: list[dict] | None = None,
+    frame_extraction_role: str = "final",
 ) -> dict:
     store = Store(tmp_path / "home")
     save_watch_later_profile(
@@ -93,15 +117,39 @@ def _save_watch_later_content(
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
+    source_video_path = tmp_path / "source.mp4"
+    source_video_path.write_bytes(b"source-video")
+    source_video = store.put_artifact(
+        job["job_id"], kind="source_video", source_path=source_video_path
+    )
     frames: list[tuple[dict, int]] = []
     for index, timestamp_ms in enumerate((5000, 11000, 17000), start=1):
-        frame_path = tmp_path / f"frame-{index}.jpg"
-        frame_path.write_bytes(f"frame-{index}".encode())
+        frame_path = tmp_path / f"frame-{index}.png"
+        frame_path.write_bytes(_png_bytes(1600, 900, rgb=(32 + index, 64, 96)))
+        metadata = {
+            "timestamp_ms": timestamp_ms,
+            "extraction_role": frame_extraction_role,
+            "extraction_method": (
+                "ffmpeg_source_frame"
+                if frame_extraction_role == "final"
+                else "deterministic_scout"
+            ),
+            "resolution_policy": (
+                "source_display_native"
+                if frame_extraction_role == "final"
+                else "scout_preview"
+            ),
+            "source_video_artifact_id": source_video["artifact_id"],
+            "source_video_sha256": source_video["sha256"],
+            "pixel_width": 1600,
+            "pixel_height": 900,
+            "display_aspect_preserved": frame_extraction_role == "final",
+        }
         reference = store.put_artifact(
             job["job_id"],
             kind="video_frame",
             source_path=frame_path,
-            metadata={"timestamp_ms": timestamp_ms},
+            metadata=metadata,
         )
         frames.append((reference, timestamp_ms))
 
@@ -187,6 +235,29 @@ def _save_watch_later_content(
         },
         audit=audit,
         render=False,
+    )
+
+
+def test_source_faithful_content_rejects_scout_preview_frames(tmp_path: Path) -> None:
+    cue_texts = [
+        f"第{index}段完整说明论点、例子和限定条件。"
+        "来源本身已有清晰结构，文章按实质章节保留并完成书面化。"
+        for index in range(18)
+    ]
+    paragraph_texts = [
+        "".join(cue_texts[start : start + 6]) for start in range(0, len(cue_texts), 6)
+    ]
+
+    result = _save_watch_later_content(
+        tmp_path,
+        cue_texts=cue_texts,
+        paragraph_texts=paragraph_texts,
+        frame_extraction_role="scout",
+    )
+
+    assert result["validation"]["valid"] is False
+    assert any(
+        "final source extraction" in error for error in result["validation"]["errors"]
     )
 
 

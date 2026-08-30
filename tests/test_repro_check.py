@@ -43,7 +43,7 @@ def test_repro_check_agent_tier_covers_mcp_and_watch_later() -> None:
     report = run_repro_check(required_tiers=["agent"])
     assert report["ok"] is True
     checks = {item["name"]: item for item in report["tiers"]["agent"]["checks"]}
-    assert checks["mcp_protocol"]["details"]["tool_count"] == 16
+    assert checks["mcp_protocol"]["details"]["tool_count"] == 17
     assert checks["watch_later_idempotency"]["details"] == {
         "jobs": 3,
         "duplicates": 0,

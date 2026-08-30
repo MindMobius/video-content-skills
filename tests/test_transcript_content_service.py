@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import struct
+import zlib
 from pathlib import Path
 
 import pytest
@@ -7,6 +9,25 @@ import pytest
 from video_content.automation import save_watch_later_profile
 from video_content.content import content_save, transcript_save
 from video_content.store import Store
+
+
+def _png_bytes(width: int, height: int, *, rgb: tuple[int, int, int]) -> bytes:
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return (
+            struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body))
+        )
+
+    pixel = bytes(rgb)
+    rows = b"".join(b"\x00" + (pixel * width) for _ in range(height))
+    return b"".join(
+        (
+            b"\x89PNG\r\n\x1a\n",
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)),
+            chunk(b"IDAT", zlib.compress(rows)),
+            chunk(b"IEND", b""),
+        )
+    )
 
 
 def _expression_audit(*, items: list[dict] | None = None) -> dict:
@@ -360,15 +381,30 @@ def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
+    source_video_path = tmp_path / "fidelity-source.mp4"
+    source_video_path.write_bytes(b"source-video")
+    source_video = store.put_artifact(
+        job["job_id"], kind="source_video", source_path=source_video_path
+    )
     frames = []
     for index, timestamp_ms in enumerate((10000, 20000, 30000), start=1):
         path = tmp_path / f"frame-{index}.png"
-        path.write_bytes(f"frame-{index}".encode())
+        path.write_bytes(_png_bytes(1600, 900, rgb=(32 + index, 64, 96)))
         reference = store.put_artifact(
             job["job_id"],
             kind="video_frame",
             source_path=path,
-            metadata={"timestamp_ms": timestamp_ms},
+            metadata={
+                "timestamp_ms": timestamp_ms,
+                "extraction_role": "final",
+                "extraction_method": "ffmpeg_source_frame",
+                "resolution_policy": "source_display_native",
+                "source_video_artifact_id": source_video["artifact_id"],
+                "source_video_sha256": source_video["sha256"],
+                "pixel_width": 1600,
+                "pixel_height": 900,
+                "display_aspect_preserved": True,
+            },
         )
         frames.append((reference, timestamp_ms))
     blocks = [

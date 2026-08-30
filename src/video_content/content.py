@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .frames import image_dimensions
 from .jobs import update_job
 from .models import CONTENT_SCHEMA, TRANSCRIPT_SCHEMA, Content, Transcript
 from .store import Store
@@ -436,6 +437,7 @@ def _profile_content_contract_errors(
             errors.append(
                 f"Content requires minimum_source_frames={minimum_frames}; found {len(frames)}"
             )
+    errors.extend(_final_source_frame_errors(store, job_id, frames))
 
     plan = audit.get("visual_plan")
     if not isinstance(plan, list):
@@ -493,6 +495,79 @@ def _profile_content_contract_errors(
         if plan_item.get("timestamp_ms") != frame.get("timestamp_ms"):
             errors.append(
                 f"visual_plan timestamp does not match media for {artifact_id}"
+            )
+    return errors
+
+
+def _final_source_frame_errors(
+    store: Store, job_id: str, frames: list[dict[str, Any]]
+) -> list[str]:
+    errors: list[str] = []
+    for frame in frames:
+        artifact_id = str(frame.get("artifact_id") or "")
+        problems: list[str] = []
+        try:
+            reference, _ = store.read_artifact(job_id, artifact_id)
+        except (FileNotFoundError, ValueError) as error:
+            errors.append(
+                f"video_frame {artifact_id or '<missing>'} must be a final source extraction: {error}"
+            )
+            continue
+        metadata = reference.get("metadata", {})
+        if metadata.get("extraction_role") != "final":
+            problems.append("extraction_role must be final")
+        if metadata.get("extraction_method") != "ffmpeg_source_frame":
+            problems.append("extraction_method must be ffmpeg_source_frame")
+        if metadata.get("resolution_policy") != "source_display_native":
+            problems.append("resolution_policy must be source_display_native")
+        if metadata.get("display_aspect_preserved") is not True:
+            problems.append("display_aspect_preserved must be true")
+        if metadata.get("timestamp_ms") != frame.get("timestamp_ms"):
+            problems.append("timestamp_ms does not match Content media")
+        width = metadata.get("pixel_width")
+        height = metadata.get("pixel_height")
+        if (
+            not isinstance(width, int)
+            or isinstance(width, bool)
+            or width <= 0
+            or not isinstance(height, int)
+            or isinstance(height, bool)
+            or height <= 0
+        ):
+            problems.append("pixel dimensions must be positive integers")
+        else:
+            try:
+                actual_width, actual_height = image_dimensions(
+                    store.job_dir(job_id) / reference["path"]
+                )
+            except (OSError, ValueError) as error:
+                problems.append(str(error))
+            else:
+                if (actual_width, actual_height) != (width, height):
+                    problems.append("pixel dimensions do not match Artifact bytes")
+        source_artifact_id = str(metadata.get("source_video_artifact_id") or "")
+        if not source_artifact_id:
+            problems.append("source_video_artifact_id is required")
+        else:
+            try:
+                source_reference, _ = store.read_artifact(job_id, source_artifact_id)
+            except (FileNotFoundError, ValueError) as error:
+                problems.append(str(error))
+            else:
+                if source_reference.get("kind") != "source_video":
+                    problems.append(
+                        "source_video_artifact_id must reference source_video"
+                    )
+                if metadata.get("source_video_sha256") != source_reference.get(
+                    "sha256"
+                ):
+                    problems.append(
+                        "source_video_sha256 does not match source Artifact"
+                    )
+        if problems:
+            errors.append(
+                f"video_frame {artifact_id} must be a final source extraction: "
+                + "; ".join(problems)
             )
     return errors
 

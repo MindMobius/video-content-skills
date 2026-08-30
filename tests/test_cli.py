@@ -18,6 +18,7 @@ def test_cli_exposes_only_grouped_v1_surface() -> None:
         "source": {"inspect"},
         "evidence": {"start"},
         "job": {"get", "list", "update", "artifacts", "read-artifact"},
+        "media": {"extract-frame"},
         "content": {"save-transcript", "save", "validate"},
         "watch-later": {"scan"},
         "wechat": {"prepare", "bind"},
@@ -146,6 +147,20 @@ def test_cli_parses_transcript_and_wechat_inputs() -> None:
     )
     assert evidence.hard_subtitle_visual_decision == "continuous"
     assert evidence.visual_assessment_json == Path("scout.json")
+    frame = parser.parse_args(
+        [
+            "media",
+            "extract-frame",
+            "job_1",
+            "42000",
+            "--selection-reason",
+            "对应论述转场",
+        ]
+    )
+    assert frame.group == "media"
+    assert frame.action == "extract-frame"
+    assert frame.timestamp_ms == 42000
+    assert frame.selection_reason == "对应论述转场"
     transcript = parser.parse_args(
         ["--home", "state", "content", "save-transcript", "job_1", "transcript.json"]
     )

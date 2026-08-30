@@ -83,7 +83,7 @@ def _observation(
     content_sha256: str,
     *,
     appmsgid: str = "100000721",
-    schema_version: str = "video-content/wechat-editor-observation-v2",
+    schema_version: str = "video-content/wechat-editor-observation-v3",
 ) -> dict:
     observation = {
         "schema_version": schema_version,
@@ -99,6 +99,7 @@ def _observation(
                     "visible": True,
                     "complete": True,
                     "natural_width": 1280,
+                    "natural_height": 720,
                     "width": 640,
                     "height": 360,
                     "host_class": "wechat",
@@ -121,7 +122,10 @@ def _observation(
         },
         "published": False,
     }
-    if schema_version == "video-content/wechat-editor-observation-v2":
+    if schema_version in {
+        "video-content/wechat-editor-observation-v2",
+        "video-content/wechat-editor-observation-v3",
+    }:
         observation["creation_source"] = {
             "declared": True,
             "type": "ai_generated",
@@ -152,6 +156,7 @@ def test_wechat_prepare_requires_explicit_authorization_and_persists_no_payload(
     )
     assert result["authorization"] == {"save_draft": True, "publish": False}
     assert result["required_declarations"] == {}
+    assert result["observation_schema"] == "video-content/wechat-editor-observation-v3"
     assert result["clipboard"]["payload_persisted"] is False
     assert "html" not in result["clipboard"]
     assert Path(result["article_html"]).is_file()
@@ -170,6 +175,7 @@ def test_wechat_bind_requires_refresh_readback_and_creates_one_receipt(
         save_draft=True,
     )
     observation = _observation(prepared["content_sha256"])
+    observation.pop("creation_source")
     schema = json.loads(
         (ROOT / "schemas" / "wechat-editor-observation.schema.json").read_text(
             encoding="utf-8"
@@ -203,7 +209,7 @@ def test_wechat_bind_requires_refresh_readback_and_creates_one_receipt(
         )
 
 
-def test_wechat_observation_v1_remains_compatible_without_profile_requirement(
+def test_image_bearing_wechat_draft_requires_aspect_aware_observation(
     tmp_path: Path,
 ) -> None:
     store, job_id, content_id = _ready_content(tmp_path)
@@ -214,15 +220,68 @@ def test_wechat_observation_v1_remains_compatible_without_profile_requirement(
         authorized=True,
         save_draft=True,
     )
+    with pytest.raises(ValueError, match="observation-v3"):
+        wechat_bind(
+            store,
+            job_id=job_id,
+            content_id=content_id,
+            observation=_observation(
+                prepared["content_sha256"],
+                schema_version="video-content/wechat-editor-observation-v1",
+            ),
+        )
+
+
+def test_wechat_observation_rejects_stretched_body_image(tmp_path: Path) -> None:
+    store, job_id, content_id = _ready_content(tmp_path)
+    prepared = wechat_prepare(
+        store,
+        job_id=job_id,
+        content_id=content_id,
+        authorized=True,
+        save_draft=True,
+    )
+    observation = _observation(prepared["content_sha256"])
+    observation["body_images"]["items"][0]["height"] = 300
+
+    with pytest.raises(ValueError, match="aspect ratio"):
+        wechat_bind(
+            store,
+            job_id=job_id,
+            content_id=content_id,
+            observation=observation,
+        )
+
+
+def test_wechat_observation_accepts_preserved_vertical_image_ratio(
+    tmp_path: Path,
+) -> None:
+    store, job_id, content_id = _ready_content(tmp_path)
+    prepared = wechat_prepare(
+        store,
+        job_id=job_id,
+        content_id=content_id,
+        authorized=True,
+        save_draft=True,
+    )
+    observation = _observation(prepared["content_sha256"])
+    image = observation["body_images"]["items"][0]
+    image.update(
+        {
+            "natural_width": 1080,
+            "natural_height": 1920,
+            "width": 360,
+            "height": 640,
+        }
+    )
+
     result = wechat_bind(
         store,
         job_id=job_id,
         content_id=content_id,
-        observation=_observation(
-            prepared["content_sha256"],
-            schema_version="video-content/wechat-editor-observation-v1",
-        ),
+        observation=observation,
     )
+
     assert result["validation"]["valid"] is True
 
 
@@ -259,7 +318,7 @@ def test_wechat_profile_requires_ai_creation_source_and_refresh_readback(
         save_draft=True,
     )
     assert prepared["required_declarations"] == {"creation_source": "ai_generated"}
-    with pytest.raises(ValueError, match="observation-v2"):
+    with pytest.raises(ValueError, match="observation-v3"):
         wechat_bind(
             store,
             job_id=job_id,

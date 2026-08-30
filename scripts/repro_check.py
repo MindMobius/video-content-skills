@@ -8,9 +8,11 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import zlib
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -194,6 +196,25 @@ def _check_static_media_fixture() -> dict[str, Any]:
     }
 
 
+def _png_bytes(width: int, height: int, *, rgb: tuple[int, int, int]) -> bytes:
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return (
+            struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body))
+        )
+
+    pixel = bytes(rgb)
+    rows = b"".join(b"\x00" + (pixel * width) for _ in range(height))
+    return b"".join(
+        (
+            b"\x89PNG\r\n\x1a\n",
+            chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)),
+            chunk(b"IDAT", zlib.compress(rows)),
+            chunk(b"IEND", b""),
+        )
+    )
+
+
 def _check_six_product_flow(root: Path) -> dict[str, Any]:
     store = Store(root / "home")
     profile = save_watch_later_profile(
@@ -243,17 +264,32 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
+    source_video_path = root / "source.mp4"
+    source_video_path.write_bytes(b"authorized-fixture-source-video")
+    source_video = store.put_artifact(
+        job["job_id"], kind="source_video", source_path=source_video_path
+    )
     frames: list[tuple[dict[str, Any], int]] = []
     for index, timestamp_ms in enumerate((10000, 20000, 30000), start=1):
         frame_path = root / f"frame-{index}.png"
-        frame_path.write_bytes(f"fixture-frame-{index}".encode())
+        frame_path.write_bytes(_png_bytes(1600, 900, rgb=(32 + index, 64, 96)))
         frames.append(
             (
                 store.put_artifact(
                     job["job_id"],
                     kind="video_frame",
                     source_path=frame_path,
-                    metadata={"timestamp_ms": timestamp_ms},
+                    metadata={
+                        "timestamp_ms": timestamp_ms,
+                        "extraction_role": "final",
+                        "extraction_method": "ffmpeg_source_frame",
+                        "resolution_policy": "source_display_native",
+                        "source_video_artifact_id": source_video["artifact_id"],
+                        "source_video_sha256": source_video["sha256"],
+                        "pixel_width": 1600,
+                        "pixel_height": 900,
+                        "display_aspect_preserved": True,
+                    },
                 ),
                 timestamp_ms,
             )
@@ -355,7 +391,7 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         save_draft=True,
     )
     observation = {
-        "schema_version": "video-content/wechat-editor-observation-v2",
+        "schema_version": "video-content/wechat-editor-observation-v3",
         "started_at": "2026-08-17T00:01:00Z",
         "saved_at": "2026-08-17T00:02:00Z",
         "title": "可复现视频内容文章",
@@ -368,6 +404,7 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
                     "visible": True,
                     "complete": True,
                     "natural_width": 100,
+                    "natural_height": 100,
                     "width": 100,
                     "height": 100,
                     "host_class": "wechat",

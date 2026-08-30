@@ -15,7 +15,12 @@ from .wechat_adapter import prepare_wechat_clipboard
 
 OBSERVATION_SCHEMA_V1 = "video-content/wechat-editor-observation-v1"
 OBSERVATION_SCHEMA_V2 = "video-content/wechat-editor-observation-v2"
-OBSERVATION_SCHEMAS = {OBSERVATION_SCHEMA_V1, OBSERVATION_SCHEMA_V2}
+OBSERVATION_SCHEMA_V3 = "video-content/wechat-editor-observation-v3"
+OBSERVATION_SCHEMAS = {
+    OBSERVATION_SCHEMA_V1,
+    OBSERVATION_SCHEMA_V2,
+    OBSERVATION_SCHEMA_V3,
+}
 
 
 def wechat_prepare(
@@ -78,6 +83,7 @@ def wechat_prepare(
         "intended_images": transport["marker_count"],
         "clipboard": transport,
         "authorization": {"save_draft": True, "publish": False},
+        "observation_schema": OBSERVATION_SCHEMA_V3,
         "required_declarations": (
             {"creation_source": required_creation_source}
             if required_creation_source
@@ -216,7 +222,16 @@ def validate_editor_observation(
         images.get("local_path_markers_remaining"),
         "body_images.local_path_markers_remaining",
     )
-    loaded = [item for item in images["items"] if _visible_loaded_image(item)]
+    if intended > 0 and schema_version != OBSERVATION_SCHEMA_V3:
+        raise ValueError(
+            "Image-bearing WeChat drafts require video-content/wechat-editor-observation-v3"
+        )
+    require_natural_height = schema_version == OBSERVATION_SCHEMA_V3
+    loaded = [
+        item
+        for item in images["items"]
+        if _visible_loaded_image(item, require_natural_height=require_natural_height)
+    ]
     hosted = [item for item in loaded if item.get("host_class") == "wechat"]
     if markers != 0:
         raise ValueError("Local image path markers remain in the saved draft")
@@ -224,17 +239,29 @@ def validate_editor_observation(
         raise ValueError(
             "Saved draft does not contain every intended WeChat-hosted image"
         )
+    if require_natural_height and any(
+        not _image_aspect_ratio_preserved(item) for item in hosted
+    ):
+        raise ValueError(
+            "Saved draft image aspect ratio does not match the source image"
+        )
     if observation.get("cover", {}).get("selected") is not True:
         raise ValueError("WeChat draft cover is not confirmed")
     if observation.get("summary", {}).get("filled") is not True:
         raise ValueError("WeChat draft summary is not filled")
 
-    if required_creation_source and schema_version != OBSERVATION_SCHEMA_V2:
+    if required_creation_source and schema_version not in {
+        OBSERVATION_SCHEMA_V2,
+        OBSERVATION_SCHEMA_V3,
+    }:
         raise ValueError(
-            "AI creation source requires video-content/wechat-editor-observation-v2"
+            "AI creation source requires video-content/wechat-editor-observation-v2 or v3"
         )
-    if schema_version == OBSERVATION_SCHEMA_V2:
-        creation_source = observation.get("creation_source")
+    creation_source = observation.get("creation_source")
+    creation_source_required = (
+        schema_version == OBSERVATION_SCHEMA_V2 or required_creation_source is not None
+    )
+    if creation_source_required or creation_source is not None:
         if not isinstance(creation_source, dict):
             raise ValueError("WeChat creation source declaration is missing")
         if (
@@ -443,15 +470,22 @@ def _product_reference(
     return matches[0]
 
 
-def _visible_loaded_image(item: Any) -> bool:
+def _visible_loaded_image(item: Any, *, require_natural_height: bool = False) -> bool:
     return bool(
         isinstance(item, dict)
         and item.get("visible") is True
         and item.get("complete") is True
         and _positive_number(item.get("natural_width"))
+        and (not require_natural_height or _positive_number(item.get("natural_height")))
         and _positive_number(item.get("width"))
         and _positive_number(item.get("height"))
     )
+
+
+def _image_aspect_ratio_preserved(item: dict[str, Any]) -> bool:
+    natural_ratio = item["natural_width"] / item["natural_height"]
+    rendered_ratio = item["width"] / item["height"]
+    return abs(rendered_ratio / natural_ratio - 1) <= 0.01
 
 
 def _positive_number(value: Any) -> bool:

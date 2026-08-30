@@ -13,6 +13,7 @@ from .diagnostics import doctor as run_doctor
 from .environment import normalize_capabilities
 from .evidence import evidence_start as start_evidence
 from .evidence import source_inspect as inspect_source
+from .frames import extract_source_frame
 from .jobs import update_job as transition_job
 from .platforms.bilibili import OpenCliClient, OpenCliSettings
 from .platforms.watch_later import OpenCliWatchLaterSource
@@ -143,6 +144,24 @@ def artifact_read(
         "encoding": encoding,
         "content": content,
     }
+
+
+def source_frame_extract(
+    job_id: str,
+    timestamp_ms: int,
+    selection_reason: str,
+    *,
+    home: str | None = None,
+    config_path: str | None = None,
+    ffmpeg_path: str | None = None,
+) -> dict[str, Any]:
+    return extract_source_frame(
+        _store(home, config_path),
+        job_id=job_id,
+        timestamp_ms=timestamp_ms,
+        selection_reason=selection_reason,
+        ffmpeg_path=ffmpeg_path,
+    )
 
 
 def transcript_save(

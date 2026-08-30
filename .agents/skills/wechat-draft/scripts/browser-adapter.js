@@ -1,5 +1,5 @@
 export const ADAPTER_ID = 'video-content/wechat-browser-adapter'
-export const ADAPTER_VERSION = '2'
+export const ADAPTER_VERSION = '3'
 
 const WECHAT_IMAGE_HOSTS = new Set(['mmbiz.qpic.cn', 'mmbiz.qlogo.cn'])
 
@@ -25,14 +25,17 @@ export function classifyImageSource(value) {
 }
 
 export function summarizeBodyImages(items, intended, localPathMarkersRemaining = 0) {
-  const normalized = items.map(item => ({
-    visible: item.visible === true,
-    complete: item.complete === true,
-    natural_width: Number(item.natural_width || 0),
-    width: Number(item.width || 0),
-    height: Number(item.height || 0),
-    host_class: item.host_class || classifyImageSource(item.source),
-  }))
+  const normalized = items
+    .map(item => ({
+      visible: item.visible === true,
+      complete: item.complete === true,
+      natural_width: Number(item.natural_width || 0),
+      natural_height: Number(item.natural_height || 0),
+      width: Number(item.width || 0),
+      height: Number(item.height || 0),
+      host_class: item.host_class || classifyImageSource(item.source),
+    }))
+    .filter(item => item.natural_width > 0 || item.natural_height > 0 || item.width > 0 || item.height > 0)
   return {
     intended: Number(intended),
     items: normalized,
@@ -114,6 +117,7 @@ function imageDescriptor(element) {
     visible: isVisible(element),
     complete: element.complete === true,
     natural_width: Number(element.naturalWidth || 0),
+    natural_height: Number(element.naturalHeight || 0),
     width: Number(rect.width || 0),
     height: Number(rect.height || 0),
     host_class: classifyImageSource(element.currentSrc || element.src || ''),

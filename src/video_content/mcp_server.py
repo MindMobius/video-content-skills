@@ -18,6 +18,7 @@ TOOL_NAMES = (
     "job_get",
     "artifact_list",
     "artifact_read",
+    "source_frame_extract",
     "transcript_save",
     "content_save",
     "content_validate",
@@ -107,6 +108,22 @@ def artifact_read(
     job_id: str, artifact_id: str, home: str | None = None, text: bool = True
 ) -> dict[str, Any]:
     return api.artifact_read(job_id, artifact_id, home=home, text=text)
+
+
+def source_frame_extract(
+    job_id: str,
+    timestamp_ms: int,
+    selection_reason: str,
+    home: str | None = None,
+    config_path: str | None = None,
+) -> dict[str, Any]:
+    return api.source_frame_extract(
+        job_id,
+        timestamp_ms,
+        selection_reason,
+        home=home,
+        config_path=config_path,
+    )
 
 
 def transcript_save(
@@ -250,7 +267,7 @@ if McpServer is not None:
         version="1.0.0",
         instructions=(
             "Use source and evidence tools first. Preserve platform, OCR, ASR, and Agent-reviewed evidence independently. "
-            "Save a Transcript before Content. Watch Later scans are one-shot and idempotent; the caller owns recurrence. "
+            "Save a Transcript before Content. Final article frames must be source-native extractions, never scout thumbnails. Watch Later scans are one-shot and idempotent; the caller owns recurrence. "
             "WeChat tools require explicit draft authorization, enforce required AI creation-source readback, support only same-appmsgid revisions, and never publish."
         ),
     )

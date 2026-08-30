@@ -14,6 +14,7 @@ EXPECTED_TOOLS = {
     "job_get",
     "artifact_list",
     "artifact_read",
+    "source_frame_extract",
     "transcript_save",
     "content_save",
     "content_validate",

@@ -12,7 +12,7 @@ import {
 test('extracts only appmsgid from a token-bearing URL', () => {
   const value = 'https://mp.weixin.qq.com/cgi-bin/appmsg?action=edit&appmsgid=100000721&token=do-not-return'
   assert.equal(parseAppmsgId(value), '100000721')
-  assert.equal(ADAPTER_VERSION, '2')
+  assert.equal(ADAPTER_VERSION, '3')
 })
 
 test('classifies WeChat, transient, and external image sources', () => {
@@ -28,13 +28,25 @@ test('normalizes image descriptors without retaining source URLs', () => {
       visible: true,
       complete: true,
       natural_width: 1280,
+      natural_height: 720,
       width: 640,
       height: 360,
       source: 'https://mmbiz.qpic.cn/example.jpg',
     },
+    {
+      visible: false,
+      complete: true,
+      natural_width: 0,
+      natural_height: 0,
+      width: 0,
+      height: 0,
+      source: '',
+    },
   ], 1, 0)
 
+  assert.equal(result.items.length, 1)
   assert.equal(result.items[0].host_class, 'wechat')
+  assert.equal(result.items[0].natural_height, 720)
   assert.equal(Object.hasOwn(result.items[0], 'source'), false)
   assert.equal(result.intended, 1)
 })
