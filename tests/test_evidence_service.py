@@ -101,6 +101,94 @@ def test_evidence_start_is_idempotent_for_same_video(tmp_path: Path) -> None:
     assert len(store.list_jobs()) == 1
 
 
+def test_evidence_reuses_existing_source_video_when_retry_metadata_differs(
+    tmp_path: Path,
+) -> None:
+    store = Store(tmp_path)
+    job, _ = store.create_job(
+        source={
+            "platform": "bilibili",
+            "bvid": "BV1same",
+            "page": 1,
+            "url": "https://www.bilibili.com/video/BV1same",
+        },
+        idempotency_key="bilibili_BV1same_p1",
+    )
+    video_path = tmp_path / "downloaded.mp4"
+    video_path.write_bytes(b"same-video-bytes")
+    existing = store.put_artifact(
+        job["job_id"],
+        kind="source_video",
+        source_path=video_path,
+        metadata={
+            "kind": "source_video",
+            "source": "bilibili_download",
+            "owned_by_job": False,
+            "mib": 0.0,
+        },
+    )
+    subtitle_path = tmp_path / "subtitle.json"
+    subtitle_path.write_text("[]\n", encoding="utf-8")
+    manifest = {
+        "schema_version": "video-content/extraction-run-v1",
+        "status": "completed",
+        "stage": "done",
+        "video": {"bvid": "BV1same", "title": "同一视频"},
+        "sources": [
+            {
+                "kind": "hard_ocr",
+                "artifact_source": "hard_ocr:videocr",
+                "backend": "videocr",
+                "cue_count": 1,
+            }
+        ],
+        "artifacts": [
+            {
+                "kind": "source_video",
+                "path": str(video_path),
+                "source": "local",
+                "owned_by_job": False,
+                "bytes": video_path.stat().st_size,
+                "mib": 0.0,
+            },
+            {
+                "kind": "subtitle_json",
+                "path": str(subtitle_path),
+                "source": "hard_ocr:videocr",
+                "owned_by_job": True,
+                "cue_count": 1,
+                "selected": True,
+            },
+        ],
+        "warnings": [],
+    }
+
+    class ExistingPipeline:
+        def __init__(self, client) -> None:
+            pass
+
+        def run(self, request, *, job_id, on_update=None):
+            if on_update:
+                on_update(manifest)
+            return manifest
+
+    result = evidence_start(
+        store,
+        url="https://www.bilibili.com/video/BV1same",
+        page=1,
+        ocr_backend="videocr",
+        video_path=video_path,
+        hard_subtitle_visual_decision="continuous",
+        client=FakeClient(),
+        pipeline_factory=ExistingPipeline,
+    )
+
+    source_refs = store.list_artifacts(job["job_id"], kind="source_video")
+    assert result["evidence"] is not None
+    assert source_refs == [existing]
+    assert source_refs[0]["metadata"]["source"] == "bilibili_download"
+
+
 def test_missing_subtitle_with_disabled_backend_is_retryable(tmp_path: Path) -> None:
     result = evidence_start(
         Store(tmp_path),

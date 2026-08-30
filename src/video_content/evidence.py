@@ -14,7 +14,7 @@ from .pipeline import ExtractionPipeline, ExtractionRequest
 from .platforms.bilibili import OpenCliClient, OpenCliError, OpenCliSettings
 from .scout import plan_hard_subtitle_scout
 from .store import Store
-from .util import new_id, utc_now
+from .util import new_id, sha256_file, utc_now
 
 _BVID = re.compile(r"(?i)(BV[A-Za-z0-9]+)")
 _VISUAL_DECISIONS = {"not_assessed", "continuous", "not_continuous", "uncertain"}
@@ -180,16 +180,22 @@ def evidence_start(
         if not path.is_file():
             continue
         kind = _artifact_kind(str(artifact.get("kind") or "evidence_file"))
-        reference = store.put_artifact(
-            job["job_id"],
-            kind=kind,
-            source_path=path,
-            metadata={
-                key: value
-                for key, value in artifact.items()
-                if key not in {"path", "sha256", "bytes"} and value is not None
-            },
+        reference = (
+            _existing_source_video_reference(store, job["job_id"], path)
+            if kind == "source_video"
+            else None
         )
+        if reference is None:
+            reference = store.put_artifact(
+                job["job_id"],
+                kind=kind,
+                source_path=path,
+                metadata={
+                    key: value
+                    for key, value in artifact.items()
+                    if key not in {"path", "sha256", "bytes"} and value is not None
+                },
+            )
         references.append(reference)
 
     cover_reference: dict[str, Any] | None = None
@@ -486,6 +492,20 @@ def _pipeline_limitation(manifest: dict[str, Any]) -> dict[str, Any]:
     ):
         return {"status": "retryable", "error": error}
     return {"status": "unprocessable", "error": error}
+
+
+def _existing_source_video_reference(
+    store: Store, job_id: str, path: Path
+) -> dict[str, Any] | None:
+    digest = sha256_file(path)
+    return next(
+        (
+            reference
+            for reference in store.list_artifacts(job_id, kind="source_video")
+            if reference.get("sha256") == digest
+        ),
+        None,
+    )
 
 
 def _artifact_kind(value: str) -> str:
