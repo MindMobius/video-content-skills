@@ -43,7 +43,9 @@ It never authorizes publishing or unrelated account actions.
 4. For each Job, acquire Evidence and save a Transcript using `$video-evidence`.
 5. Use the carrier stored in the Profile with `$video-to-content`; require a
    passing full-fidelity Content audit, explicit material-section coverage, and
-   inspected source frames placed at real content transitions. `content_validate`
+   inspected final source frames placed at real content transitions. Scout frames
+   only select timestamps; each body frame must be re-extracted from `source_video`
+   through `source_frame_extract` and keep the source display aspect. `content_validate`
    must also clear the `raw Transcript passthrough` check and validate a
    `source_aware_minimal` `expression_audit` covering Agent-added title, summary,
    headings, transitions, evidence boundaries, material details, and ending. The
@@ -54,9 +56,15 @@ It never authorizes publishing or unrelated account actions.
    disclosure. If
    either check fails, keep the Job at Content, repair the actual written edition,
    and do not enter WeChat handoff.
-6. If draft saving is within the standing authorization, use `$wechat-draft` and
-   select the required WeChat creation-source disclosure “内容由AI生成”.
-7. Continue until the queue has no actionable Job. Record physical failures as
+6. If draft saving is within the standing authorization, use `$wechat-draft`.
+   For image-rich articles, prefer its validated DOCX document-import path; use
+   rich clipboard HTML only as a fallback. Select and refresh-read-back the
+   required WeChat creation-source disclosure “内容由AI生成”.
+7. Close each Job before moving to the next: save the draft, refresh or reopen the
+   same numeric `appmsgid`, build the v3 image-aware observation when images exist,
+   call `wechat_bind`, and require a valid current Draft Receipt. A partially
+   imported editor, save toast, or bare `appmsgid` is not permission to advance.
+8. Continue until the queue has no actionable Job. Record physical failures as
    `unprocessable` without asking the user.
 
 The repository exposes one-shot scan and Job operations only. Recurrence belongs
@@ -84,7 +92,8 @@ Validated Content means the body is a genuinely readable written edition in the
 source's narrative perspective rather than mechanical cue concatenation or a
 third-party video-reporting shell. Every material section has a source-to-output
 mapping, non-material promotion/CTA omissions leave no reader-facing placeholder,
-every planned frame is present at its audited body block, and a
+every planned frame is a final source-native extraction present at its audited
+body block, and a
 `source_aware_minimal` `expression_audit` has reviewed Agent-added carrier
 language against the final document without rewriting source-owned expression. A
 `raw Transcript passthrough` or invalid expression audit is incomplete Content;

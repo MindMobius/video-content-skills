@@ -327,12 +327,23 @@ visual audits; it cannot repair or excuse missing source content.
 
 Video-derived images default to the original cover and timestamped source
 frames; do not generate or source filler visuals without separate user
-approval.
+approval. Scout/contact-sheet images only select timestamps. Use
+`source_frame_extract` or `video-content media extract-frame` to regenerate each
+final body frame from the Job's `source_video`; final frame metadata and actual
+bytes must agree on pixel dimensions and preserve the source display aspect.
 
 The Python/MCP layer stops at an audited Content object. WeChat mutation is
-optional, visible, and separately authorized. The clipboard payload is
-transient. Persist only no-secret visible observations and a validated
-`video-content/draft-receipt-v1` with `published=false`. When the Profile
+optional, visible, and separately authorized. The platform handoff is transient.
+For image-rich articles, prefer an
+`article-import.docx` generated from the exact validated Content with body images
+embedded in document order, then use the visible WeChat document importer. Rich
+clipboard HTML is a fallback, not a second manuscript; never mix both transports
+into the same editor state. Keep either transport only in the current Job work
+area and never promote it to a business product. Persist only no-secret visible
+observations and a validated
+`video-content/draft-receipt-v1` with `published=false`. Image-bearing readback
+uses `video-content/wechat-editor-observation-v3` and rejects a body image whose
+natural and rendered aspect ratios differ. When the Profile
 requires it, select and refresh-read-back the WeChat creation-source disclosure
 “内容由AI生成”; this is not an originality declaration.
 

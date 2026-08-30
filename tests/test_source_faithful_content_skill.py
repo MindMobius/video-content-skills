@@ -47,6 +47,8 @@ def test_traceability_and_wechat_preserve_source_authorship() -> None:
     assert "人物身份" in traceability
     assert "来源顺序" in traceability
     assert "不是新的作者" in wechat
+    assert "article-import.docx" in wechat
+    assert "image block 按原顺序" in wechat
 
 
 def test_repository_promises_high_fidelity_carrier_migration() -> None:
@@ -71,6 +73,11 @@ def test_full_fidelity_audit_maps_sections_and_frames_to_output_blocks() -> None
     assert "output_block_indices" in traceability
     assert "block_index" in frames
     assert "media 列表" in frames
+    assert "source_frame_extract" in frames
+    assert "video-content media extract-frame" in frames
+    assert "scout/contact sheet" in frames
+    assert "source_display_native" in frames
+    assert "不得同时强制固定高度" in frames
     assert "raw Transcript passthrough" in skill
 
 

@@ -73,7 +73,7 @@ run_id = 本次扫描或处理的运行标识
 | 环境能力 | requirements、bootstrap/setup、doctor、`video-evidence` reference |
 | 证据决策 | evidence/pipeline、`video-evidence`、fixture |
 | 内容载体 | content/renderer、`video-to-content`、来源忠实/表达审校 reference、审计测试 |
-| 微信交接 | adapter、observation/receipt、`wechat-draft`、Node/Python 测试 |
+| 微信交接 | document import / clipboard transport、adapter、observation/receipt、`wechat-draft`、Node/Python 测试 |
 | 自动化状态 | Profile/Job、`watch-later-to-wechat`、幂等测试 |
 
 不要添加旧名称兼容入口。1.0 是硬切；历史运行数据通过一次性迁移工具归档和提取基线，运行时
@@ -144,6 +144,10 @@ run_id = 本次扫描或处理的运行标识
    创作者或发布行为是实际讨论对象时，才保留相应归属。
 5. **省略不是展示删除动作。** `source_faithful_full` 保留实质内容，不是每个 cue；广告和平台 CTA
    的 cue 范围写进 audit，正文不出现占位标题、括号说明或“此处已删除”。
+6. **候选帧不是交付帧。** scout/contact sheet 只用于选择时间点。曾出现批量脚本把固定为
+   `640×360` / `960×540` 的 scout 预览直接注册成正文 `video_frame`，DOCX 和微信都保持了这个
+   低清输入，因此平台层检查不到上游错误。现在由 `source_frame_extract` 从 `source_video` 重抽，
+   Content 验证最终帧来源和实际尺寸，WeChat Observation v3 再检查天然与显示画幅。
 
 这些经验分别落在 `video-to-content` 的 Content 验收与来源感知表达审校、`wechat-draft` 的恢复
 清单和程序验证器中，不要只把它们写成一次性的提示词。

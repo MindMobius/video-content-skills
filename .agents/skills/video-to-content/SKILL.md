@@ -73,13 +73,16 @@ invented inside the active state root.
    material reorder are allowed only when explicitly requested. Record every
    such departure in the audit.
 7. For video-derived imagery, use only the original cover and timestamped source
-   frames by default. Identify material visual or argument transitions, extract
-   nearby candidates, inspect them, and place the selected frame at the matching
-   passage. A Profile minimum is a floor, not a target; long or visually dense
-   videos normally require more frames. Never satisfy the contract with evenly
-   spaced filler screenshots. If scout evidence proves a static source with no
-   material visual transitions, record an approved `visual_exception` with the
-   scout Artifact IDs instead of duplicating meaningless frames.
+   frames by default. Scout/contact-sheet images are selection aids only: use them
+   to choose a timestamp, then call `source_frame_extract` (or
+   `video-content media extract-frame`) to re-extract the final frame from the
+   Job's `source_video`, inspect that final Artifact, and place it at the matching
+   passage. Never promote a fixed-size scout thumbnail such as `640×360` or
+   `960×540` into Content. A Profile minimum is a floor, not a target; long or
+   visually dense videos normally require more frames. Never satisfy the contract
+   with evenly spaced filler screenshots. If scout evidence proves a static source
+   with no material visual transitions, record an approved `visual_exception`
+   with the scout Artifact IDs instead of duplicating meaningless frames.
 8. Build the carrier document and an explicit source-fidelity audit. When the
    active Profile selects `source_faithful_full`, include `adaptation_mode`,
    `visual_policy`, `material_sections.items`, `omissions`, and a per-frame
@@ -132,7 +135,8 @@ reading the actual body at the opening, middle, and ending, then checking:
 - `expression_audit` reviews Agent-added carrier language with
   `policy=source_aware_minimal`, preserves source-owned expression, and records
   every revised or deliberately retained rule hit against the final document;
-- every image is an original cover or timestamped source frame;
+- every image is an original cover or a final `source_video` extraction whose
+  recorded pixel dimensions match the actual bytes and whose display aspect is preserved;
 - every material section has an explicit source-to-output mapping, all are
   preserved, and omissions are explicit;
 - every source frame is tied to a meaningful passage, visually inspected, and

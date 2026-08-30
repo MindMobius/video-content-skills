@@ -54,6 +54,9 @@ video-content-skills/
   `video-content-archive/`，但不能作为当前 `home`。两者都是历史区，不是第二个活动状态根；
   `meta/migration-receipt.json` 若指向外部归档，只表示历史迁移来源。
 - 当前失败或待重试的运行放在 `.video-content/runs/<run_id>/`；任务结束后再清理或归档。
+- `jobs/<job_id>/work/<content_id>/handoff-package/article-import.docx` 是从最终 Content
+  派生的瞬时微信导入载体，可以按同一 Content 重新生成；它不是第七种业务产物，不进入源码仓库，
+  也不能替代 Draft Receipt。
 - 历史脚本、批处理预览和一次性分析结果放在 `.video-content/archive/<date>-<reason>/`，不放在状态根顶层。
 - 不要在 `.video-content/` 顶层创建 `build-*`、`run-*`、`current-*`、`latest-*` 或散落的
   JSON/日志/截图。可复用代码放到仓库 `scripts/` 并配套测试；一次性工作放到当前 `runs/<run_id>/`。

@@ -9,7 +9,10 @@ def test_wechat_skill_requires_visible_state_and_validated_receipt() -> None:
     checklist = (SKILL_ROOT / "references" / "editor-checklist.md").read_text(
         encoding="utf-8"
     )
-    contract = f"{skill}\n{checklist}"
+    document_import = (SKILL_ROOT / "references" / "document-import.md").read_text(
+        encoding="utf-8"
+    )
+    contract = f"{skill}\n{checklist}\n{document_import}"
     for token in (
         "content_validate.valid=true",
         "scripts/prepare_clipboard.py",
@@ -20,10 +23,19 @@ def test_wechat_skill_requires_visible_state_and_validated_receipt() -> None:
         "zero local-path markers",
         "Never save a second draft",
         "内容由AI生成",
-        "video-content/wechat-editor-observation-v2",
+        "video-content/wechat-editor-observation-v3",
         "supersedes_receipt_id",
         "creationSourceSelector",
         "post-refresh snapshot",
+        "article-import.docx",
+        "document-import.md",
+        "opening, middle, and ending",
+        "natural_width",
+        "natural_height",
+        "aspect ratio",
+        "wp:extent",
+        "setFiles: Not allowed",
+        "article-import",
     ):
         assert token in contract
     for secret in ("cookies", "tokens", "browser storage", "clipboard"):
@@ -54,5 +66,11 @@ def test_wechat_skill_has_same_target_recovery_rules() -> None:
         "retryable",
         "刷新或重新打开",
         "内容由AI生成",
+        "文档导入",
+        "叠加剪贴板",
+        "setFiles: Not allowed",
+        "同一已登录会话中新开 Agent 控制标签页",
+        "wechat-editor-observation-v3",
+        "天然宽高",
     ):
         assert token in recovery

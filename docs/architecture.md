@@ -98,7 +98,8 @@ Bilibili/local media
   -> source-faithful written edition
   -> section / visual / source-aware expression audit
   -> validated Content
-  -> optional visible WeChat handoff
+  -> transient handoff package (image-rich content prefers embedded-image DOCX)
+  -> optional visible WeChat document import / editor handoff
   -> validated Draft Receipt
 ```
 
@@ -119,7 +120,9 @@ Evidence -> Transcript -> Content -> Handoff -> Draft Receipt
 - Handoff 只代表一次可见平台交接，不代表保存成功；
 - Draft Receipt 必须绑定当前 Content 哈希、稳定数字 `appmsgid`，并有刷新后的正文/图片/封面/摘要/创作来源回读。
 
-因此，渲染结果、文章长度、媒体数量、保存 Toast、上传完成或 `appmsgid` 都不能越级充当完成证据。
+因此，渲染结果、DOCX 生成或导入完成、文章长度、媒体数量、保存 Toast、上传完成或 `appmsgid`
+都不能越级充当完成证据。DOCX 只是从最终 Content 派生的瞬时交接载体，不是第七种持久产物；
+富文本剪贴板是后备载体，也不能形成第二份正文。
 
 ## Agent 与程序边界
 
