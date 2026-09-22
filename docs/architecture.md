@@ -86,8 +86,8 @@ Agent 对照来源判断。Content 不代表平台状态，也不授权保存。
 
 ## API 层
 
-CLI 和 MCP 调用 `src/video_content/api.py` 的同一服务函数。CLI 按资源分组；MCP 固定 16 个
-工具：系统 3、来源/证据 2、Job/Artifact 6、内容 3、稍后再看 1、微信 2。
+CLI 和 MCP 调用 `src/video_content/api.py` 的同一服务函数。CLI 按资源分组；MCP 工具表由 `mcp_server.TOOL_NAMES` 与 smoke test 校验。
+微信统一使用 `wechat_prepare → wechat_step → wechat_bind`，CLI/MCP 共用校验与恢复逻辑。
 
 ## 数据流
 
@@ -122,7 +122,9 @@ Evidence -> Transcript -> Content -> Handoff -> Draft Receipt
 
 因此，渲染结果、DOCX 生成或导入完成、文章长度、媒体数量、保存 Toast、上传完成或 `appmsgid`
 都不能越级充当完成证据。DOCX 只是从最终 Content 派生的瞬时交接载体，不是第七种持久产物；
-富文本剪贴板是后备载体，也不能形成第二份正文。
+受控交接由 canonical DOCX 生成器派生全文指纹和图片清单，禁止另写上传稿。剪贴板仍不是默认路线；
+只有同一空编辑器内两次明确 DOCX 失败后，受控 `begin_clipboard` 才能一次性使用同一 Content
+生成的备用传输，并继续走相同的验证、保存和回读。
 
 ## Agent 与程序边界
 
@@ -138,7 +140,12 @@ Agent 发明一套固定公众号腔。
 
 1. 读取同一页面或同一数字 `appmsgid`；
 2. 刷新/重开并回读；
-3. 只有确认没有当前有效 Receipt，才允许继续新建；
+3. 读取持久 checkpoint；没有 Receipt 不等于从未保存。只有全新 `prepared` 才能选择空白编辑器，`import_pending`/`save_pending`/`recovery_required` 禁止重新新建；
 4. 修订只能复用原 `appmsgid`，以 `supersedes_receipt_id` 留存历史。
 
 浏览器读取超时属于技术重试，真实登录页才是 `paused_auth`；不能因为一次超时就创建第二篇草稿。
+
+程序将单次导入/保存许可先原子写入 Job/work 检查点，携带 revision 防止两个调用方重放同一操作。
+导入完成比较全文指纹而非字数；保存后要求不同 document identity 的同稿回读。
+这不是跨本地存储和微信的分布式事务：结果不明时保持未决、只读核对，不声称 exactly-once。
+六类业务产物保持不变，checkpoint 是可恢复执行元数据。详见微信 Skill 的 guarded-handoff。

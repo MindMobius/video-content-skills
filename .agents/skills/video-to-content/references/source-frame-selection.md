@@ -41,8 +41,11 @@
   保持原像素尺寸；非方形像素只做显示画幅校正；横屏、竖屏和方形视频都保持各自比例。
 - 不允许为了统一外观同时固定宽和高，不允许强制裁成 16:9，也不允许先缩成通用缩略图再放大。
   `640×360` 本身不一定错误——来源真的只有这个分辨率时可以保留；错误的是无论来源尺寸如何都先降到固定预览规格。
-- Artifact 元数据中的 `pixel_width` / `pixel_height` 必须与实际图片字节一致，
-  `display_aspect_preserved=true`。`source_faithful_full` 会拒绝 scout 帧、伪造尺寸或未绑定来源视频的帧。
+- 抽帧前用 FFprobe 读取来源像素尺寸、SAR、显示画幅和旋转信息；抽帧后以实际 PNG 尺寸计算
+  `aspect_ratio_drift`。`display_aspect_preserved=true` 只能是该计算的结果，不能由生成脚本直接写死。
+- Content 验证会重新探测 `source_video`，独立比较来源显示画幅与 Artifact 实际字节；仅有
+  `pixel_width` / `pixel_height` 或自报的布尔标志不能通过。`source_faithful_full` 会拒绝 scout 帧、
+  伪造尺寸、未绑定来源视频或画幅漂移超过 1% 的帧。
 - DOCX 或平台显示可以限制最大宽度，但高度必须按图片比例自动计算；不得同时强制固定高度。
 
 ## 数量边界

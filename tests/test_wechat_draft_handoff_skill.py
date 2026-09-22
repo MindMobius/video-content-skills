@@ -23,7 +23,7 @@ def test_wechat_skill_requires_visible_state_and_validated_receipt() -> None:
         "zero local-path markers",
         "Never save a second draft",
         "内容由AI生成",
-        "video-content/wechat-editor-observation-v3",
+        "video-content/wechat-editor-observation-v4",
         "supersedes_receipt_id",
         "creationSourceSelector",
         "post-refresh snapshot",
@@ -33,9 +33,15 @@ def test_wechat_skill_requires_visible_state_and_validated_receipt() -> None:
         "natural_width",
         "natural_height",
         "aspect ratio",
+        "Content Artifact",
+        "internally consistent stretched image",
         "wp:extent",
         "setFiles: Not allowed",
         "article-import",
+        "hidden `.js_cover_preview_new`",
+        "draft-list card",
+        "persistent cover-media fields",
+        "crop data",
     ):
         assert token in contract
     for secret in ("cookies", "tokens", "browser storage", "clipboard"):
@@ -70,7 +76,32 @@ def test_wechat_skill_has_same_target_recovery_rules() -> None:
         "叠加剪贴板",
         "setFiles: Not allowed",
         "同一已登录会话中新开 Agent 控制标签页",
-        "wechat-editor-observation-v3",
+        "wechat-editor-observation-v4",
         "天然宽高",
+        "CSS `background-image`",
+        "尺寸非零",
+        "草稿列表",
     ):
         assert token in recovery
+
+
+def test_guarded_route_is_the_only_agent_handoff_entry() -> None:
+    guide = (SKILL_ROOT / "references" / "guarded-handoff.md").read_text(
+        encoding="utf-8"
+    )
+    skill = (SKILL_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    for token in (
+        "wechat_prepare",
+        "wechat_step",
+        "wechat_bind",
+        "collectHandoffSnapshot",
+        "expected-revision",
+        "mutation_permitted=true",
+        "recovery_required",
+        "save_pending",
+        "recover_saved",
+    ):
+        assert token in guide
+    assert "guarded-handoff.md" in skill
+    assert "implicit clipboard fallback is disabled" in skill
+    assert "handwrite" in (ROOT / "AGENTS.md").read_text(encoding="utf-8")

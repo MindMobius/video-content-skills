@@ -61,7 +61,9 @@ def test_scan_creates_jobs_only_for_new_stable_identities(tmp_path: Path) -> Non
     assert new_job["source"]["bvid"] == "BV1new"
     assert new_job["source"]["page"] == 2
     assert changed["detection_mode"] == "timestamp_watermark"
+    assert changed["detection_watermark_source"] == "profile"
     assert changed["ignored_unseen_entry_count"] == 0
+    assert [entry["bvid"] for entry in changed["new_entries"]] == ["BV1new"]
 
 
 def test_scan_does_not_backfill_older_unseen_rows_when_window_expands(
@@ -112,11 +114,158 @@ def test_scan_does_not_backfill_older_unseen_rows_when_window_expands(
     )
     assert expanded["new_entry_count"] == 1
     assert expanded["ignored_unseen_entry_count"] == 1
+    assert [entry["bvid"] for entry in expanded["ignored_unseen_entries"]] == [
+        "BV1older"
+    ]
     assert expanded["detection_mode"] == "timestamp_watermark"
+    assert expanded["detection_watermark_source"] == "profile"
     assert len(store.list_jobs()) == 3
     created = store.get_job(expanded["created_jobs"][0])
     assert created["source"]["bvid"] == "BV1new"
-    assert "BV1older:p1" in store.get_profile("daily")["baseline"]["seen"]
+    baseline = store.get_profile("daily")["baseline"]
+    assert "BV1older:p1" not in baseline["seen"]
+    assert baseline["pending_ignored_unseen"] == ["BV1older:p1"]
+    repeated = watch_later_scan(
+        store,
+        profile_id="daily",
+        source=RowsSource(
+            [
+                {
+                    "bvid": "BV1new",
+                    "page": 1,
+                    "title": "New",
+                    "position": 1,
+                    "addedAt": "2026-08-16T00:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1beta",
+                    "page": 1,
+                    "title": "Beta",
+                    "position": 2,
+                    "addedAt": "2026-08-15T01:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1alpha",
+                    "page": 1,
+                    "title": "Alpha",
+                    "position": 3,
+                    "addedAt": "2026-08-15T00:00:00.000Z",
+                },
+                {
+                    "bvid": "BV1older",
+                    "page": 1,
+                    "title": "Historical tail",
+                    "position": 4,
+                    "addedAt": "2026-08-14T00:00:00.000Z",
+                },
+            ]
+        ),
+    )
+    assert repeated["new_entry_count"] == 0
+    assert repeated["ignored_unseen_entry_count"] == 1
+    assert repeated["pending_ignored_unseen"] == ["BV1older:p1"]
+    assert len(store.list_jobs()) == 3
+
+
+def test_known_reentry_does_not_hide_newer_unseen_identities(tmp_path: Path) -> None:
+    store = Store(tmp_path)
+    save_watch_later_profile(
+        store,
+        profile_id="daily",
+        account_profile_alias="j6g376bb",
+    )
+    initial = RowsSource(
+        [
+            {
+                "bvid": "BV1known",
+                "page": 1,
+                "title": "Known",
+                "position": 1,
+                "addedAt": "2026-08-29T18:40:01.000Z",
+            }
+        ]
+    )
+    watch_later_scan(store, profile_id="daily", source=initial)
+
+    changed = watch_later_scan(
+        store,
+        profile_id="daily",
+        source=RowsSource(
+            [
+                {
+                    "bvid": "BV1known",
+                    "page": 1,
+                    "title": "Known re-added",
+                    "position": 1,
+                    "addedAt": "2026-09-01T11:27:48.000Z",
+                },
+                {
+                    "bvid": "BV1newer",
+                    "page": 1,
+                    "title": "Newer",
+                    "position": 2,
+                    "addedAt": "2026-09-01T10:40:21.000Z",
+                },
+                {
+                    "bvid": "BV1earlier",
+                    "page": 1,
+                    "title": "Earlier but still new",
+                    "position": 3,
+                    "addedAt": "2026-08-30T16:58:58.000Z",
+                },
+            ]
+        ),
+    )
+
+    assert changed["detection_watermark"] == "2026-08-29T18:40:01.000Z"
+    assert changed["detection_watermark_source"] == "profile"
+    assert changed["new_entry_count"] == 2
+    assert changed["ignored_unseen_entry_count"] == 0
+    assert [entry["bvid"] for entry in changed["new_entries"]] == [
+        "BV1newer",
+        "BV1earlier",
+    ]
+    assert changed["known_reentry_count"] == 1
+    assert changed["known_reentries"][0]["bvid"] == "BV1known"
+    decision = store.get_profile("daily")["baseline"]["last_scan_decision"]
+    assert decision["new"] == ["BV1earlier:p1", "BV1newer:p1"]
+    assert decision["known_reentries"] == ["BV1known:p1"]
+    assert len(store.list_jobs()) == 3
+
+
+def test_seen_profile_without_persisted_watermark_fails_closed(tmp_path: Path) -> None:
+    store = Store(tmp_path)
+    save_watch_later_profile(
+        store,
+        profile_id="daily",
+        account_profile_alias="j6g376bb",
+        baseline={"seen": ["BV1known:p1"], "last_scan_at": "2026-08-29T00:00:00Z"},
+    )
+
+    with pytest.raises(ValueError, match="persisted pre-scan latest_added_at"):
+        watch_later_scan(
+            store,
+            profile_id="daily",
+            source=RowsSource(
+                [
+                    {
+                        "bvid": "BV1known",
+                        "page": 1,
+                        "title": "Known",
+                        "position": 1,
+                        "addedAt": "2026-09-01T11:27:48.000Z",
+                    },
+                    {
+                        "bvid": "BV1new",
+                        "page": 1,
+                        "title": "Potentially new",
+                        "position": 2,
+                        "addedAt": "2026-09-01T10:40:21.000Z",
+                    },
+                ]
+            ),
+        )
+    assert store.list_jobs() == []
 
 
 def test_empty_profile_can_initialize_baseline_without_backfill(tmp_path: Path) -> None:

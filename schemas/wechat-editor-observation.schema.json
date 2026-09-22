@@ -203,6 +203,48 @@
           "const": true
         }
       }
+    },
+    "cover_v4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected",
+        "crop_confirmed",
+        "editor_visible_after_refresh",
+        "rendered_width",
+        "rendered_height",
+        "list_thumbnail_read_back",
+        "persistent_media_present",
+        "crop_data_present"
+      ],
+      "properties": {
+        "selected": {
+          "const": true
+        },
+        "crop_confirmed": {
+          "const": true
+        },
+        "editor_visible_after_refresh": {
+          "const": true
+        },
+        "rendered_width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rendered_height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "list_thumbnail_read_back": {
+          "const": true
+        },
+        "persistent_media_present": {
+          "const": true
+        },
+        "crop_data_present": {
+          "const": true
+        }
+      }
     }
   },
   "oneOf": [
@@ -264,6 +306,50 @@
             },
             "creation_source": {
               "$ref": "#/$defs/creation_source"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "body_images": {
+              "type": "object",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "natural_height"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "#/$defs/common"
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema_version"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "video-content/wechat-editor-observation-v4"
+            },
+            "creation_source": {
+              "$ref": "#/$defs/creation_source"
+            },
+            "cover": {
+              "$ref": "#/$defs/cover_v4"
             }
           }
         },

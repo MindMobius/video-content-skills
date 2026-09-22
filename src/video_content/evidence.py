@@ -491,6 +491,23 @@ def _pipeline_limitation(manifest: dict[str, Any]) -> dict[str, Any]:
         for token in ("missing", "unavailable", "timeout", "download", "runtime")
     ):
         return {"status": "retryable", "error": error}
+    # Browser-bridge/automation faults are technical failures, not physical
+    # evidence limits. The OpenCLI bridge can reject a navigation while another
+    # automation tab is live; the next attempt usually succeeds, so the Job must
+    # stay retryable instead of becoming terminal.
+    if status == "failed" and any(
+        token in lowered
+        for token in (
+            "navigation",
+            "opencli",
+            "browser bridge",
+            "extension",
+            "cdp",
+            "webdriver",
+            "protocol",
+        )
+    ):
+        return {"status": "retryable", "error": error}
     return {"status": "unprocessable", "error": error}
 
 

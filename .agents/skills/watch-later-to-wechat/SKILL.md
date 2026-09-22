@@ -39,6 +39,14 @@ It never authorizes publishing or unrelated account actions.
    scan call using the authorized account alias.
 2. Compare stable source identities with the Profile baseline. Reorders are not
    new videos. Existing completed Jobs and Draft Receipts are never duplicated.
+   The detector must use the persisted pre-scan watermark; a known `BVID:page`
+   whose current `added_at` is later is a re-entry and must not advance the
+   watermark used to classify other rows. Before reporting or draining the queue,
+   inspect `new_entries`, `known_reentries`, and every `ignored_unseen_entries`
+   row. A nonzero `ignored_unseen_entry_count` is an audit condition, not a number
+   that may be silently omitted or promoted to `seen`; unresolved identities stay
+   in `pending_ignored_unseen`. Use the Profile's durable `last_scan_decision`
+   when recovering an ambiguous scan.
 3. Query queued/retryable Jobs with `job_list`.
 4. For each Job, acquire Evidence and save a Transcript using `$video-evidence`.
 5. Use the carrier stored in the Profile with `$video-to-content`; require a
@@ -57,11 +65,12 @@ It never authorizes publishing or unrelated account actions.
    either check fails, keep the Job at Content, repair the actual written edition,
    and do not enter WeChat handoff.
 6. If draft saving is within the standing authorization, use `$wechat-draft`.
-   For image-rich articles, prefer its validated DOCX document-import path; use
-   rich clipboard HTML only as a fallback. Select and refresh-read-back the
+   Follow its mandatory `wechat_prepare → wechat_step → wechat_bind` route.
+   Use the generated canonical DOCX and resume the existing checkpoint, not a
+   historical upload script. Select and refresh-read-back the
    required WeChat creation-source disclosure “内容由AI生成”.
 7. Close each Job before moving to the next: save the draft, refresh or reopen the
-   same numeric `appmsgid`, build the v3 image-aware observation when images exist,
+   same numeric `appmsgid`, use the program-generated v4 `readback` observation,
    call `wechat_bind`, and require a valid current Draft Receipt. A partially
    imported editor, save toast, or bare `appmsgid` is not permission to advance.
 8. Continue until the queue has no actionable Job. Record physical failures as

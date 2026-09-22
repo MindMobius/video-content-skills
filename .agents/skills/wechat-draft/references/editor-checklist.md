@@ -1,12 +1,13 @@
 # Visible editor checklist
 
-Before mutation:
+Before mutation (after the gate in [guarded-handoff.md](guarded-handoff.md)):
 
 - exactly one visible body editor;
 - current page is the intended draft editor;
 - user/automation authorization includes saving a draft;
 - no existing Draft Receipt for a new draft; for an authorized revision, exactly one current validated Receipt and its numeric `appmsgid`;
-- exactly one transport selected: validated `article-import.docx` for image-rich content when available, otherwise transient rich HTML;
+- canonical `article-import.docx` from `wechat_prepare`, not a historical file or trial variant;
+- a fresh `wechat_step` single-action permit before upload/save; the live account, tab and document identity match the checkpoint;
 - for DOCX, the file matches the final Content, embeds each intended body image once in block order, and lives under the current Job handoff package;
 - every DOCX image comes from the final Content Artifact, not a scout preview; its pixel aspect ratio matches the document display extent, with maximum width allowed but no forced height;
 
@@ -19,7 +20,9 @@ After document conversion or body placement:
 - zero relative-path markers in the body;
 - source disclosure and ending still present;
 - no stock follow/QR/engagement shell introduced;
-- summary filled and original-video cover selected;
+- summary filled and original-video cover selected; the selected cover preview is
+  visible and non-zero, not merely a hidden `.js_cover_preview_new` element with a
+  CSS `background-image`;
 - author/originality untouched unless explicitly authorized;
 - when required, Browser Adapter reports exactly one visible selected creation-source control for **“内容由AI生成”**.
 
@@ -28,7 +31,8 @@ After save:
 - stable numeric `appmsgid`;
 - durable manual-save/history evidence;
 - refresh/reopen the same draft;
-- take a fresh Browser Adapter v3 snapshot; title, body, image count, image aspect ratios, cover, summary, and required AI creation-source declaration still match;
-- set `creation_source.read_back=true` only from this post-refresh snapshot, never from the earlier click or save toast;
+- take a fresh Browser Adapter v4 snapshot; title, body, image count, image aspect ratios, visible non-zero cover preview, summary, and required AI creation-source declaration still match;
+- use a separate read-only draft-list view without navigating the editor away, and read the same numeric `appmsgid`; its card must have a visible thumbnail plus persistent cover-media fields and non-empty crop data;
+- pass the fresh snapshot to `wechat_step readback`; use its generated Observation, never hand-fill `creation_source.read_back=true` from an earlier click or save toast;
 - a revision still has the exact previous numeric `appmsgid`;
 - observation contains no raw URLs, tokens, storage, cookies, or clipboard HTML.

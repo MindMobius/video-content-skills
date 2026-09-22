@@ -8,6 +8,7 @@ from typing import Any
 from . import api
 from .config import CONFIG_ENVIRONMENT, apply_configuration
 from .util import json_for_stdout
+from .wechat_handoff import ACTIONS
 
 COMMAND_SURFACE = {
     "system": {"setup", "configure", "doctor"},
@@ -17,7 +18,7 @@ COMMAND_SURFACE = {
     "media": {"extract-frame"},
     "content": {"save-transcript", "save", "validate"},
     "watch-later": {"scan"},
-    "wechat": {"prepare", "bind"},
+    "wechat": {"prepare", "step", "bind"},
 }
 
 
@@ -129,6 +130,13 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--save-draft", action="store_true")
     prepare.add_argument("--copy-to-clipboard", action="store_true")
     prepare.add_argument("--replace-existing-draft", action="store_true")
+    prepare.add_argument("--account-name")
+    step = wechat_actions.add_parser("step")
+    step.add_argument("job_id")
+    step.add_argument("content_id")
+    step.add_argument("step_action", choices=ACTIONS)
+    step.add_argument("snapshot", type=Path)
+    step.add_argument("--expected-revision", type=int, required=True)
     bind = wechat_actions.add_parser("bind")
     bind.add_argument("job_id")
     bind.add_argument("content_id")
@@ -232,6 +240,16 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             save_draft=args.save_draft,
             copy_to_clipboard=args.copy_to_clipboard,
             replace_existing_draft=args.replace_existing_draft,
+            account_name=args.account_name,
+        )
+    if args.action == "step":
+        return api.wechat_step(
+            args.job_id,
+            args.content_id,
+            args.step_action,
+            args.expected_revision,
+            _json_file(args.snapshot),
+            **common,
         )
     return api.wechat_bind(
         args.job_id,

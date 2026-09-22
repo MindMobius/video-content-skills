@@ -105,9 +105,11 @@ Transcript 的长片段重合、标点密度和最长无标点片段；只有这
 | 正文反复写“视频认为/创作者指出” | “来源已经声明，所以视角没问题” | 恢复来源直接叙述，只把必要归属和实际讨论对象保留下来 |
 | 商品推广已删，却留下“原视频推广段”等标题 | “读者知道这里被删过就行” | 删除全部占位说明，在 `omissions` 内部记录 cue 范围和理由 |
 | 图片 Artifact 数量正确，但正文看不到截图 | “配图已经插入” | 检查有序 image block 和 `visual_plan.block_index`，错位就停在 Content |
-| 正文图统一是 640×360 / 960×540，放大后模糊或像固定画幅 | “微信自动压缩了图片” | 查 Artifact 来源；scout 只能选点，必须从 `source_video` 重新抽取最终帧并核对画幅 |
+| 正文图统一是 640×360 / 960×540，放大后模糊或像固定画幅 | “微信自动压缩了图片” | 查 Artifact 来源；scout 只能选点，必须从 `source_video` 重新抽取最终帧并用 FFprobe 独立核对来源显示画幅 |
+| 微信图片天然比例与显示比例一致，但读者仍看到画面被压缩 | “Observation 已通过，所以输入肯定正确” | 逐图比较 Content Artifact 实际画幅与微信天然画幅；平台没有继续拉伸不能证明上游输入正确 |
 | DOCX 显示导入完成或正文出现了一部分 | “全文和全部图片已经进入微信” | 检查正文开头、中部、结尾以及图片数量、顺序、画幅和微信托管状态 |
 | 保存后出现 Toast 或拿到 `appmsgid` | “草稿已可靠保存” | 刷新/重开同一草稿，回读正文、图片、封面、摘要和创作来源 |
+| 隐藏的 `.js_cover_preview_new` 带 CSS `background-image` | “封面已经选中并保存” | 要求刷新后封面预览可见且尺寸非零，再回草稿列表核对同一 `appmsgid` 的缩略图、持久封面媒体字段和裁剪数据 |
 | “内容由AI生成”点击过一次 | “平台声明已经生效” | 在刷新后的新快照中再次确认选中，再写入 Observation/Receipt |
 | Browser Bridge/evaluate 一次超时 | “业务操作失败，可以新建” | 对同一目标重试可见快照；先查当前 Receipt，禁止重复建稿 |
 
@@ -119,17 +121,24 @@ Transcript 的长片段重合、标点密度和最长无标点片段；只有这
 `watch_later_scan` 是一次调用。Profile 的 seen baseline 防止重排或旧视频再次入队。周期由
 Codex automation 负责，仓库不运行后台 daemon。
 
+新增判断使用扫描开始前持久化的时间水位，不能拿当前列表中已知 `BVID:page` 的新 `added_at`
+抬高水位；旧视频重新加入稍后再看只记为 `known_reentries`，不得遮住夹在它之前的真正新增。
+报告或推进队列前必须核对 `new_entries`、`known_reentries` 和
+`ignored_unseen_entries`。只要 `ignored_unseen_entry_count` 非零，就先审计具体身份和
+`baseline.last_scan_decision`，不能只读取 `new_entry_count` 后宣布扫描完成。未决身份保留在
+`pending_ignored_unseen`，不得提前并入 `seen`；只有审计完成后才允许明确处置。
+
 ## 微信
 
 1. Content 审计和验证通过，Watch Later 稿件还必须通过书面化、完整章节与逐帧视觉计划检查；
 2. 本轮明确授权保存草稿；
-3. `wechat_prepare` 重建渲染包并确定唯一目标；修订已有草稿时显式使用 `replace_existing_draft=true`；
-4. 多图文章优先使用从最终 Content 派生、内嵌正文图片的 `article-import.docx` 和微信官方文档导入；富文本剪贴板只作后备，不能在状态不确定的同一编辑器里叠加；
+3. `wechat_prepare` 生成并验证 canonical DOCX、读取 checkpoint；修订已有草稿时显式使用 `replace_existing_draft=true`；
+4. 按 [受控交接协议](../.agents/skills/wechat-draft/references/guarded-handoff.md) 用 `wechat_step` 锁定真实账号/标签页，并在每次导入或保存前取得单次许可。正常路线只能上传返回的 DOCX；两次明确失败后才可按检查点使用一次受控剪贴板备用路线，不复制历史脚本，不混合两种传输；
 5. Browser Adapter 只观察可见编辑器，并确认新建目标或精确旧 `appmsgid`；浏览器按当前登录状态与控制能力选择，`setFiles: Not allowed` 不能靠复制 DOCX 修复；
-6. 导入后检查正文开头、中部、结尾以及图片数量、顺序、托管状态；有图时使用 Observation v3 比较天然宽高与显示宽高，拒绝画幅变化；
-7. 填入准确标题、主动选择原视频封面和摘要，并按 Profile 选择“内容由AI生成”；
-8. 只保存草稿，刷新同一草稿，回读正文、图片、封面、摘要和创作来源；
-9. `wechat_bind` 生成并验证 Draft Receipt；修订时传入 `supersedes_receipt_id`，且 `appmsgid` 必须不变；批量任务只有当前 Job Receipt 有效后才进入下一 Job。
+6. `verify_import` 核对完整正文指纹和图片，Agent 再检查正文开头、中部、结尾以及图片数量、顺序、托管状态；使用 Observation v4，并由 `wechat_bind` 按 Content 顺序比较 Artifact 实际画幅、微信天然宽高和显示宽高，任一段漂移超过 1% 都拒绝；
+7. 填入准确标题、主动选择原视频封面和摘要，并按 Profile 选择“内容由AI生成”；封面不能只检查 CSS 背景，必须在刷新后可见且非零；
+8. 只保存草稿，刷新同一草稿，再回草稿列表核对同一 `appmsgid` 的封面缩略图、持久媒体字段和裁剪数据，同时回读正文、图片、摘要和创作来源；
+9. `readback` 生成 Observation，`wechat_bind` 只接受其原样结果并生成、验证 Draft Receipt；修订时传入 `supersedes_receipt_id`，且 `appmsgid` 必须不变；批量任务只有当前 Job Receipt 有效后才进入下一 Job。
 
 不把 URL token、cookie、存储、原始 CDN URL 或剪贴板 HTML 写入状态；DOCX 只保留在当前 Job
 工作区，不另存为业务产物。AI 创作来源不是原创声明；任何发布相关动作都不在范围。
@@ -138,7 +147,7 @@ Codex automation 负责，仓库不运行后台 daemon。
 
 1. 先读取当前可见编辑器和数字 `appmsgid`；
 2. 对同一目标刷新或重开并回读；
-3. 只有在确认没有当前有效 Receipt 时才允许创建新草稿；
+3. 同时读取 checkpoint；没有 Receipt 不等于没有保存。未决状态只恢复原目标，不允许创建新草稿；
 4. 明确修订只能原位更新同一 `appmsgid`，并以新 Receipt supersede 旧 Receipt；
 5. 真实登录页才标记 `paused_auth`，普通读取超时保持 `retryable`。
 

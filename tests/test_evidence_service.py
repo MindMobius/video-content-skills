@@ -303,3 +303,37 @@ def test_cover_download_rejects_redirect_outside_bilibili(
             job["job_id"],
             "https://i0.hdslb.com/bfs/archive/cover.jpg",
         )
+
+
+def test_browser_bridge_failure_stays_retryable_instead_of_unprocessable() -> None:
+    limitation = evidence_module._pipeline_limitation(
+        {
+            "status": "failed",
+            "error": {"code": "UNKNOWN", "message": "Navigation rejected."},
+        }
+    )
+    assert limitation["status"] == "retryable"
+
+    bridge_limited = evidence_module._pipeline_limitation(
+        {
+            "status": "failed",
+            "error": {
+                "code": "OPENCLI_TIMEOUT",
+                "message": "OpenCLI did not finish within 180 seconds",
+            },
+        }
+    )
+    assert bridge_limited["status"] == "retryable"
+
+
+def test_physical_evidence_gap_remains_unprocessable() -> None:
+    limitation = evidence_module._pipeline_limitation(
+        {
+            "status": "failed",
+            "error": {
+                "code": "NO_USABLE_SOURCE",
+                "message": "The media has no usable audio or readable text.",
+            },
+        }
+    )
+    assert limitation["status"] == "unprocessable"

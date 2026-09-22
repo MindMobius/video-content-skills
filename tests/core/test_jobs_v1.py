@@ -17,7 +17,8 @@ def test_job_follows_forward_only_state_machine(tmp_path: Path) -> None:
         update_job(store, current["job_id"], stage="inspecting")
     current = update_job(store, current["job_id"], stage="transcript")
     current = update_job(store, current["job_id"], stage="content")
-    current = update_job(store, current["job_id"], stage="handoff")
+    # A content-only Job can complete without a platform side effect.
+    # WeChat handoff completion is covered by receipt-gated service tests.
     current = update_job(
         store, current["job_id"], stage="completed", status="completed"
     )

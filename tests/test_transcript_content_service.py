@@ -360,8 +360,12 @@ def test_content_rejects_media_that_is_not_embedded_in_the_document(
 
 
 def test_watch_later_content_requires_full_fidelity_audit_and_source_frames(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch
 ) -> None:
+    monkeypatch.setattr(
+        "video_content.content.probe_video_geometry",
+        lambda path: {"source_display_aspect_ratio": "16:9"},
+    )
     store = Store(tmp_path / "home")
     save_watch_later_profile(
         store,

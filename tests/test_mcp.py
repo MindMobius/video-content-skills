@@ -22,6 +22,7 @@ EXPECTED_TOOLS = {
     "job_list",
     "job_update",
     "wechat_prepare",
+    "wechat_step",
     "wechat_bind",
 }
 

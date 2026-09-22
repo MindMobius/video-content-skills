@@ -131,6 +131,18 @@ run_id = 本次扫描或处理的运行标识
 `omissions` 后从正文干净移除，后者在影响来源判断时保留。测试验证合同与路由存在，但程序不做
 “视频”禁词或广告关键词硬删除，避免误伤真实内容。
 
+### 已发生案例：封面预览假阳性导致草稿没有封面
+
+症状是编辑器流程点击了“从正文选择”、完成裁剪并生成了有效 Receipt，但草稿列表仍是灰色占位。
+根因是验收只检查 `.js_cover_preview_new` 的 CSS `background-image`；微信空封面状态也保留一个
+`display:none`、尺寸为 `0×0`、但带背景图的节点，因此内部 Observation 与 Receipt 自洽，平台草稿却
+没有持久封面媒体和裁剪数据。
+
+修复必须同时覆盖三层：刷新后的编辑器封面预览要可见且尺寸非零；草稿列表同一 `appmsgid` 要有
+缩略图、持久封面媒体字段和非空裁剪数据；`wechat-editor-observation-v4` 才允许绑定新 Receipt。
+封面修正属于平台层修订，可以复用同一 Content，但必须原位更新同一 `appmsgid`，并用新 Receipt 的
+`supersedes_receipt_id` 保留错误历史。
+
 ### 持续沉淀的验收教训
 
 1. **文章很短不等于文章很干净。** 来源忠实任务的目标是恢复创作者已有表达，不是把长视频压成摘要。
@@ -147,7 +159,15 @@ run_id = 本次扫描或处理的运行标识
 6. **候选帧不是交付帧。** scout/contact sheet 只用于选择时间点。曾出现批量脚本把固定为
    `640×360` / `960×540` 的 scout 预览直接注册成正文 `video_frame`，DOCX 和微信都保持了这个
    低清输入，因此平台层检查不到上游错误。现在由 `source_frame_extract` 从 `source_video` 重抽，
-   Content 验证最终帧来源和实际尺寸，WeChat Observation v3 再检查天然与显示画幅。
+   Content 使用 FFprobe 独立验证来源显示画幅与最终帧实际字节，WeChat Observation v4 再检查
+   Content Artifact → 微信天然尺寸 → 页面显示尺寸的两段画幅。生成脚本自报
+   `display_aspect_preserved=true` 或微信内部天然/显示比例一致，都不能单独证明端到端正确。
+7. **平台没有继续拉伸，不等于输入图片正确。** 旧 Receipt 只比较微信图片的天然尺寸和显示尺寸；
+   一张进入微信前已经被压扁的图片仍可能通过。`wechat_bind` 现在从 Content 重新生成有序期望清单，
+   逐图比较 Artifact 实际画幅与微信天然画幅；Receipt 复验也重新运行同一合同。
+8. **隐藏节点有背景图，不等于封面已保存。** 空封面状态的隐藏预览也可能带 CSS 背景。只有刷新后
+   可见非零预览和草稿列表同一 `appmsgid` 的缩略图、持久媒体字段、裁剪数据同时成立，才能写入
+   Observation v4。
 
 这些经验分别落在 `video-to-content` 的 Content 验收与来源感知表达审校、`wechat-draft` 的恢复
 清单和程序验证器中，不要只把它们写成一次性的提示词。
@@ -190,3 +210,18 @@ npm test
 npm run pack:check
 uv run --isolated --locked --all-extras python scripts/repro_check.py --require-tier core --require-tier agent
 ```
+
+## 从临时排障到可复用执行
+
+文档中写了规则，并不意味着每个执行脚本会遵守它。微信交接必须走
+`wechat_prepare → wechat_step → wechat_bind`；规则变更同时更新 Python gate、浏览器只读快照、
+CLI/MCP、回归测试和对应 reference，不在不同 run 里维持多个“差不多”的上传器。
+
+本轮反例已固化为测试：旧正文导致导入误判、任何弹窗误报成功、错账号/错标签页、导航丢现场、
+并发/重启重复上传、保存不明再次点击、未刷新就写通过、封面未持久化、手写回执绕过检查。
+DOCX 生成器另检全文、有序图片原字节和横/竖/方画幅，生产入口无跳图/限图选项。
+
+不要把一次受污染的实验写成“微信限制 PNG 数量”，也不要为通过运输层改变已审计内容。
+故障记录区分事实、假设、验证结果；一次组件失败不等于整个环境不可用。
+离线 fixture 只证明状态机与校验，不代表当前账号、登录态、微信导入器和真实保存都已验收。
+历史 run 保留作证据，运行入口不得继续引用它们。

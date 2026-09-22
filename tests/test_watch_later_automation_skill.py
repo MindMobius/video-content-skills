@@ -26,6 +26,11 @@ def test_watch_later_skill_keeps_operational_failure_policy() -> None:
         "active Draft",
         "recovery-and-readback.md",
         "technical timeout",
+        "persisted pre-scan watermark",
+        "ignored_unseen_entries",
+        "known_reentries",
+        "last_scan_decision",
+        "pending_ignored_unseen",
     ):
         assert token in contract
     for prohibited in (

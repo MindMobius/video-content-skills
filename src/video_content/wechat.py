@@ -7,20 +7,32 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .content import content_validate, get_content
+from .frames import image_dimensions
 from .jobs import update_job
 from .models import DRAFT_RECEIPT_SCHEMA, DraftReceipt
 from .store import Store
 from .util import reject_secrets, sha256_bytes, utc_now
 from .wechat_adapter import prepare_wechat_clipboard
+from .wechat_docx import build_docx, inspect_bound_docx
+from .wechat_handoff import (
+    checkpoint_view,
+    initialize_checkpoint,
+    mark_bound,
+    read_checkpoint,
+    require_verified_checkpoint,
+)
 
 OBSERVATION_SCHEMA_V1 = "video-content/wechat-editor-observation-v1"
 OBSERVATION_SCHEMA_V2 = "video-content/wechat-editor-observation-v2"
 OBSERVATION_SCHEMA_V3 = "video-content/wechat-editor-observation-v3"
+OBSERVATION_SCHEMA_V4 = "video-content/wechat-editor-observation-v4"
 OBSERVATION_SCHEMAS = {
     OBSERVATION_SCHEMA_V1,
     OBSERVATION_SCHEMA_V2,
     OBSERVATION_SCHEMA_V3,
+    OBSERVATION_SCHEMA_V4,
 }
+IMAGE_ASPECT_RATIO_TOLERANCE = 0.01
 
 
 def wechat_prepare(
@@ -32,17 +44,43 @@ def wechat_prepare(
     save_draft: bool,
     copy_to_clipboard: bool = False,
     replace_existing_draft: bool = False,
+    account_name: str | None = None,
 ) -> dict[str, Any]:
     if authorized is not True or save_draft is not True:
         raise PermissionError(
             "WeChat draft handoff requires explicit authorization to save a draft"
         )
+    if account_name is not None:
+        if not isinstance(account_name, str) or not account_name.strip():
+            raise ValueError("account_name must be a non-empty public account name")
+        account_name = account_name.strip()
+    job = store.get_job(job_id)
+    if job.get("profile_id"):
+        configured_account = (
+            store.get_profile(job["profile_id"])
+            .get("settings", {})
+            .get("wechat_account_name")
+        )
+        if configured_account:
+            if (
+                not isinstance(configured_account, str)
+                or not configured_account.strip()
+            ):
+                raise ValueError(
+                    "Profile wechat_account_name must be a non-empty public account name"
+                )
+            if account_name and account_name != configured_account:
+                raise ValueError(
+                    "Requested account differs from the authorized Profile account"
+                )
+            account_name = configured_account
     content = get_content(store, job_id, content_id)
     if content.get("carrier") != "wechat_article":
         raise ValueError("WeChat handoff requires wechat_article content")
     validation = content_validate(store, job_id=job_id, content_id=content_id)
     if validation["valid"] is not True:
         raise ValueError("WeChat handoff requires validated content")
+    expected_images = _expected_content_images(store, job_id, content)
 
     receipts = _receipt_documents(store, job_id)
     if replace_existing_draft:
@@ -52,8 +90,6 @@ def wechat_prepare(
                 "Draft replacement requires exactly one current validated receipt"
             )
         previous = active[0]
-        if previous.get("content_id") == content_id:
-            raise ValueError("Draft replacement requires a revised Content object")
         draft_target = {
             "mode": "replace_existing",
             "appmsgid": previous["draft_identity"]["appmsgid"],
@@ -64,12 +100,47 @@ def wechat_prepare(
             raise ValueError("This job already has a validated WeChat draft receipt")
         draft_target = {"mode": "create_new"}
 
+    if copy_to_clipboard:
+        raise ValueError(
+            "The guarded handoff uses canonical DOCX; implicit clipboard fallback is disabled"
+        )
     package_dir = _materialize_render_package(store, job_id, content)
     transport = prepare_wechat_clipboard(package_dir, copy=copy_to_clipboard)
     content_reference = _product_reference(
         store, job_id, "content", "content_id", content_id
     )
     current = store.get_job(job_id)
+    docx_path = package_dir / "document-import" / "article-import.docx"
+    checkpoint_path = store.job_dir(job_id) / "work" / "wechat-handoff.json"
+    pending = read_checkpoint(store, job_id) if checkpoint_path.is_file() else None
+    if pending and pending.get("supersedes_receipt_id") == draft_target.get(
+        "supersedes_receipt_id"
+    ):
+        if (
+            pending["content_id"] != content_id
+            or pending["content_sha256"] != content_reference["sha256"]
+        ):
+            raise ValueError(
+                "Pending handoff belongs to different Content/transport; recover the same draft"
+            )
+        docx = inspect_bound_docx(
+            store, job_id, content, docx_path, expected_sha256=pending["docx_sha256"]
+        )
+    else:
+        docx = build_docx(store, job_id, content, docx_path)
+    required_creation_source = _required_creation_source(store, job_id)
+    checkpoint = initialize_checkpoint(
+        store,
+        job_id,
+        content_id=content_id,
+        content_sha256=content_reference["sha256"],
+        docx=docx,
+        document=content["document"],
+        draft_target=draft_target,
+        account_name=account_name,
+        legacy_handoff=current["stage"] == "handoff",
+        required_creation_source=required_creation_source,
+    )
     if current["stage"] == "content":
         current = update_job(store, job_id, stage="handoff", status="running")
     required_creation_source = _required_creation_source(store, job_id)
@@ -81,15 +152,27 @@ def wechat_prepare(
         "package_dir": str(package_dir),
         "article_html": str(package_dir / "article.html"),
         "intended_images": transport["marker_count"],
-        "clipboard": transport,
+        "expected_images": expected_images,
+        "clipboard": {**transport, "enabled": False},
+        "transport": checkpoint.get("transport", "document_import"),
         "authorization": {"save_draft": True, "publish": False},
-        "observation_schema": OBSERVATION_SCHEMA_V3,
+        "observation_schema": OBSERVATION_SCHEMA_V4,
         "required_declarations": (
             {"creation_source": required_creation_source}
             if required_creation_source
             else {}
         ),
-        "draft_target": draft_target,
+        "draft_target": (
+            {
+                **draft_target,
+                "mode": "resume_pending",
+                "appmsgid": checkpoint.get("appmsgid"),
+            }
+            if checkpoint["phase"] not in {"prepared", "bound"}
+            else draft_target
+        ),
+        "document_import": docx,
+        "checkpoint": checkpoint_view(checkpoint),
         "job": current,
     }
 
@@ -114,8 +197,6 @@ def wechat_bind(
                 "Draft revision must supersede the current validated Draft Receipt"
             )
         previous = active[0]
-        if previous.get("content_id") == content_id:
-            raise ValueError("Draft revision requires a revised Content object")
 
     content = get_content(store, job_id, content_id)
     validation = content_validate(store, job_id=job_id, content_id=content_id)
@@ -124,16 +205,28 @@ def wechat_bind(
     content_reference = _product_reference(
         store, job_id, "content", "content_id", content_id
     )
+    expected_images = _expected_content_images(store, job_id, content)
+    if observation.get("schema_version") != OBSERVATION_SCHEMA_V4:
+        raise ValueError(
+            "New WeChat draft bindings require "
+            "video-content/wechat-editor-observation-v4"
+        )
     normalized = validate_editor_observation(
         observation,
         expected_title=str(content.get("document", {}).get("title") or ""),
         expected_content_sha256=content_reference["sha256"],
         required_creation_source=_required_creation_source(store, job_id),
+        expected_images=expected_images,
     )
     appmsgid = normalized["draft_identity"]["appmsgid"]
     if previous is not None and appmsgid != previous["draft_identity"]["appmsgid"]:
         raise ValueError("Draft revision must read back the same appmsgid")
-    receipt_id = _receipt_id(content_id, appmsgid)
+    require_verified_checkpoint(store, job_id, content_id, observation)
+    receipt_id = _receipt_id(
+        content_id,
+        appmsgid,
+        supersedes_receipt_id=supersedes_receipt_id,
+    )
     receipt = DraftReceipt(
         receipt_id=receipt_id,
         job_id=job_id,
@@ -158,6 +251,7 @@ def wechat_bind(
         identifier_field="receipt_id",
         identifier_prefix="receipt",
     )
+    mark_bound(store, job_id, receipt_id)
     current = store.get_job(job_id)
     if not (current["stage"] == "completed" and current["status"] == "completed"):
         if current["stage"] != "handoff":
@@ -179,6 +273,7 @@ def validate_editor_observation(
     expected_title: str,
     expected_content_sha256: str,
     required_creation_source: str | None = None,
+    expected_images: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if not isinstance(observation, dict):
         raise TypeError("WeChat editor observation must be an object")
@@ -222,11 +317,18 @@ def validate_editor_observation(
         images.get("local_path_markers_remaining"),
         "body_images.local_path_markers_remaining",
     )
-    if intended > 0 and schema_version != OBSERVATION_SCHEMA_V3:
+    if intended > 0 and schema_version not in {
+        OBSERVATION_SCHEMA_V3,
+        OBSERVATION_SCHEMA_V4,
+    }:
         raise ValueError(
-            "Image-bearing WeChat drafts require video-content/wechat-editor-observation-v3"
+            "Image-bearing WeChat drafts require "
+            "video-content/wechat-editor-observation-v3 or v4"
         )
-    require_natural_height = schema_version == OBSERVATION_SCHEMA_V3
+    require_natural_height = schema_version in {
+        OBSERVATION_SCHEMA_V3,
+        OBSERVATION_SCHEMA_V4,
+    }
     loaded = [
         item
         for item in images["items"]
@@ -243,19 +345,54 @@ def validate_editor_observation(
         not _image_aspect_ratio_preserved(item) for item in hosted
     ):
         raise ValueError(
-            "Saved draft image aspect ratio does not match the source image"
+            "Saved draft image aspect ratio does not match the WeChat-hosted image"
         )
-    if observation.get("cover", {}).get("selected") is not True:
+    if expected_images is not None:
+        if intended != len(expected_images):
+            raise ValueError(
+                "WeChat observation intended image count does not match Content"
+            )
+        for index, (item, expected) in enumerate(
+            zip(hosted, expected_images, strict=True), start=1
+        ):
+            if not _image_matches_expected_geometry(item, expected):
+                artifact_id = str(expected.get("artifact_id") or "<missing>")
+                raise ValueError(
+                    f"Saved draft image {index} natural aspect ratio does not match "
+                    f"Content Artifact {artifact_id}"
+                )
+    cover = observation.get("cover")
+    if not isinstance(cover, dict) or cover.get("selected") is not True:
         raise ValueError("WeChat draft cover is not confirmed")
+    if schema_version == OBSERVATION_SCHEMA_V4:
+        for field in (
+            "crop_confirmed",
+            "editor_visible_after_refresh",
+            "list_thumbnail_read_back",
+            "persistent_media_present",
+            "crop_data_present",
+        ):
+            if cover.get(field) is not True:
+                raise ValueError(
+                    "WeChat draft cover lacks durable post-save evidence: " + field
+                )
+        if not _positive_number(cover.get("rendered_width")) or not _positive_number(
+            cover.get("rendered_height")
+        ):
+            raise ValueError(
+                "WeChat draft cover preview must be visible and non-zero after refresh"
+            )
     if observation.get("summary", {}).get("filled") is not True:
         raise ValueError("WeChat draft summary is not filled")
 
     if required_creation_source and schema_version not in {
         OBSERVATION_SCHEMA_V2,
         OBSERVATION_SCHEMA_V3,
+        OBSERVATION_SCHEMA_V4,
     }:
         raise ValueError(
-            "AI creation source requires video-content/wechat-editor-observation-v2 or v3"
+            "AI creation source requires "
+            "video-content/wechat-editor-observation-v2, v3, or v4"
         )
     creation_source = observation.get("creation_source")
     creation_source_required = (
@@ -305,19 +442,34 @@ def validate_draft_receipt(
     if receipt.get("job_id") != job_id:
         errors.append("Draft receipt job mismatch")
     try:
+        content_id = str(receipt.get("content_id") or "")
         content_reference = _product_reference(
             store,
             job_id,
             "content",
             "content_id",
-            str(receipt.get("content_id") or ""),
+            content_id,
         )
+        content = get_content(store, job_id, content_id)
         if (
             receipt.get("draft_identity", {}).get("content_sha256")
             != content_reference["sha256"]
         ):
             errors.append("Draft receipt Content hash mismatch")
-    except (FileNotFoundError, ValueError) as error:
+        content_result = content_validate(store, job_id=job_id, content_id=content_id)
+        if content_result["valid"] is not True:
+            errors.append(
+                "Draft receipt Content is no longer valid: "
+                + "; ".join(content_result["errors"])
+            )
+        validate_editor_observation(
+            receipt.get("observation"),
+            expected_title=str(content.get("document", {}).get("title") or ""),
+            expected_content_sha256=content_reference["sha256"],
+            required_creation_source=_required_creation_source(store, job_id),
+            expected_images=_expected_content_images(store, job_id, content),
+        )
+    except (FileNotFoundError, OSError, TypeError, ValueError) as error:
         errors.append(str(error))
 
     receipts = _receipt_documents(store, job_id)
@@ -350,8 +502,6 @@ def validate_draft_receipt(
             errors.append("Superseded Draft Receipt does not exist uniquely")
         else:
             predecessor = predecessors[0]
-            if predecessor.get("content_id") == receipt.get("content_id"):
-                errors.append("Draft revision did not bind revised Content")
             if predecessor.get("draft_identity", {}).get("appmsgid") != receipt.get(
                 "draft_identity", {}
             ).get("appmsgid"):
@@ -400,6 +550,28 @@ def _active_draft_receipts(
         )["valid"]
         is True
     ]
+
+
+def _expected_content_images(
+    store: Store, job_id: str, content: dict[str, Any]
+) -> list[dict[str, Any]]:
+    expected: list[dict[str, Any]] = []
+    for index, item in enumerate(content.get("media") or []):
+        artifact_id = str(item.get("artifact_id") or "")
+        reference, _ = store.read_artifact(job_id, artifact_id)
+        width, height = image_dimensions(store.job_dir(job_id) / reference["path"])
+        expected.append(
+            {
+                "index": index,
+                "artifact_id": artifact_id,
+                "artifact_sha256": reference["sha256"],
+                "source_kind": item.get("source_kind"),
+                "pixel_width": width,
+                "pixel_height": height,
+                "aspect_ratio": width / height,
+            }
+        )
+    return expected
 
 
 def _required_creation_source(store: Store, job_id: str) -> str | None:
@@ -485,7 +657,26 @@ def _visible_loaded_image(item: Any, *, require_natural_height: bool = False) ->
 def _image_aspect_ratio_preserved(item: dict[str, Any]) -> bool:
     natural_ratio = item["natural_width"] / item["natural_height"]
     rendered_ratio = item["width"] / item["height"]
-    return abs(rendered_ratio / natural_ratio - 1) <= 0.01
+    return abs(rendered_ratio / natural_ratio - 1) <= IMAGE_ASPECT_RATIO_TOLERANCE
+
+
+def _image_matches_expected_geometry(
+    item: dict[str, Any], expected: dict[str, Any]
+) -> bool:
+    width = expected.get("pixel_width")
+    height = expected.get("pixel_height")
+    if (
+        not isinstance(width, int)
+        or isinstance(width, bool)
+        or width <= 0
+        or not isinstance(height, int)
+        or isinstance(height, bool)
+        or height <= 0
+    ):
+        raise ValueError("Content image expectation has invalid pixel dimensions")
+    expected_ratio = width / height
+    natural_ratio = item["natural_width"] / item["natural_height"]
+    return abs(natural_ratio / expected_ratio - 1) <= IMAGE_ASPECT_RATIO_TOLERANCE
 
 
 def _positive_number(value: Any) -> bool:
@@ -498,6 +689,14 @@ def _nonnegative_int(value: Any, label: str) -> int:
     return value
 
 
-def _receipt_id(content_id: str, appmsgid: str) -> str:
-    digest = hashlib.sha256(f"{content_id}\0{appmsgid}".encode()).hexdigest()
+def _receipt_id(
+    content_id: str,
+    appmsgid: str,
+    *,
+    supersedes_receipt_id: str | None = None,
+) -> str:
+    seed = f"{content_id}\0{appmsgid}"
+    if supersedes_receipt_id:
+        seed += f"\0{supersedes_receipt_id}"
+    digest = hashlib.sha256(seed.encode()).hexdigest()
     return f"receipt_{digest[:24]}"

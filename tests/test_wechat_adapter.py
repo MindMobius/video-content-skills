@@ -87,9 +87,9 @@ def test_browser_snapshot_contract_records_visible_ai_creation_source() -> None:
         },
     }
 
-    assert wechat_adapter.WECHAT_BROWSER_ADAPTER_VERSION == "3"
+    assert wechat_adapter.WECHAT_BROWSER_ADAPTER_VERSION == "4"
     assert (
         wechat_adapter.OBSERVATION_VERSION
-        == "video-content/wechat-editor-observation-v3"
+        == "video-content/wechat-editor-observation-v4"
     )
     jsonschema.validate(snapshot, schema)

@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .frames import image_dimensions
+from .frames import frame_geometry_report, image_dimensions, probe_video_geometry
 from .jobs import update_job
 from .models import CONTENT_SCHEMA, TRANSCRIPT_SCHEMA, Content, Transcript
 from .store import Store
@@ -503,6 +503,7 @@ def _final_source_frame_errors(
     store: Store, job_id: str, frames: list[dict[str, Any]]
 ) -> list[str]:
     errors: list[str] = []
+    source_geometry: dict[str, dict[str, Any]] = {}
     for frame in frames:
         artifact_id = str(frame.get("artifact_id") or "")
         problems: list[str] = []
@@ -526,6 +527,7 @@ def _final_source_frame_errors(
             problems.append("timestamp_ms does not match Content media")
         width = metadata.get("pixel_width")
         height = metadata.get("pixel_height")
+        actual_dimensions: tuple[int, int] | None = None
         if (
             not isinstance(width, int)
             or isinstance(width, bool)
@@ -537,13 +539,13 @@ def _final_source_frame_errors(
             problems.append("pixel dimensions must be positive integers")
         else:
             try:
-                actual_width, actual_height = image_dimensions(
+                actual_dimensions = image_dimensions(
                     store.job_dir(job_id) / reference["path"]
                 )
             except (OSError, ValueError) as error:
                 problems.append(str(error))
             else:
-                if (actual_width, actual_height) != (width, height):
+                if actual_dimensions != (width, height):
                     problems.append("pixel dimensions do not match Artifact bytes")
         source_artifact_id = str(metadata.get("source_video_artifact_id") or "")
         if not source_artifact_id:
@@ -564,6 +566,48 @@ def _final_source_frame_errors(
                     problems.append(
                         "source_video_sha256 does not match source Artifact"
                     )
+                if source_reference.get("kind") == "source_video":
+                    try:
+                        geometry = source_geometry.get(source_artifact_id)
+                        if geometry is None:
+                            geometry = probe_video_geometry(
+                                store.job_dir(job_id) / source_reference["path"]
+                            )
+                            source_geometry[source_artifact_id] = geometry
+                        if actual_dimensions is not None:
+                            report = frame_geometry_report(
+                                actual_dimensions[0], actual_dimensions[1], geometry
+                            )
+                            if report["display_aspect_preserved"] is not True:
+                                problems.append(
+                                    "Artifact aspect ratio does not match independently "
+                                    "probed source-video display geometry"
+                                )
+                            recorded_drift = metadata.get("aspect_ratio_drift")
+                            if recorded_drift is not None and (
+                                not isinstance(recorded_drift, (int, float))
+                                or isinstance(recorded_drift, bool)
+                                or abs(
+                                    float(recorded_drift) - report["aspect_ratio_drift"]
+                                )
+                                > 1e-9
+                            ):
+                                problems.append(
+                                    "aspect_ratio_drift does not match independent validation"
+                                )
+                            recorded_ratio = metadata.get("source_display_aspect_ratio")
+                            if (
+                                recorded_ratio is not None
+                                and recorded_ratio
+                                != geometry.get("source_display_aspect_ratio")
+                            ):
+                                problems.append(
+                                    "source_display_aspect_ratio does not match independent probe"
+                                )
+                    except (FileNotFoundError, OSError, TypeError, ValueError) as error:
+                        problems.append(
+                            f"source display geometry check failed: {error}"
+                        )
         if problems:
             errors.append(
                 f"video_frame {artifact_id} must be a final source extraction: "

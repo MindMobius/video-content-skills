@@ -50,6 +50,31 @@ def update_job(
         raise ValueError("Completed status requires completed stage")
     if next_stage == "completed" and next_status != "completed":
         raise ValueError("Completed stage requires completed status")
+    if next_status == "completed":
+        wechat_required = old_stage == "handoff"
+        if job.get("profile_id"):
+            wechat_required = (
+                wechat_required
+                or store.get_profile(job["profile_id"]).get("carrier")
+                == "wechat_article"
+            )
+        if wechat_required:
+            # Local import avoids the service dependency cycle; completion is
+            # checked after wechat_bind has persisted its validated Receipt.
+            from .wechat import validate_draft_receipt
+
+            receipts = store.list_artifacts(job_id, kind="draft_receipt")
+            if not any(
+                validate_draft_receipt(
+                    store,
+                    job_id=job_id,
+                    receipt_id=str(ref.get("metadata", {}).get("receipt_id") or ""),
+                )["valid"]
+                for ref in receipts
+            ):
+                raise ValueError(
+                    "WeChat completion requires a validated Draft Receipt; use wechat_bind"
+                )
     if next_status == "retryable" and not error:
         raise ValueError("Retryable job requires an error")
     if next_status == "paused_auth" and next_stage not in {

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import api
+from .wechat_handoff import HandoffAction
 
 try:
     from mcp.server import MCPServer as McpServer
@@ -26,6 +27,7 @@ TOOL_NAMES = (
     "job_list",
     "job_update",
     "wechat_prepare",
+    "wechat_step",
     "wechat_bind",
 )
 
@@ -233,6 +235,7 @@ def wechat_prepare(
     home: str | None = None,
     copy_to_clipboard: bool = False,
     replace_existing_draft: bool = False,
+    account_name: str | None = None,
 ) -> dict[str, Any]:
     return api.wechat_prepare(
         job_id,
@@ -242,6 +245,21 @@ def wechat_prepare(
         save_draft=save_draft,
         copy_to_clipboard=copy_to_clipboard,
         replace_existing_draft=replace_existing_draft,
+        account_name=account_name,
+    )
+
+
+def wechat_step(
+    job_id: str,
+    content_id: str,
+    action: HandoffAction,
+    expected_revision: int,
+    snapshot: dict[str, Any],
+    home: str | None = None,
+) -> dict[str, Any]:
+    """Check a fresh live snapshot; reserve upload/save once or resume read-only recovery."""
+    return api.wechat_step(
+        job_id, content_id, action, expected_revision, snapshot, home=home
     )
 
 
@@ -268,7 +286,7 @@ if McpServer is not None:
         instructions=(
             "Use source and evidence tools first. Preserve platform, OCR, ASR, and Agent-reviewed evidence independently. "
             "Save a Transcript before Content. Final article frames must be source-native extractions, never scout thumbnails. Watch Later scans are one-shot and idempotent; the caller owns recurrence. "
-            "WeChat tools require explicit draft authorization, enforce required AI creation-source readback, support only same-appmsgid revisions, and never publish."
+            "For WeChat use wechat_prepare -> wechat_step -> wechat_bind. Follow the returned checkpoint/next_action, upload only the canonical DOCX after a single-action grant, never replay uncertain saves or handwrite readback success. Require explicit authorization, the confirmed account, same-appmsgid revisions, required AI creation-source readback, and never publish."
         ),
     )
     for _name in TOOL_NAMES:

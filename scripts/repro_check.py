@@ -14,8 +14,10 @@ import sys
 import tempfile
 import zlib
 from collections.abc import Callable
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -216,6 +218,58 @@ def _png_bytes(width: int, height: int, *, rgb: tuple[int, int, int]) -> bytes:
 
 
 def _check_six_product_flow(root: Path) -> dict[str, Any]:
+    fixture_root = ROOT / "tests" / "fixtures" / "authorized-video"
+    fixture = json.loads((fixture_root / "fixture.json").read_text(encoding="utf-8"))
+    video_fixture = fixture_root / fixture["video"]["path"]
+    expected_sha256 = str(fixture["video"]["sha256"])
+    width = int(fixture["video"]["width"])
+    height = int(fixture["video"]["height"])
+    ratio = Fraction(width, height)
+    geometry = {
+        "schema_version": "video-content/source-frame-geometry-v1",
+        "source_pixel_width": width,
+        "source_pixel_height": height,
+        "source_coded_width": width,
+        "source_coded_height": height,
+        "source_sample_aspect_ratio": "1:1",
+        "source_reported_display_aspect_ratio": (
+            f"{ratio.numerator}:{ratio.denominator}"
+        ),
+        "source_display_width": width,
+        "source_display_height": height,
+        "source_display_aspect_ratio": f"{ratio.numerator}:{ratio.denominator}",
+        "source_display_aspect_ratio_value": float(ratio),
+        "source_rotation_degrees": 0,
+    }
+
+    def fixture_geometry_probe(path: str | Path, **_: Any) -> dict[str, Any]:
+        selected = Path(path).expanduser().resolve()
+        if hashlib.sha256(selected.read_bytes()).hexdigest() != expected_sha256:
+            raise ValueError("Controlled source-geometry fixture hash mismatch")
+        return dict(geometry)
+
+    # The core tier must not depend on host FFprobe. Bind its geometry oracle to
+    # the generated fixture's immutable hash; the media tier separately exercises
+    # the real FFmpeg/FFprobe binaries and streams.
+    with patch(
+        "video_content.content.probe_video_geometry",
+        side_effect=fixture_geometry_probe,
+    ):
+        return _check_six_product_flow_with_fixture(
+            root,
+            fixture=fixture,
+            video_fixture=video_fixture,
+            source_geometry=geometry,
+        )
+
+
+def _check_six_product_flow_with_fixture(
+    root: Path,
+    *,
+    fixture: dict[str, Any],
+    video_fixture: Path,
+    source_geometry: dict[str, Any],
+) -> dict[str, Any]:
     store = Store(root / "home")
     profile = save_watch_later_profile(
         store, profile_id="repro", account_profile_alias="fixture-browser"
@@ -259,20 +313,29 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         quality={"status": "verified", "reviewed_by": "repro"},
     )["transcript"]
     root.mkdir(parents=True, exist_ok=True)
-    cover_path = root / "cover.jpg"
-    cover_path.write_bytes(b"fixture-cover")
+    cover_width, cover_height = 1280, 720
+    cover_path = root / "cover.png"
+    cover_path.write_bytes(_png_bytes(cover_width, cover_height, rgb=(24, 48, 72)))
     cover = store.put_artifact(
         job["job_id"], kind="video_cover", source_path=cover_path
     )
     source_video_path = root / "source.mp4"
-    source_video_path.write_bytes(b"authorized-fixture-source-video")
+    shutil.copyfile(video_fixture, source_video_path)
     source_video = store.put_artifact(
         job["job_id"], kind="source_video", source_path=source_video_path
     )
+    frame_width = int(fixture["video"]["width"])
+    frame_height = int(fixture["video"]["height"])
     frames: list[tuple[dict[str, Any], int]] = []
-    for index, timestamp_ms in enumerate((10000, 20000, 30000), start=1):
+    for index, timestamp_ms in enumerate((500, 1500, 2500), start=1):
         frame_path = root / f"frame-{index}.png"
-        frame_path.write_bytes(_png_bytes(1600, 900, rgb=(32 + index, 64, 96)))
+        frame_path.write_bytes(
+            _png_bytes(
+                frame_width,
+                frame_height,
+                rgb=(32 + index, 64, 96),
+            )
+        )
         frames.append(
             (
                 store.put_artifact(
@@ -286,8 +349,29 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
                         "resolution_policy": "source_display_native",
                         "source_video_artifact_id": source_video["artifact_id"],
                         "source_video_sha256": source_video["sha256"],
-                        "pixel_width": 1600,
-                        "pixel_height": 900,
+                        "source_geometry_schema": source_geometry["schema_version"],
+                        "source_pixel_width": source_geometry["source_pixel_width"],
+                        "source_pixel_height": source_geometry["source_pixel_height"],
+                        "source_coded_width": source_geometry["source_coded_width"],
+                        "source_coded_height": source_geometry["source_coded_height"],
+                        "source_sample_aspect_ratio": source_geometry[
+                            "source_sample_aspect_ratio"
+                        ],
+                        "source_display_width": source_geometry["source_display_width"],
+                        "source_display_height": source_geometry[
+                            "source_display_height"
+                        ],
+                        "source_display_aspect_ratio": source_geometry[
+                            "source_display_aspect_ratio"
+                        ],
+                        "source_rotation_degrees": source_geometry[
+                            "source_rotation_degrees"
+                        ],
+                        "pixel_width": frame_width,
+                        "pixel_height": frame_height,
+                        "output_pixel_width": frame_width,
+                        "output_pixel_height": frame_height,
+                        "aspect_ratio_drift": 0.0,
                         "display_aspect_preserved": True,
                     },
                 ),
@@ -390,45 +474,95 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         authorized=True,
         save_draft=True,
     )
-    observation = {
-        "schema_version": "video-content/wechat-editor-observation-v3",
-        "started_at": "2026-08-17T00:01:00Z",
-        "saved_at": "2026-08-17T00:02:00Z",
-        "title": "可复现视频内容文章",
-        "content_sha256": prepared["content_sha256"],
-        "draft_identity": {"appmsgid": "100000001"},
-        "body_images": {
-            "intended": 4,
-            "items": [
-                {
-                    "visible": True,
-                    "complete": True,
-                    "natural_width": 100,
-                    "natural_height": 100,
-                    "width": 100,
-                    "height": 100,
-                    "host_class": "wechat",
-                }
-                for _ in range(4)
-            ],
-            "local_path_markers_remaining": 0,
+    # Simulated controller exercises the same gates; it is not live browser proof.
+    import time
+    import uuid
+
+    from video_content.wechat_docx import manuscript_parts
+    from video_content.wechat_handoff import advance_checkpoint, read_checkpoint
+
+    prepared = wechat_prepare(
+        store,
+        job_id=job["job_id"],
+        content_id=content["content_id"],
+        authorized=True,
+        save_draft=True,
+        account_name="Repro fixture account",
+    )
+    base = {
+        "page_kind": "editor",
+        "editor_type": "77",
+        "ready": True,
+        "title": content_document["title"],
+        "summary": content_document["summary"],
+        "author": "",
+        "original_declared": False,
+        "dialogs": [],
+        "import_busy": False,
+        "local_path_markers_remaining": 0,
+        "cover": {
+            "selected": True,
+            "crop_confirmed": True,
+            "editor_visible_after_refresh": True,
+            "rendered_width": 235,
+            "rendered_height": 100,
+            "list_thumbnail_read_back": True,
+            "persistent_media_present": True,
+            "crop_data_present": True,
         },
-        "cover": {"selected": True},
-        "summary": {"filled": True},
-        "content_checks": {"source_disclosure_present": True},
-        "save": {"saved": True, "mode": "draft"},
-        "refresh_readback": {
-            "performed": True,
-            "same_draft": True,
-            "content_present": True,
-        },
-        "creation_source": {
-            "declared": True,
-            "type": "ai_generated",
-            "read_back": True,
-        },
-        "published": False,
+        "creation_source": {"selected_count": 1, "label": "内容由AI生成"},
     }
+    full_text = "\n".join(
+        str(part["text"])
+        for part in manuscript_parts(content_document)
+        if "text" in part
+    )
+    images = [
+        {
+            "visible": True,
+            "complete": True,
+            "natural_width": x["pixel_width"],
+            "natural_height": x["pixel_height"],
+            "width": x["pixel_width"] / 2,
+            "height": x["pixel_height"] / 2,
+            "host_class": "wechat",
+        }
+        for x in prepared["document_import"]["images"]
+    ]
+    for action in (
+        "attach",
+        "begin_import",
+        "verify_import",
+        "begin_save",
+        "saved",
+        "readback",
+    ):
+        empty = action in {"attach", "begin_import"}
+        saved = action in {"saved", "readback"}
+        snapshot = {
+            **base,
+            "snapshot_id": uuid.uuid4().hex,
+            "observed_at": time.time() * 1000,
+            "target": {
+                "browser_id": "fixture",
+                "tab_id": "fixture",
+                "account_name": "Repro fixture account",
+                "document_id": "after" if action == "readback" else "before",
+            },
+            "body_text": "" if empty else full_text,
+            "images": [] if empty else images,
+            "appmsgid": "100000001" if saved else None,
+            "draft_list_appmsgid": "100000001" if saved else None,
+        }
+        gate = advance_checkpoint(
+            store,
+            job["job_id"],
+            content["content_id"],
+            action=action,
+            expected_revision=read_checkpoint(store, job["job_id"])["revision"],
+            snapshot=snapshot,
+        )
+    observation = gate["observation"]
     receipt = wechat_bind(
         store,
         job_id=job["job_id"],
@@ -492,6 +626,7 @@ def _check_six_product_flow(root: Path) -> dict[str, Any]:
         "products": products,
         "idempotency": idempotency,
         "job_status": receipt["job"]["status"],
+        "source_geometry_validation": "fixture-hash-bound",
         "published": False,
     }
 

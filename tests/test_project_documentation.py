@@ -135,6 +135,8 @@ def test_skill_maintenance_turns_real_failures_into_enforced_contracts() -> None
         "截图存在不等于截图被使用",
         "平台点击成功不等于平台状态成立",
         "经验沉淀模板",
+        "平台没有继续拉伸，不等于输入图片正确",
+        "FFprobe",
     ):
         assert token in maintenance
 
@@ -149,6 +151,10 @@ def test_operations_document_separates_content_and_platform_failures() -> None:
         "有副作用的重试",
         "保存 Toast",
         "同一数字 `appmsgid`",
+        "ignored_unseen_entries",
+        "known_reentries",
+        "持久化的时间水位",
+        "pending_ignored_unseen",
     ):
         assert token in f"{operations}\n{architecture}"
 

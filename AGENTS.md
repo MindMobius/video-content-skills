@@ -330,20 +330,37 @@ frames; do not generate or source filler visuals without separate user
 approval. Scout/contact-sheet images only select timestamps. Use
 `source_frame_extract` or `video-content media extract-frame` to regenerate each
 final body frame from the Job's `source_video`; final frame metadata and actual
-bytes must agree on pixel dimensions and preserve the source display aspect.
+bytes must agree on pixel dimensions and preserve the source display aspect. The
+flag is derived from FFprobe source geometry and actual output bytes; Content
+validation independently probes the bound `source_video` again instead of trusting
+the extraction metadata.
 
-The Python/MCP layer stops at an audited Content object. WeChat mutation is
-optional, visible, and separately authorized. The platform handoff is transient.
-For image-rich articles, prefer an
-`article-import.docx` generated from the exact validated Content with body images
-embedded in document order, then use the visible WeChat document importer. Rich
-clipboard HTML is a fallback, not a second manuscript; never mix both transports
-into the same editor state. Keep either transport only in the current Job work
-area and never promote it to a business product. Persist only no-secret visible
-observations and a validated
-`video-content/draft-receipt-v1` with `published=false`. Image-bearing readback
-uses `video-content/wechat-editor-observation-v3` and rejects a body image whose
-natural and rendered aspect ratios differ. When the Profile
+The content pipeline stops at an audited Content object. WeChat mutation is
+optional, visible, and separately authorized. For all new/corrected handoffs use
+`wechat_prepare → wechat_step → wechat_bind`, following
+[the guarded handoff protocol](.agents/skills/wechat-draft/references/guarded-handoff.md).
+`wechat_prepare` generates and validates the exact `article-import.docx` from
+Content, and resumes a Job-local checkpoint. Never run a historical uploader or
+rewrite DOCX generation in a run script. `wechat_step` locks the account/tab,
+compares the complete body and ordered images, and reserves each import/save
+once before the side effect. A stale snapshot, changed target, pending save or
+changed Content is a hard stop, not permission to start a new editor. Only its
+post-refresh `readback` Observation can be bound; do not handwrite success flags.
+Preserve `jobs/<job_id>/work/wechat-handoff.json` until the Job is closed. This is
+recovery metadata inside a Job, not a seventh business product. Implicit clipboard
+fallback is disabled. Only the explicit guarded `begin_clipboard` action, after two
+confirmed DOCX failures in the same empty editor, may call the low-level helper once.
+Never remove images or rewrite Content to accommodate an unproven transport failure.
+Persist only no-secret visible observations and a validated
+`video-content/draft-receipt-v1` with `published=false`. New and corrected
+readback uses `video-content/wechat-editor-observation-v4`: it rejects a body image
+whose natural and rendered aspect ratios differ and rejects a cover unless the
+preview is visible and non-zero after refresh and the same `appmsgid` has a draft-list
+thumbnail, persistent cover media, and crop data. A CSS `background-image` on a hidden
+preview node is not completion evidence. `wechat_bind` also reconstructs the
+ordered expected images from Content Artifact bytes and rejects drift between a
+Content image and the corresponding WeChat natural dimensions; browser-reported
+counts and self-consistent stretched inputs are insufficient. When the Profile
 requires it, select and refresh-read-back the WeChat creation-source disclosure
 “内容由AI生成”; this is not an originality declaration.
 
@@ -359,10 +376,16 @@ account.
 
 Watch Later operations are one-shot. Codex automation or the calling Agent owns
 recurrence; this repository must not create a daemon. Jobs are idempotent by
-stable source identity. Do not create a second draft for a Job with a validated
-Draft Receipt. An explicitly authorized correction may update only the same
-numeric `appmsgid`; save a new Receipt with `supersedes_receipt_id` and retain the
-older immutable Receipt as history.
+stable source identity. Scan classification uses the persisted pre-scan
+watermark: a known `BVID:page` with a later current `added_at` is a re-entry and
+must not move that decision boundary. Before reporting or draining, inspect the
+returned `new_entries`, `known_reentries`, and all `ignored_unseen_entries`; a
+nonzero ignored count is an audit condition and must not be silently absorbed;
+unresolved identities remain in `pending_ignored_unseen` instead of `seen`.
+Do not create a second draft for a Job with a validated Draft Receipt. An
+explicitly authorized correction may update only the same numeric `appmsgid`;
+save a new Receipt with `supersedes_receipt_id` and retain the older immutable
+Receipt as history.
 
 ## Verification
 

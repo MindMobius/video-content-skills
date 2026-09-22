@@ -1,121 +1,76 @@
 ---
 name: wechat-draft
-description: Place an audited WeChat article into an already signed-in WeChat Official Account editor and, only when explicitly authorized, save one draft. Prefer validated DOCX document import for image-rich articles, retain transient clipboard HTML as fallback, then refresh-read-back and bind a Draft Receipt. Never publishes.
+description: Save audited Content as an authorized WeChat draft using the canonical DOCX and guarded, resumable handoff. Read live snapshots, reserve each mutation once, refresh-read-back and bind the program-generated receipt. Never publishes.
 ---
 
 # WeChat Draft
 
-Use only after `content_validate.valid=true` for `carrier=wechat_article`.
-Read [editor-checklist.md](references/editor-checklist.md) before browser
-mutation or when editor state is ambiguous. For a document-import handoff, read
-[document-import.md](references/document-import.md) before choosing or uploading
-the file. Read [recovery-and-readback.md](references/recovery-and-readback.md)
-after a browser timeout, empty snapshot, unreliable editor entry, uncertain
-import, or uncertain save result.
+Use only after `content_validate.valid=true` for `carrier=wechat_article` and
+a current user request or active Profile that explicitly authorize placement **and saving a draft**. Never click publish,
+mass send, schedule, declare originality, monetize or manage an account.
 
-Transient handoff packages, `article-import.docx`, observations, and browser
-diagnostics belong in the current Job or `runs/<run_id>/`; never leave document
-imports, clipboard payloads, previews, or loose JSON at the state-root top level.
+## One entry, one target
 
-## Authorization gate
+1. Read [guarded-handoff.md](references/guarded-handoff.md) and use
+   `wechat_prepare → wechat_step → wechat_bind`. These gates are mandatory for
+   new handoffs and corrections. Do not copy an old `runs/*/upload*.mjs`, invent
+   another DOCX builder, or write successful Observation flags by hand.
+2. `wechat_prepare` validates Content, generates and verifies the exact
+   `article-import.docx`, and returns the durable checkpoint and `next_action`.
+   Supply the intended public account name from current authorization/Profile,
+   not a historical token. Missing account identity grants no mutation.
+3. Collect a fresh, read-only `collectHandoffSnapshot` from
+   `scripts/browser-adapter.js`, using the controller's actual browser/tab IDs
+   and selectors inspected in the current visible UI. Unknown is not success.
+   Read [editor-checklist.md](references/editor-checklist.md) for UI-specific checks.
+4. Follow the checkpoint, not a remembered sequence. `begin_import` and
+   `begin_save` reserve one mutation **before** its browser action; only a response
+   with `mutation_permitted=true` permits that one action. A lost response does
+   not permit replay. All other steps are read-only checks.
+5. Import only `document_import.path` / the granted `upload_path`, then run
+   `verify_import`. A long body, any dialog, or an upload-complete signal cannot
+   prove import success. The gate compares the entire normalized body and all
+   intended images to the exact Content. See
+   [document-import.md](references/document-import.md).
+6. Set the approved title/summary, explicitly choose the original-video cover
+   and confirm its crop, leave author blank and originality undeclared. When
+   required, select **“内容由AI生成”** using the inspected visible
+   `creationSourceSelector`. Then reserve `begin_save` and save as draft once.
+7. Observe a stable numeric `appmsgid` with `saved`, refresh or reopen the same
+   draft, and call `readback` with a fresh post-refresh snapshot. Check the actual
+   opening, middle, and ending; full-body fingerprinting complements, not replaces,
+   the Agent's semantic review. Cover must remain visible/non-zero, and the same
+   draft-list card must prove persistent cover-media fields and crop data.
+8. Bind only the Observation returned by `readback` via `wechat_bind`.
+   Require `validation.valid=true` and `published=false`. For authorized revisions,
+   `wechat_prepare(replace_existing_draft=true)` returns the exact original
+   `appmsgid` and `supersedes_receipt_id`; never create a replacement draft.
 
-The current user request or active automation Profile must explicitly authorize
-both editor placement and draft saving. Historical browser login or an existing
-Content object is not authorization. If saving is not in scope, do not fabricate
-a Draft Receipt.
+## Recovery and completion
 
-## Main flow
+- Re-running `wechat_prepare` resumes the existing checkpoint; `resume_pending`
+  is **not** permission to create an editor. Legacy in-progress Jobs enter
+  `recovery_required` rather than assuming the earlier save failed.
+- Read [recovery-and-readback.md](references/recovery-and-readback.md) on ambiguity.
+  Preserve the editor while inspecting a separate list view. No blind retries,
+  repeated imports, mixed clipboard/DOCX transports, or changes to Content to make
+  an upload appear successful.
+- Never save a second draft when a valid Draft Receipt already exists. A technical
+  timeout is not login loss; `paused_auth` requires an actual visible login page.
+- Every body image requires `natural_width`, `natural_height`, displayed width
+  and height, correct aspect ratio, load completion and zero local-path markers.
+  `wechat_bind` reconstructs expectations from Content Artifact bytes; an
+  internally consistent stretched image is not proof of source fidelity.
+- New/corrected observations use `video-content/wechat-editor-observation-v4`.
+  A save toast or numeric ID alone is not completion; refresh readback and a
+  valid current Receipt close the Job before the next one enters WeChat.
 
-1. Call `wechat_prepare` with `authorized=true` and `save_draft=true`. It rejects
-   invalid Content and ordinary attempts to create a second draft. For an
-   explicitly authorized correction of an existing draft, also pass
-   `replace_existing_draft=true`; the handoff must return the current numeric
-   `appmsgid` and `supersedes_receipt_id`.
-2. Validate the reconstructed package and choose one transport. For an
-   image-rich article, prefer a validated `article-import.docx` whose text and
-   embedded-image order match the exact final Content. Each embedded image must
-   use the final Content Artifact bytes, and its DOCX display extent must preserve
-   the image pixel aspect ratio; constrain maximum width only and let height scale
-   automatically. Use `scripts/prepare_clipboard.py` only as a transient rich-HTML
-   fallback. Never mix DOCX import and clipboard placement in the same editor
-   state, persist the HTML/Base64 payload, or read the previous clipboard.
-3. Use the current editor's visible document-import control for DOCX, or
-   `scripts/browser-adapter.js` for the clipboard path. When a creation-source
-   declaration is required, pass the inspected visible control selector as
-   `creationSourceSelector`; the snapshot must report exactly one selected
-   “内容由AI生成” candidate. If the editor target, import state, or declaration
-   control is ambiguous, stop rather than guess.
-4. Wait for document conversion or body placement to finish. Check the actual
-   opening, middle, and ending; require every intended image to be visible,
-   loadable, non-zero, and WeChat-hosted, in Content block order. Exclude zero-size
-   editor separator nodes. For each real image, compare natural width/height with
-   rendered width/height and stop if the aspect ratio changed. Confirm zero
-   local-path markers remain. An import-complete signal is not proof of a complete
-   body.
-5. Replace any import-derived placeholder title such as `article-import` with
-   the exact approved Content title, set the approved summary, and actively select
-   the original-video cover rather than trusting the editor's default candidate.
-   Leave author blank unless the user supplied an account author identity. When `required_declarations`
-   requests `creation_source=ai_generated`, select the visible WeChat option
-   **“内容由AI生成”** and capture the selected state. This is a creation-source
-   disclosure, not an originality declaration; do not select originality.
-6. Save only as draft. Require a stable numeric `appmsgid` and durable save
-   evidence. A revision must keep the exact previous `appmsgid`; otherwise it is
-   a second draft and must stop.
-7. Refresh or reopen the same draft and re-read title, body, images, cover,
-   summary, and creation-source control with a fresh Browser Adapter snapshot. A
-   transient toast or the pre-save DOM state is insufficient.
-   If any browser read or click times out, retry observation against the same
-   visible target first; do not open a second editor until the current target has
-   been ruled out.
-8. For any image-bearing draft, build a no-secret
-   `video-content/wechat-editor-observation-v3`; it records each real image's
-   `natural_width`, `natural_height`, displayed `width`, and displayed `height`.
-   When the AI creation-source declaration is required, record `declared=true`,
-   `type=ai_generated`, and `read_back=true` only from the selected pre-save state
-   plus the fresh post-refresh snapshot. Then call `wechat_bind`. For a revision,
-   pass the returned `supersedes_receipt_id`. Require `validation.valid=true` and
-   `published=false`.
+Checkpoint: `jobs/<job_id>/work/wechat-handoff.json`. Transport:
+`work/<content_id>/handoff-package/document-import/article-import.docx`.
+They belong to the existing Job, not a new business product or state root.
+Preserve active checkpoints across restarts. Store no cookies, tokens, browser storage,
+clipboard payloads or image CDN URLs. `scripts/prepare_clipboard.py`
+remains a low-level diagnostic helper, not a bypass of this guarded DOCX route;
+implicit clipboard fallback is disabled. After two explicitly failed DOCX imports in the same confirmed empty editor, only the guarded `begin_clipboard` action may reserve one canonical fallback; see guarded-handoff.md.
 
-## Observation must prove
-
-- current Content SHA-256 and exact title;
-- stable numeric `appmsgid`;
-- intended image count and order equal the visible loaded WeChat-hosted body
-  images, regardless of DOCX or clipboard transport;
-- every real body image has positive natural and displayed dimensions, while
-  zero-size editor separators are excluded;
-- each image's natural and displayed width/height ratios match within the v3
-  tolerance, so a fixed editor box cannot silently stretch the source frame;
-- zero local-path markers;
-- cover selected and summary filled;
-- save mode is `draft`;
-- refresh readback was performed on the same draft and content remains present;
-- when required, “内容由AI生成” had exactly one selected visible control before
-  save and was selected again in a fresh post-refresh snapshot;
-- a revision retained the same `appmsgid` and superseded exactly one prior Receipt;
-- `published=false`.
-
-## Browser and secret boundary
-
-The Browser Adapter observes visible controls only. Choose the browser target from
-its current authenticated state and actual control capabilities; do not hard-code
-Chrome, the in-app browser, or a historical tab. `setFiles: Not allowed` is a
-controller-capability failure, not a bad DOCX path, so copying the same file to
-another directory is not recovery. Re-read the same target first; if the tab is
-stale, open a new Agent-controlled tab only within the same authenticated browser
-session before retrying the single upload. Persist no cookies, tokens, raw image
-URLs, browser storage, URL query tokens, QR-login data, or clipboard payload.
-Login is a legitimate human boundary; credentials are never requested.
-
-## Hard boundaries
-
-- Never overwrite unrelated editor content based on a guessed target, and never
-  layer a clipboard retry over an uncertain DOCX import.
-- Never save a second draft when a valid Draft Receipt already exists. An
-  authorized revision may update only that same platform draft and must create a
-  superseding Receipt rather than hiding or overwriting history.
-- Never click publish, mass send, schedule, originality, monetization, or account
-  management controls. Selecting “内容由AI生成” is allowed only as the required
-  creation-source disclosure.
-- Never report completion until refresh readback and receipt validation pass.
+The canonical DOCX is a standard-OXML compatibility candidate, not a live WeChat compatibility proof. After two explicit failures in the same empty editor, use only the guarded fallback and retain the failed package for diagnosis.

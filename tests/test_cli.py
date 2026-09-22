@@ -21,7 +21,7 @@ def test_cli_exposes_only_grouped_v1_surface() -> None:
         "media": {"extract-frame"},
         "content": {"save-transcript", "save", "validate"},
         "watch-later": {"scan"},
-        "wechat": {"prepare", "bind"},
+        "wechat": {"prepare", "step", "bind"},
     }
     help_text = build_parser().format_help()
     for group in COMMAND_SURFACE:

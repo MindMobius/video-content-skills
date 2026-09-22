@@ -20,6 +20,7 @@ from .platforms.watch_later import OpenCliWatchLaterSource
 from .store import Store
 from .wechat import wechat_bind as bind_wechat
 from .wechat import wechat_prepare as prepare_wechat
+from .wechat_handoff import HandoffAction, advance_checkpoint
 
 
 def system_setup(
@@ -297,6 +298,7 @@ def wechat_prepare(
     save_draft: bool,
     copy_to_clipboard: bool = False,
     replace_existing_draft: bool = False,
+    account_name: str | None = None,
 ) -> dict[str, Any]:
     return prepare_wechat(
         _store(home),
@@ -306,6 +308,26 @@ def wechat_prepare(
         save_draft=save_draft,
         copy_to_clipboard=copy_to_clipboard,
         replace_existing_draft=replace_existing_draft,
+        account_name=account_name,
+    )
+
+
+def wechat_step(
+    job_id: str,
+    content_id: str,
+    action: HandoffAction,
+    expected_revision: int,
+    snapshot: dict[str, Any],
+    *,
+    home: str | None = None,
+) -> dict[str, Any]:
+    return advance_checkpoint(
+        _store(home),
+        job_id,
+        content_id,
+        action=action,
+        expected_revision=expected_revision,
+        snapshot=snapshot,
     )
 
 

@@ -12,6 +12,14 @@ from video_content.store import Store
 from video_content.wechat import wechat_prepare
 
 
+@pytest.fixture(autouse=True)
+def _source_geometry(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "video_content.content.probe_video_geometry",
+        lambda path: {"source_display_aspect_ratio": "16:9"},
+    )
+
+
 def _png_bytes(
     width: int, height: int, *, rgb: tuple[int, int, int] = (32, 64, 96)
 ) -> bytes:

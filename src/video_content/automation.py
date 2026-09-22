@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 from .models import Profile
@@ -90,16 +91,25 @@ def watch_later_scan(
     baseline = dict(profile.get("baseline") or {})
     seen = {str(value) for value in baseline.get("seen") or []}
     current = {_entry_key(entry.bvid, entry.page) for entry in entries}
+    previous_watermark = _normalize_timestamp(
+        baseline.get("latest_added_at"), label="Profile latest_added_at"
+    )
+    known_reentries = _known_reentries(entries, seen, previous_watermark)
     initialized = not seen and baseline_if_empty
     if initialized:
         new_entries: list[WatchLaterEntry] = []
         ignored_unseen: list[WatchLaterEntry] = []
         detection_mode = "baseline_initialization"
         watermark = _latest_added_at(entries)
+        watermark_source = "current_snapshot"
     else:
-        new_entries, ignored_unseen, detection_mode, watermark = (
-            _detect_new_watch_later_entries(entries, seen, baseline)
-        )
+        (
+            new_entries,
+            ignored_unseen,
+            detection_mode,
+            watermark,
+            watermark_source,
+        ) = _detect_new_watch_later_entries(entries, seen, baseline)
     run_id = new_id("run")
     created: list[str] = []
     existing: list[str] = []
@@ -123,10 +133,35 @@ def watch_later_scan(
             profile_id=profile_id,
         )
         (existing if reused else created).append(job["job_id"])
-    baseline["seen"] = sorted(seen | current)
+    new_keys = {_entry_key(entry.bvid, entry.page) for entry in new_entries}
+    ignored_keys = {_entry_key(entry.bvid, entry.page) for entry in ignored_unseen}
+    known_reentry_keys = {
+        _entry_key(entry.bvid, entry.page) for entry in known_reentries
+    }
+    pending_ignored = {
+        str(value) for value in baseline.get("pending_ignored_unseen") or []
+    }
+    pending_ignored.difference_update(seen | new_keys)
+    pending_ignored.update(ignored_keys)
+    decision = {
+        "schema_version": "video-content/watch-later-decision-v1",
+        "run_id": run_id,
+        "detection_mode": detection_mode,
+        "detection_watermark": watermark,
+        "detection_watermark_source": watermark_source,
+        "new": sorted(new_keys),
+        "ignored_unseen": sorted(ignored_keys),
+        "known_reentries": sorted(known_reentry_keys),
+    }
+    baseline["seen"] = sorted(seen | (current - ignored_keys))
+    if pending_ignored:
+        baseline["pending_ignored_unseen"] = sorted(pending_ignored)
+    else:
+        baseline.pop("pending_ignored_unseen", None)
     baseline["last_scan_at"] = utc_now()
     baseline["last_entry_count"] = len(entries)
     baseline["last_run_id"] = run_id
+    baseline["last_scan_decision"] = decision
     latest_added_at = _latest_added_at(entries, baseline.get("latest_added_at"))
     if latest_added_at is not None:
         baseline["latest_added_at"] = latest_added_at
@@ -139,9 +174,16 @@ def watch_later_scan(
         "baseline_initialized": initialized,
         "entry_count": len(entries),
         "new_entry_count": len(new_entries),
+        "new_entries": [entry.as_dict() for entry in new_entries],
         "ignored_unseen_entry_count": len(ignored_unseen),
+        "ignored_unseen_entries": [entry.as_dict() for entry in ignored_unseen],
+        "known_reentry_count": len(known_reentries),
+        "known_reentries": [entry.as_dict() for entry in known_reentries],
+        "pending_ignored_unseen_count": len(pending_ignored),
+        "pending_ignored_unseen": sorted(pending_ignored),
         "detection_mode": detection_mode,
         "detection_watermark": watermark,
+        "detection_watermark_source": watermark_source,
         "created_jobs": created,
         "existing_jobs": existing,
         "profile": saved_profile,
@@ -156,60 +198,116 @@ def _detect_new_watch_later_entries(
     entries: list[WatchLaterEntry],
     seen: set[str],
     baseline: dict[str, Any],
-) -> tuple[list[WatchLaterEntry], list[WatchLaterEntry], str, str | None]:
+) -> tuple[
+    list[WatchLaterEntry],
+    list[WatchLaterEntry],
+    str,
+    str | None,
+    str,
+]:
     unseen = [
         entry for entry in entries if _entry_key(entry.bvid, entry.page) not in seen
     ]
     if not seen:
-        return unseen, [], "empty_profile", _latest_added_at(entries)
+        return (
+            unseen,
+            [],
+            "empty_profile",
+            _latest_added_at(entries),
+            "current_snapshot",
+        )
 
     overlap = [entry for entry in entries if _entry_key(entry.bvid, entry.page) in seen]
     first_overlap_position = min(
         (entry.position for entry in overlap),
         default=None,
     )
-    watermark = _latest_added_at(overlap, baseline.get("latest_added_at"))
-
-    if watermark is not None:
-        new_entries: list[WatchLaterEntry] = []
-        ignored: list[WatchLaterEntry] = []
-        for entry in unseen:
-            is_newer = entry.added_at is not None and entry.added_at > watermark
-            ties_front_anchor = (
-                entry.added_at == watermark
-                and first_overlap_position is not None
-                and entry.position < first_overlap_position
-            )
-            missing_timestamp_front_anchor = (
-                entry.added_at is None
-                and first_overlap_position is not None
-                and entry.position < first_overlap_position
-            )
-            if is_newer or ties_front_anchor or missing_timestamp_front_anchor:
-                new_entries.append(entry)
-            else:
-                ignored.append(entry)
-        return new_entries, ignored, "timestamp_watermark", watermark
-
-    if first_overlap_position is not None:
-        new_entries = [
-            entry for entry in unseen if entry.position < first_overlap_position
-        ]
-        ignored = [
-            entry for entry in unseen if entry.position >= first_overlap_position
-        ]
-        return new_entries, ignored, "ordered_anchor", None
-
-    raise ValueError(
-        "Watch Later scan cannot distinguish new entries from historical backfill: "
-        "the current window has no baseline overlap or added_at watermark"
+    watermark = _normalize_timestamp(
+        baseline.get("latest_added_at"), label="Profile latest_added_at"
     )
+    if watermark is None:
+        if not unseen:
+            return [], [], "stable_identity_only", None, "none"
+        raise ValueError(
+            "Watch Later scan requires the persisted pre-scan latest_added_at "
+            "watermark when the Profile already has unseen identities; repair or "
+            "reinitialize the baseline instead of inferring from current rows"
+        )
+
+    watermark_value = _timestamp_value(watermark, label="detection watermark")
+    new_entries: list[WatchLaterEntry] = []
+    ignored: list[WatchLaterEntry] = []
+    for entry in unseen:
+        entry_value = (
+            _timestamp_value(entry.added_at, label="Watch Later added_at")
+            if entry.added_at is not None
+            else None
+        )
+        is_newer = entry_value is not None and entry_value > watermark_value
+        ties_front_anchor = (
+            entry_value == watermark_value
+            and first_overlap_position is not None
+            and entry.position < first_overlap_position
+        )
+        missing_timestamp_front_anchor = (
+            entry.added_at is None
+            and first_overlap_position is not None
+            and entry.position < first_overlap_position
+        )
+        if is_newer or ties_front_anchor or missing_timestamp_front_anchor:
+            new_entries.append(entry)
+        else:
+            ignored.append(entry)
+    return new_entries, ignored, "timestamp_watermark", watermark, "profile"
+
+
+def _known_reentries(
+    entries: list[WatchLaterEntry], seen: set[str], watermark: str | None
+) -> list[WatchLaterEntry]:
+    if not seen or watermark is None:
+        return []
+    watermark_value = _timestamp_value(watermark, label="Profile latest_added_at")
+    return [
+        entry
+        for entry in entries
+        if _entry_key(entry.bvid, entry.page) in seen
+        and entry.added_at is not None
+        and _timestamp_value(entry.added_at, label="Watch Later added_at")
+        > watermark_value
+    ]
 
 
 def _latest_added_at(
     entries: list[WatchLaterEntry], previous: Any = None
 ) -> str | None:
     values = [entry.added_at for entry in entries if entry.added_at is not None]
-    if isinstance(previous, str) and previous:
-        values.append(previous)
-    return max(values, default=None)
+    normalized_previous = _normalize_timestamp(
+        previous, label="Profile latest_added_at"
+    )
+    if normalized_previous is not None:
+        values.append(normalized_previous)
+    if not values:
+        return None
+    latest = max(
+        _timestamp_value(value, label="Watch Later added_at") for value in values
+    )
+    return latest.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _normalize_timestamp(value: Any, *, label: str) -> str | None:
+    if value is None or value == "":
+        return None
+    parsed = _timestamp_value(value, label=label)
+    return parsed.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _timestamp_value(value: Any, *, label: str) -> datetime:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be a timestamp string")
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(f"{label} is invalid") from error
+    if parsed.tzinfo is None:
+        raise ValueError(f"{label} requires a timezone")
+    return parsed.astimezone(timezone.utc)
