@@ -36,3 +36,19 @@ After save:
 - pass the fresh snapshot to `wechat_step readback`; use its generated Observation, never hand-fill `creation_source.read_back=true` from an earlier click or save toast;
 - a revision still has the exact previous numeric `appmsgid`;
 - observation contains no raw URLs, tokens, storage, cookies, or clipboard HTML.
+
+## 实测过的编辑器操作要点（2026-09-23）
+
+- 正文可能有两个 `.ProseMirror`：`.title-editor__input` 是标题，`#ueditor_0 .ProseMirror`
+  （或 `.mock-iframe-body .ProseMirror`）才是正文；采集器必须区分，账号在编辑器页是
+  `.appmsg_account_name`，`#title` 是隐藏后备字段。
+- 标题输入：用可信点击（CDP）聚焦标题编辑器后直接 `execCommand insertText`；
+  **禁止 `execCommand selectAll`**——它会越过编辑器边界选中正文，一次插入就能毁掉整篇正文。
+  一旦发生，聚焦正文 Ctrl+Z 可恢复，然后不用 selectAll 重试。
+- DOCX 官方导入的图片不注册为"正文图片"，封面弹层的"从正文选择"会报无可用图；
+  走"从图片库选择"，用正文首图的 mmbiz URL 在缩略图中精确匹配。封面弹层需要先
+  hover 再点击才展开。
+- DataTransfer 合成粘贴（ClipboardEvent(paste, {clipboardData})）会被 ueditor 接受并
+  触发图片上传管线；拖拽 File 的合成 DragEvent 不会被上传组件接受。
+- 图片上传后正文会残留 display:none、0 尺寸的占位 img，采集器必须过滤零尺寸节点
+  （与 Observation v4 的"零尺寸编辑器分隔节点不计入正文图"一致）。
